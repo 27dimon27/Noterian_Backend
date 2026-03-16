@@ -4,8 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/mock"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
@@ -16,16 +15,15 @@ var (
 	ErrNoteIDRequired = errors.New("note id is required")
 	ErrInvalidNoteID  = errors.New("invalid note id")
 	ErrNoteNotFound   = errors.New("note not found")
-	ErrInvalidPath    = errors.New("invalid path")
 )
 
 type NoteHandler struct {
-	mockData *mock.MockData
+	noteRepo *storage.NoteRepository
 }
 
-func NewNoteHandler(mockData *mock.MockData) *NoteHandler {
+func NewNoteHandler(noteRepo *storage.NoteRepository) *NoteHandler {
 	return &NoteHandler{
-		mockData: mockData,
+		noteRepo: noteRepo,
 	}
 }
 
@@ -42,20 +40,15 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userNotes []models.Note
-	for _, note := range h.mockData.Notes {
-		if note.UserID == userUUID {
-			userNotes = append(userNotes, note)
-		}
-	}
-
-	if len(userNotes) == 0 {
-		userNotes = h.mockData.Notes
+	notes, err := h.noteRepo.GetNotesByUserID(userUUID)
+	if err != nil {
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
 	}
 
 	response := map[string]interface{}{
-		"notes": userNotes,
-		"total": len(userNotes),
+		"notes": notes,
+		"total": len(notes),
 	}
 
 	helpers.JSONResponse(w, http.StatusOK, response)
@@ -74,39 +67,26 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var foundNote *models.Note
-	for _, note := range h.mockData.Notes {
-		if note.ID == noteID {
-			foundNote = &note
-			break
-		}
+	note, err := h.noteRepo.GetNoteByID(noteID)
+	if err != nil {
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
 	}
 
-	if foundNote == nil {
+	if note == nil {
 		helpers.JSONErrorResponse(w, http.StatusNotFound, ErrNoteNotFound)
 		return
 	}
 
-	blocks := h.mockData.GetBlocksByNoteID(foundNote.ID)
-
-	blocksWithStates := make([]map[string]interface{}, 0, len(blocks))
-	for _, block := range blocks {
-		states := h.mockData.GetBlockStatesByBlockID(block.ID)
-
-		blockData := map[string]interface{}{
-			"id":       block.ID,
-			"note_id":  block.NoteID,
-			"type_id":  block.BlockTypeID,
-			"position": block.Position,
-			"content":  block.Content,
-			"states":   states,
-		}
-		blocksWithStates = append(blocksWithStates, blockData)
+	blocks, err := h.noteRepo.GetBlocksWithStatesByNoteID(noteID)
+	if err != nil {
+		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
 	}
 
 	response := map[string]interface{}{
-		"note":   foundNote,
-		"blocks": blocksWithStates,
+		"note":   note,
+		"blocks": blocks,
 	}
 
 	helpers.JSONResponse(w, http.StatusOK, response)

@@ -12,6 +12,7 @@ const (
 	DEFAULT_COOKIE_NAME      = "NoterianCookieJWT"
 	DEFAULT_COOKIE_TIME_JWT  = 3600
 	DEFAULT_SHUTDOWN_TIMEOUT = 5
+	DEFAULT_DB_PORT          = "5432"
 )
 
 type JWTConfig struct {
@@ -26,9 +27,19 @@ type ServerConfig struct {
 	ShutdownTimeout time.Duration
 }
 
+type DBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+}
+
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
+	DB     DBConfig
 }
 
 func Load() *Config {
@@ -73,6 +84,14 @@ func Load() *Config {
 		Server: ServerConfig{
 			Port:            port,
 			ShutdownTimeout: shutdownTimeout,
+		},
+		DB: DBConfig{
+			Host:     os.Getenv("DB_HOST"),
+			Port:     os.Getenv("DB_PORT"),
+			User:     os.Getenv("DB_USER"),
+			Password: os.Getenv("DB_PASSWORD"),
+			Name:     os.Getenv("DB_NAME"),
+			SSLMode:  os.Getenv("DB_SSL_MODE"),
 		},
 	}
 }

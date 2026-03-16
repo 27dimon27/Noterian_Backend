@@ -11,6 +11,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/router"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage"
 )
 
 func main() {
@@ -18,10 +19,19 @@ func main() {
 
 	cfg := config.Load()
 
+	database, err := storage.NewPostgresConnection(cfg.DB)
+	if err != nil {
+		log.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer database.Close()
+
+	log.Info("Connected to database successfully")
+
 	addr := ":" + cfg.Server.Port
 
 	srv := &http.Server{
-		Handler: router.New(cfg),
+		Handler: router.New(cfg, database),
 		Addr:    addr,
 	}
 
