@@ -62,7 +62,7 @@ func Load() *Config {
 
 	cookieTimeJWT := DEFAULT_COOKIE_TIME_JWT * time.Second
 	if strCookieTimeJWT := os.Getenv("COOKIE_TIME_JWT"); strCookieTimeJWT != "" {
-		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err != nil {
+		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err == nil {
 			cookieTimeJWT = time.Duration(intCookieTimeJWT) * time.Second
 		}
 	}

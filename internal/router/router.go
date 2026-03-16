@@ -4,11 +4,16 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
+	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
+	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
+	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
+
+	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
+	notesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
+	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage"
 )
 
 func pingHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,11 +25,13 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func New(cfg *config.Config, db *sql.DB) http.Handler {
-	userRepo := storage.NewUserRepository(db)
-	authHandler := auth.NewHandler(cfg.JWT, userRepo)
+	userRepo := authRepo.NewUserRepository(db)
+	authUsecase := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
+	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
 
-	noteRepo := storage.NewNoteRepository(db)
-	noteHandler := notes.NewNoteHandler(noteRepo)
+	noteRepo := notesRepo.NewNoteRepository(db)
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
+	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
 	r := http.NewServeMux()
 

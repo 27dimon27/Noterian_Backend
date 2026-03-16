@@ -1,46 +1,44 @@
-package storage
+package repository
 
 import (
 	"database/sql"
 	"errors"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrUserExist    = errors.New("Пользователь с таким логином уже существует!")
-	ErrUserNotExist = errors.New("Пользователь не найден!")
-)
+type UserRepository interface {
+	CreateUser(login, password string) (*models.Account, error)
+	ValidateUser(login, password string) (*models.Account, error)
+}
 
-type UserRepository struct {
+type userRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository(db *sql.DB) UserRepository {
+	return &userRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(login, password string) (*models.Account, error) {
-	// Проверяем, существует ли пользователь
+func (r *userRepository) CreateUser(login, password string) (*models.Account, error) {
 	var exists bool
 	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE username = $1)", login).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
 	if exists {
-		return nil, ErrUserExist
+		return nil, auth.ErrUserExist
 	}
 
-	// Хешируем пароль
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	// Создаем пользователя
 	user := &models.Account{
 		ID:           uuid.New(),
 		Username:     login,
@@ -61,7 +59,7 @@ func (r *UserRepository) CreateUser(login, password string) (*models.Account, er
 	return user, nil
 }
 
-func (r *UserRepository) ValidateUser(login, password string) (*models.Account, error) {
+func (r *userRepository) ValidateUser(login, password string) (*models.Account, error) {
 	user := &models.Account{}
 
 	err := r.db.QueryRow(
@@ -70,14 +68,14 @@ func (r *UserRepository) ValidateUser(login, password string) (*models.Account, 
 	).Scan(&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotExist
+			return nil, auth.ErrUserNotExist
 		}
 		return nil, err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return nil, ErrUserNotExist
+		return nil, auth.ErrUserNotExist
 	}
 
 	return user, nil

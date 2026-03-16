@@ -1,29 +1,23 @@
-package notes
+package handler
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 	"github.com/google/uuid"
 )
 
-var (
-	ErrNoteIDRequired = errors.New("note id is required")
-	ErrInvalidNoteID  = errors.New("invalid note id")
-	ErrNoteNotFound   = errors.New("note not found")
-)
-
 type NoteHandler struct {
-	noteRepo *storage.NoteRepository
+	noteUsecase usecase.NoteUsecase
 }
 
-func NewNoteHandler(noteRepo *storage.NoteRepository) *NoteHandler {
+func NewNoteHandler(noteUsecase usecase.NoteUsecase) *NoteHandler {
 	return &NoteHandler{
-		noteRepo: noteRepo,
+		noteUsecase: noteUsecase,
 	}
 }
 
@@ -36,11 +30,11 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, ErrInvalidNoteID)
+		helpers.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
 		return
 	}
 
-	notes, err := h.noteRepo.GetNotesByUserID(userUUID)
+	notes, err := h.noteUsecase.GetNotesByUserID(userUUID)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -57,28 +51,28 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("id")
 	if noteIDStr == "" {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, ErrNoteIDRequired)
+		helpers.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, ErrInvalidNoteID)
+		helpers.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
 		return
 	}
 
-	note, err := h.noteRepo.GetNoteByID(noteID)
+	note, err := h.noteUsecase.GetNoteByID(noteID)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	if note == nil {
-		helpers.JSONErrorResponse(w, http.StatusNotFound, ErrNoteNotFound)
+		helpers.JSONErrorResponse(w, http.StatusNotFound, notes.ErrNoteNotFound)
 		return
 	}
 
-	blocks, err := h.noteRepo.GetBlocksWithStatesByNoteID(noteID)
+	blocks, err := h.noteUsecase.GetBlocksWithStatesByNoteID(noteID)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return

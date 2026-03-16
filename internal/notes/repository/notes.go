@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"database/sql"
@@ -9,15 +9,21 @@ import (
 	"github.com/google/uuid"
 )
 
-type NoteRepository struct {
+type NoteRepository interface {
+	GetNotesByUserID(userID uuid.UUID) ([]models.Note, error)
+	GetNoteByID(noteID uuid.UUID) (*models.Note, error)
+	GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error)
+}
+
+type noteRepository struct {
 	db *sql.DB
 }
 
-func NewNoteRepository(db *sql.DB) *NoteRepository {
-	return &NoteRepository{db: db}
+func NewNoteRepository(db *sql.DB) NoteRepository {
+	return &noteRepository{db: db}
 }
 
-func (r *NoteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, error) {
+func (r *noteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.Query(
 		"SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY updated_at DESC",
 		userID,
@@ -55,7 +61,7 @@ func (r *NoteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, erro
 	return notes, nil
 }
 
-func (r *NoteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
+func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	var note models.Note
 	var parentID sql.NullString
 
@@ -81,7 +87,7 @@ func (r *NoteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	return &note, nil
 }
 
-func (r *NoteRepository) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error) {
+func (r *noteRepository) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error) {
 	rows, err := r.db.Query(`
 		SELECT 
 			b.id, b.note_id, b.block_type_id, b.position, b.content,
