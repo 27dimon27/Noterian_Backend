@@ -24,11 +24,14 @@ func NewMockData() *MockData {
 func basicState(block models.Block) models.BlockState {
 	stateID := uuid.New()
 	return models.BlockState{
-		ID:         stateID,
-		BlockID:    block.ID,
-		Formatting: `{"format":"text","tags":["пример","тест","мок"]}`,
-		CreatedAt:  time.Now().AddDate(0, -1, 0),
-		UpdatedAt:  time.Now(),
+		ID:      stateID,
+		BlockID: block.ID,
+		Formatting: map[string]interface{}{
+			"format": "text",
+			"tags":   []string{"пример", "тест", "мок"},
+		},
+		CreatedAt: time.Now().AddDate(0, -1, 0),
+		UpdatedAt: time.Now(),
 	}
 }
 

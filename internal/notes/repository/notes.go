@@ -2,32 +2,45 @@ package repository
 
 import (
 	"database/sql"
+	"embed"
 	"encoding/json"
 	"errors"
+	"sort"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
 )
+
+//go:embed queries/*.sql
+var queriesFS embed.FS
 
 type NoteRepository interface {
 	GetNotesByUserID(userID uuid.UUID) ([]models.Note, error)
 	GetNoteByID(noteID uuid.UUID) (*models.Note, error)
-	GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error)
+	GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error)
 }
 
 type noteRepository struct {
-	db *sql.DB
+	db      *sql.DB
+	queries map[string]string
 }
 
-func NewNoteRepository(db *sql.DB) NoteRepository {
-	return &noteRepository{db: db}
+func NewNoteRepository(db *sql.DB) (NoteRepository, error) {
+	queries, err := queries.LoadQueries(queriesFS, "queries")
+	if err != nil {
+		return nil, err
+	}
+
+	return &noteRepository{
+		db:      db,
+		queries: queries,
+	}, nil
 }
 
 func (r *noteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, error) {
-	rows, err := r.db.Query(
-		"SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY updated_at DESC",
-		userID,
-	)
+	rows, err := r.db.Query(r.queries["get_notes_by_user"], userID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +78,9 @@ func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	var note models.Note
 	var parentID sql.NullString
 
-	err := r.db.QueryRow(
-		"SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE id = $1",
-		noteID,
-	).Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt)
+	err := r.db.QueryRow(r.queries["get_note_by_id"], noteID).Scan(
+		&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -87,22 +99,14 @@ func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	return &note, nil
 }
 
-func (r *noteRepository) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error) {
-	rows, err := r.db.Query(`
-		SELECT 
-			b.id, b.note_id, b.block_type_id, b.position, b.content,
-			bs.id, bs.formatting, bs.created_at, bs.updated_at
-		FROM blocks b
-		LEFT JOIN block_states bs ON b.id = bs.block_id
-		WHERE b.note_id = $1
-		ORDER BY b.position, bs.created_at
-	`, noteID)
+func (r *noteRepository) GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error) {
+	rows, err := r.db.Query(r.queries["get_blocks_by_note"], noteID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	blocksMap := make(map[string]map[string]interface{})
+	blocksMap := make(map[uuid.UUID]*models.Block)
 
 	for rows.Next() {
 		var (
@@ -123,34 +127,41 @@ func (r *noteRepository) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[st
 			return nil, err
 		}
 
-		blockKey := blockID.String()
-		if _, exists := blocksMap[blockKey]; !exists {
-			blocksMap[blockKey] = map[string]interface{}{
-				"id":       blockID.String(),
-				"note_id":  noteID.String(),
-				"type_id":  blockTypeID,
-				"position": position,
-				"content":  content,
-				"states":   []map[string]interface{}{},
+		block, exists := blocksMap[blockID]
+		if !exists {
+			block = &models.Block{
+				ID:          blockID,
+				NoteID:      noteID,
+				BlockTypeID: blockTypeID,
+				Position:    position,
+				Content:     content,
+				States:      []models.BlockState{},
 			}
+			blocksMap[blockID] = block
 		}
 
 		if stateID.Valid {
 			var formattingData map[string]interface{}
 			if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-				formattingData = map[string]interface{}{"format": "text"}
+				formattingData = map[string]interface{}{
+					"format": "text",
+				}
 			}
 
-			state := map[string]interface{}{
-				"ID":         stateID.String,
-				"BlockID":    blockID.String(),
-				"Formatting": formattingData,
-				"CreatedAt":  stateCreatedAt.Time,
-				"UpdatedAt":  stateUpdatedAt.Time,
+			stateUUID, err := uuid.Parse(stateID.String)
+			if err != nil {
+				return nil, notes.ErrinvalidUUID
 			}
 
-			states := blocksMap[blockKey]["states"].([]map[string]interface{})
-			blocksMap[blockKey]["states"] = append(states, state)
+			state := models.BlockState{
+				ID:         stateUUID,
+				BlockID:    blockID,
+				Formatting: formattingData,
+				CreatedAt:  stateCreatedAt.Time,
+				UpdatedAt:  stateUpdatedAt.Time,
+			}
+
+			block.States = append(block.States, state)
 		}
 	}
 
@@ -158,10 +169,14 @@ func (r *noteRepository) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[st
 		return nil, err
 	}
 
-	blocks := make([]map[string]interface{}, 0, len(blocksMap))
+	blocks := make([]models.Block, 0, len(blocksMap))
 	for _, block := range blocksMap {
-		blocks = append(blocks, block)
+		blocks = append(blocks, *block)
 	}
+
+	sort.Slice(blocks, func(i, j int) bool {
+		return blocks[i].Position < blocks[j].Position
+	})
 
 	return blocks, nil
 }

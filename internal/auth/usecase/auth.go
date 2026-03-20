@@ -8,8 +8,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -19,25 +19,29 @@ const (
 type AuthUsecase interface {
 	CreateUser(login, password string) (*models.Account, error)
 	ValidateUser(login, password string) (*models.Account, error)
-	GenerateToken(userID string) (string, error)
+	// GenerateToken(userID string) (string, error)
 }
 
 type authUsecase struct {
 	userRepo  repository.UserRepository
 	jwtConfig config.JWTConfig
+	validate  *validator.Validate
 }
 
 func NewAuthUsecase(userRepo repository.UserRepository, jwtConfig config.JWTConfig) AuthUsecase {
-	initValidator()
+	validate := validator.New()
+	initValidator(validate)
+
 	return &authUsecase{
 		userRepo:  userRepo,
 		jwtConfig: jwtConfig,
+		validate:  validate,
 	}
 }
 
-func initValidator() {
-	auth.Validate.RegisterValidation("login", validateLogin)
-	auth.Validate.RegisterValidation("password", validatePassword)
+func initValidator(validate *validator.Validate) {
+	validate.RegisterValidation("login", validateLogin)
+	validate.RegisterValidation("password", validatePassword)
 }
 
 func validateLogin(fl validator.FieldLevel) bool {
@@ -78,11 +82,11 @@ func validatePassword(fl validator.FieldLevel) bool {
 }
 
 func (u *authUsecase) CreateUser(login, password string) (*models.Account, error) {
-	if err := auth.Validate.Var(login, "required,login"); err != nil {
+	if err := u.validate.Var(login, "required,login"); err != nil {
 		return nil, auth.ErrInvalidLogin
 	}
 
-	if err := auth.Validate.Var(password, "required,password"); err != nil {
+	if err := u.validate.Var(password, "required,password"); err != nil {
 		return nil, auth.ErrInvalidPassword
 	}
 
@@ -95,18 +99,23 @@ func (u *authUsecase) CreateUser(login, password string) (*models.Account, error
 }
 
 func (u *authUsecase) ValidateUser(login, password string) (*models.Account, error) {
-	user, err := u.userRepo.ValidateUser(login, password)
+	user, err := u.userRepo.GetUserByLogin(login)
 	if err != nil {
 		return nil, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		return nil, auth.ErrBadCredentials
 	}
 
 	return user, nil
 }
 
-func (u *authUsecase) GenerateToken(userID string) (string, error) {
-	tokenStr, err := jwt.GenerateToken(userID, u.jwtConfig.CookieTimeJWT, u.jwtConfig.Secret)
-	if err != nil {
-		return "", auth.ErrTokenCreation
-	}
-	return tokenStr, nil
-}
+// func (u *authUsecase) GenerateToken(userID string) (string, error) {
+// 	tokenStr, err := jwt.GenerateToken(userID, u.jwtConfig.CookieTimeJWT, u.jwtConfig.Secret)
+// 	if err != nil {
+// 		return "", auth.ErrTokenCreation
+// 	}
+// 	return tokenStr, nil
+// }

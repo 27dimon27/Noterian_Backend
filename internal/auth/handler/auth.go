@@ -12,6 +12,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
 type AuthHandler struct {
@@ -35,11 +36,12 @@ func getFromBody[T dto.SignInUser | dto.SignUpUser](r *http.Request, u *T) error
 	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
 		return err
 	}
-	return auth.Validate.Struct(u)
+	return nil
 }
 
 func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account) {
-	tokenStr, err := h.authUsecase.GenerateToken(user.ID.String())
+	// tokenStr, err := h.authUsecase.GenerateToken(user.ID.String())
+	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
 		return
@@ -47,7 +49,7 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     h.jwtConfig.CookieName,
-		Value:    tokenStr,
+		Value:    token,
 		HttpOnly: true,
 		Secure:   h.jwtConfig.Secure,
 		SameSite: http.SameSiteStrictMode,
@@ -83,6 +85,8 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
 			helpers.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
+		case errors.Is(err, auth.ErrInvalidLogin) || errors.Is(err, auth.ErrInvalidPassword):
+			helpers.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
 			helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
 		}
@@ -112,7 +116,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authUsecase.ValidateUser(signInUser.Login, signInUser.Password)
 	if err != nil {
 		switch {
-		case errors.Is(err, auth.ErrUserNotExist):
+		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
 			helpers.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
 		default:
 			helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)

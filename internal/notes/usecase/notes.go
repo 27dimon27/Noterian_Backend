@@ -9,7 +9,7 @@ import (
 type NoteUsecase interface {
 	GetNotesByUserID(userID uuid.UUID) ([]models.Note, error)
 	GetNoteByID(noteID uuid.UUID) (*models.Note, error)
-	GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error)
+	GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error)
 }
 
 type noteUsecase struct {
@@ -30,6 +30,6 @@ func (u *noteUsecase) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	return u.noteRepo.GetNoteByID(noteID)
 }
 
-func (u *noteUsecase) GetBlocksWithStatesByNoteID(noteID uuid.UUID) ([]map[string]interface{}, error) {
-	return u.noteRepo.GetBlocksWithStatesByNoteID(noteID)
+func (u *noteUsecase) GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error) {
+	return u.noteRepo.GetBlocksByNoteID(noteID)
 }

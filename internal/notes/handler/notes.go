@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
@@ -13,6 +14,16 @@ import (
 
 type NoteHandler struct {
 	noteUsecase usecase.NoteUsecase
+}
+
+type NotesResponse struct {
+	Notes []models.Note `json:"notes"`
+	Total int           `json:"total"`
+}
+
+type NoteResponse struct {
+	Note   *models.Note   `json:"note"`
+	Blocks []models.Block `json:"blocks"`
 }
 
 func NewNoteHandler(noteUsecase usecase.NoteUsecase) *NoteHandler {
@@ -40,9 +51,9 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := map[string]interface{}{
-		"notes": notes,
-		"total": len(notes),
+	response := NotesResponse{
+		Notes: notes,
+		Total: len(notes),
 	}
 
 	helpers.JSONResponse(w, http.StatusOK, response)
@@ -72,15 +83,15 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks, err := h.noteUsecase.GetBlocksWithStatesByNoteID(noteID)
+	blocks, err := h.noteUsecase.GetBlocksByNoteID(noteID)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := map[string]interface{}{
-		"note":   note,
-		"blocks": blocks,
+	response := NoteResponse{
+		Note:   note,
+		Blocks: blocks,
 	}
 
 	helpers.JSONResponse(w, http.StatusOK, response)

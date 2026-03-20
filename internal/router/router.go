@@ -20,16 +20,20 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	http.NotFound(w, r)
-}
+func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
+	userRepo, err := authRepo.NewUserRepository(db)
+	if err != nil {
+		return nil, err
+	}
 
-func New(cfg *config.Config, db *sql.DB) http.Handler {
-	userRepo := authRepo.NewUserRepository(db)
 	authUsecase := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
 	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
 
-	noteRepo := notesRepo.NewNoteRepository(db)
+	noteRepo, err := notesRepo.NewNoteRepository(db)
+	if err != nil {
+		return nil, err
+	}
+
 	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
@@ -44,7 +48,5 @@ func New(cfg *config.Config, db *sql.DB) http.Handler {
 	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
 	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
 
-	r.HandleFunc("/", notFoundHandler)
-
-	return middleware.Logger(r)
+	return middleware.Logger(r), nil
 }

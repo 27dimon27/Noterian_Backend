@@ -8,11 +8,13 @@ import (
 )
 
 const (
-	DEFAULT_PORT             = "8000"
-	DEFAULT_COOKIE_NAME      = "NoterianCookieJWT"
-	DEFAULT_COOKIE_TIME_JWT  = 3600
-	DEFAULT_SHUTDOWN_TIMEOUT = 5
-	DEFAULT_DB_PORT          = "5432"
+	DEFAULT_PORT                 = "8000"
+	DEFAULT_COOKIE_NAME          = "NoterianCookieJWT"
+	DEFAULT_COOKIE_TIME_JWT      = 3600
+	DEFAULT_SHUTDOWN_TIMEOUT     = 5
+	DEFAULT_DB_PORT              = "5432"
+	DEFAULT_MAX_OPEN_CONNECTIONS = 25
+	DEFAULT_MAX_IDLE_CONNECTIONS = 5
 )
 
 type JWTConfig struct {
@@ -28,12 +30,14 @@ type ServerConfig struct {
 }
 
 type DBConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
-	SSLMode  string
+	Host         string
+	Port         string
+	User         string
+	Password     string
+	Name         string
+	SSLMode      string
+	MaxOpenConns int
+	MaxIdleConns int
 }
 
 type Config struct {
@@ -74,6 +78,16 @@ func Load() *Config {
 		}
 	}
 
+	maxOpenConns, err := strconv.Atoi(os.Getenv("MAX_OPEN_CONNECTIONS"))
+	if err != nil {
+		maxOpenConns = DEFAULT_MAX_OPEN_CONNECTIONS
+	}
+
+	maxIdleConns, err := strconv.Atoi(os.Getenv("MAX_IDLE_CONNECTIONS"))
+	if err != nil {
+		maxIdleConns = DEFAULT_MAX_IDLE_CONNECTIONS
+	}
+
 	return &Config{
 		JWT: JWTConfig{
 			Secret:        jwtSecret,
@@ -86,12 +100,14 @@ func Load() *Config {
 			ShutdownTimeout: shutdownTimeout,
 		},
 		DB: DBConfig{
-			Host:     os.Getenv("DB_HOST"),
-			Port:     os.Getenv("DB_PORT"),
-			User:     os.Getenv("DB_USER"),
-			Password: os.Getenv("DB_PASSWORD"),
-			Name:     os.Getenv("DB_NAME"),
-			SSLMode:  os.Getenv("DB_SSL_MODE"),
+			Host:         os.Getenv("DB_HOST"),
+			Port:         os.Getenv("DB_PORT"),
+			User:         os.Getenv("DB_USER"),
+			Password:     os.Getenv("DB_PASSWORD"),
+			Name:         os.Getenv("DB_NAME"),
+			SSLMode:      os.Getenv("DB_SSL_MODE"),
+			MaxOpenConns: maxOpenConns,
+			MaxIdleConns: maxIdleConns,
 		},
 	}
 }

@@ -1,4 +1,4 @@
-package storage
+package db
 
 import (
 	"database/sql"
@@ -24,8 +24,8 @@ func NewPostgresConnection(cfg config.DBConfig) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
 
 	return db, nil
 }
