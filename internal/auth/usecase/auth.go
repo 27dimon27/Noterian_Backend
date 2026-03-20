@@ -19,7 +19,6 @@ const (
 type AuthUsecase interface {
 	CreateUser(login, password string) (*models.Account, error)
 	ValidateUser(login, password string) (*models.Account, error)
-	// GenerateToken(userID string) (string, error)
 }
 
 type authUsecase struct {
@@ -111,11 +110,3 @@ func (u *authUsecase) ValidateUser(login, password string) (*models.Account, err
 
 	return user, nil
 }
-
-// func (u *authUsecase) GenerateToken(userID string) (string, error) {
-// 	tokenStr, err := jwt.GenerateToken(userID, u.jwtConfig.CookieTimeJWT, u.jwtConfig.Secret)
-// 	if err != nil {
-// 		return "", auth.ErrTokenCreation
-// 	}
-// 	return tokenStr, nil
-// }

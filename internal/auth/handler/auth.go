@@ -40,7 +40,6 @@ func getFromBody[T dto.SignInUser | dto.SignUpUser](r *http.Request, u *T) error
 }
 
 func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account) {
-	// tokenStr, err := h.authUsecase.GenerateToken(user.ID.String())
 	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
 	if err != nil {
 		helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)

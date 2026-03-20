@@ -4,8 +4,6 @@ import (
 	"errors"
 )
 
-// var Validate = validator.New()
-
 var (
 	ErrInvalidInput     = errors.New("Невалидный ввод")
 	ErrInternal         = errors.New("Неизвестная ошибка сервера")
