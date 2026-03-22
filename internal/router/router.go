@@ -12,6 +12,10 @@ import (
 	notesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
+	accountsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/handler"
+	accountsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/repository"
+	accountsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/usecase"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
 )
@@ -37,6 +41,14 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
+	accountsRepo, err := accountsRepo.NewAccountRepository(db)
+	if err != nil {
+		return nil, err
+	}
+
+	accountsUsecase := accountsUsecase.NewAccountUsecase(accountsRepo)
+	accountsHandler := accountsHandler.NewAccountHandler(accountsUsecase)
+
 	r := http.NewServeMux()
 
 	r.HandleFunc("GET /ping", pingHandler)
@@ -47,6 +59,8 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 
 	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
 	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
+
+	r.Handle("GET /account", middleware.Auth(http.HandlerFunc(accountsHandler.GetAccount), cfg.JWT))
 
 	return middleware.Logger(r), nil
 }

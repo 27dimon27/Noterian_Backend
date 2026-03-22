@@ -1,0 +1,1 @@
+SELECT id, username FROM accounts WHERE id = $1

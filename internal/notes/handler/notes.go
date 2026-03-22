@@ -41,7 +41,7 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		helpers.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidUserID)
 		return
 	}
 
