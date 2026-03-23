@@ -13,6 +13,9 @@ const (
 	DEFAULT_COOKIE_TIME_JWT      = 3600
 	DEFAULT_SHUTDOWN_TIMEOUT     = 5
 	DEFAULT_DB_PORT              = "5432"
+	DEFAULT_READ_TIMEOUT         = 15
+	DEFAULT_WRITE_TIMEOUT        = 15
+	DEFAULT_IDLE_TIMEOUT         = 15
 	DEFAULT_MAX_OPEN_CONNECTIONS = 25
 	DEFAULT_MAX_IDLE_CONNECTIONS = 5
 )
@@ -26,6 +29,9 @@ type JWTConfig struct {
 
 type ServerConfig struct {
 	Port            string
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
 }
 
@@ -71,6 +77,27 @@ func Load() *Config {
 		}
 	}
 
+	readTimeout := DEFAULT_READ_TIMEOUT * time.Second
+	if strReadTimeout := os.Getenv("READ_TIMEOUT"); strReadTimeout != "" {
+		if intReadTimeout, err := strconv.Atoi(strReadTimeout); err == nil {
+			readTimeout = time.Duration(intReadTimeout) * time.Second
+		}
+	}
+
+	writeTimeout := DEFAULT_WRITE_TIMEOUT * time.Second
+	if strWriteTimeout := os.Getenv("WRITE_TIMEOUT"); strWriteTimeout != "" {
+		if intWriteTimeout, err := strconv.Atoi(strWriteTimeout); err == nil {
+			writeTimeout = time.Duration(intWriteTimeout) * time.Second
+		}
+	}
+
+	idleTimeout := DEFAULT_IDLE_TIMEOUT * time.Second
+	if strIdleTimeout := os.Getenv("IDLE_TIMEOUT"); strIdleTimeout != "" {
+		if intIdleTimeout, err := strconv.Atoi(strIdleTimeout); err == nil {
+			idleTimeout = time.Duration(intIdleTimeout) * time.Second
+		}
+	}
+
 	shutdownTimeout := DEFAULT_SHUTDOWN_TIMEOUT * time.Second
 	if timeoutStr := os.Getenv("SHUTDOWN_TIMEOUT"); timeoutStr != "" {
 		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
@@ -97,6 +124,9 @@ func Load() *Config {
 		},
 		Server: ServerConfig{
 			Port:            port,
+			ReadTimeout:     readTimeout,
+			WriteTimeout:    writeTimeout,
+			IdleTimeout:     idleTimeout,
 			ShutdownTimeout: shutdownTimeout,
 		},
 		DB: DBConfig{
