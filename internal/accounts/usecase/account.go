@@ -1,20 +1,20 @@
 package usecase
 
 import (
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/repository"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/handler"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 )
 
-type AccountUsecase interface {
+type AccountRepository interface {
 	GetAccount(userID uuid.UUID) (*models.Account, error)
 }
 
 type accountUsecase struct {
-	accountRepo repository.AccountRepository
+	accountRepo AccountRepository
 }
 
-func NewAccountUsecase(accountRepo repository.AccountRepository) AccountUsecase {
+func NewAccountUsecase(accountRepo AccountRepository) handler.AccountUsecase {
 	return &accountUsecase{
 		accountRepo: accountRepo,
 	}

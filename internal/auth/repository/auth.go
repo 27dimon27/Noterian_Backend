@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
@@ -16,17 +17,12 @@ import (
 //go:embed queries/*.sql
 var queriesFS embed.FS
 
-type UserRepository interface {
-	CreateUser(login, password string) (*models.Account, error)
-	GetUserByLogin(login string) (*models.Account, error)
-}
-
 type userRepository struct {
 	db      *sql.DB
 	queries map[string]string
 }
 
-func NewUserRepository(db *sql.DB) (UserRepository, error) {
+func NewUserRepository(db *sql.DB) (usecase.UserRepository, error) {
 	queries, err := queries.LoadQueries(queriesFS, "queries")
 	if err != nil {
 		return nil, err

@@ -4,23 +4,26 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 	"github.com/google/uuid"
 )
 
+type AccountUsecase interface {
+	GetAccount(userID uuid.UUID) (*models.Account, error)
+}
+
 type AccountHandler struct {
-	accountUsecase usecase.AccountUsecase
+	accountUsecase AccountUsecase
 }
 
 type AccountResponse struct {
 	Account *models.Account `json:"account"`
 }
 
-func NewAccountHandler(accountUsecase usecase.AccountUsecase) *AccountHandler {
+func NewAccountHandler(accountUsecase AccountUsecase) *AccountHandler {
 	return &AccountHandler{
 		accountUsecase: accountUsecase,
 	}
@@ -29,19 +32,19 @@ func NewAccountHandler(accountUsecase usecase.AccountUsecase) *AccountHandler {
 func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(string)
 	if !ok {
-		helpers.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, accounts.ErrInvalidUserID)
+		write.JSONErrorResponse(w, http.StatusBadRequest, accounts.ErrInvalidUserID)
 		return
 	}
 
 	account, err := h.accountUsecase.GetAccount(userUUID)
 	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -49,5 +52,5 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		Account: account,
 	}
 
-	helpers.JSONResponse(w, http.StatusOK, response)
+	write.JSONResponse(w, http.StatusOK, response)
 }

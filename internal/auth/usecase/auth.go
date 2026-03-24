@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-playground/validator/v10"
@@ -16,18 +16,18 @@ const (
 	minPasswordLength = 4
 )
 
-type AuthUsecase interface {
+type UserRepository interface {
 	CreateUser(login, password string) (*models.Account, error)
-	ValidateUser(login, password string) (*models.Account, error)
+	GetUserByLogin(login string) (*models.Account, error)
 }
 
 type authUsecase struct {
-	userRepo  repository.UserRepository
+	userRepo  UserRepository
 	jwtConfig config.JWTConfig
 	validate  *validator.Validate
 }
 
-func NewAuthUsecase(userRepo repository.UserRepository, jwtConfig config.JWTConfig) AuthUsecase {
+func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) handler.AuthUsecase {
 	validate := validator.New()
 	initValidator(validate)
 

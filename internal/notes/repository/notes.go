@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
 )
@@ -16,18 +17,12 @@ import (
 //go:embed queries/*.sql
 var queriesFS embed.FS
 
-type NoteRepository interface {
-	GetNotesByUserID(userID uuid.UUID) ([]models.Note, error)
-	GetNoteByID(noteID uuid.UUID) (*models.Note, error)
-	GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error)
-}
-
 type noteRepository struct {
 	db      *sql.DB
 	queries map[string]string
 }
 
-func NewNoteRepository(db *sql.DB) (NoteRepository, error) {
+func NewNoteRepository(db *sql.DB) (usecase.NoteRepository, error) {
 	queries, err := queries.LoadQueries(queriesFS, "queries")
 	if err != nil {
 		return nil, err

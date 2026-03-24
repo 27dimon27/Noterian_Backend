@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
@@ -14,16 +15,12 @@ import (
 //go:embed queries/*.sql
 var queriesFS embed.FS
 
-type AccountRepository interface {
-	GetAccount(userID uuid.UUID) (*models.Account, error)
-}
-
 type accountRepository struct {
 	db      *sql.DB
 	queries map[string]string
 }
 
-func NewAccountRepository(db *sql.DB) (AccountRepository, error) {
+func NewAccountRepository(db *sql.DB) (usecase.AccountRepository, error) {
 	queries, err := queries.LoadQueries(queriesFS, "queries")
 	if err != nil {
 		return nil, err

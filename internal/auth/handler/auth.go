@@ -1,22 +1,26 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
+type AuthUsecase interface {
+	CreateUser(login, password string) (*models.Account, error)
+	ValidateUser(login, password string) (*models.Account, error)
+}
+
 type AuthHandler struct {
-	authUsecase usecase.AuthUsecase
+	authUsecase AuthUsecase
 	jwtConfig   config.JWTConfig
 }
 
@@ -25,54 +29,24 @@ type UserResponse struct {
 	Login string `json:"login"`
 }
 
-func NewAuthHandler(authUsecase usecase.AuthUsecase, jwtConfig config.JWTConfig) *AuthHandler {
+func NewAuthHandler(authUsecase AuthUsecase, jwtConfig config.JWTConfig) *AuthHandler {
 	return &AuthHandler{
 		authUsecase: authUsecase,
 		jwtConfig:   jwtConfig,
 	}
 }
 
-func getFromBody[T dto.SignInUser | dto.SignUpUser](r *http.Request, u *T) error {
-	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account) {
-	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
-	if err != nil {
-		helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     h.jwtConfig.CookieName,
-		Value:    token,
-		HttpOnly: true,
-		Secure:   h.jwtConfig.Secure,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(h.jwtConfig.CookieTimeJWT.Seconds()),
-		Path:     "/",
-	})
-
-	helpers.JSONResponse(w, http.StatusOK, UserResponse{
-		ID:    user.ID.String(),
-		Login: user.Username,
-	})
-}
-
 func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		helpers.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
 
 	var signUpUser dto.SignUpUser
 
-	if err := getFromBody(r, &signUpUser); err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+	if err := body.GetBody(r, &signUpUser); err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
 		return
 	}
 
@@ -83,11 +57,11 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
-			helpers.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
+			write.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
 		case errors.Is(err, auth.ErrInvalidLogin) || errors.Is(err, auth.ErrInvalidPassword):
-			helpers.JSONErrorResponse(w, http.StatusBadRequest, err)
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
-			helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
+			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
 		}
 		return
 	}
@@ -97,15 +71,15 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		helpers.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
 
 	var signInUser dto.SignInUser
 
-	if err := getFromBody(r, &signInUser); err != nil {
-		helpers.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+	if err := body.GetBody(r, &signInUser); err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
 		return
 	}
 
@@ -116,9 +90,9 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
-			helpers.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
+			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
 		default:
-			helpers.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
+			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
 		}
 		return
 	}
@@ -138,4 +112,27 @@ func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account) {
+	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.jwtConfig.CookieName,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   h.jwtConfig.Secure,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   int(h.jwtConfig.CookieTimeJWT.Seconds()),
+		Path:     "/",
+	})
+
+	write.JSONResponse(w, http.StatusOK, UserResponse{
+		ID:    user.ID.String(),
+		Login: user.Username,
+	})
 }
