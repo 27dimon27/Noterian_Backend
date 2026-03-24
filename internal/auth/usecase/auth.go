@@ -27,20 +27,32 @@ type authUsecase struct {
 	validate  *validator.Validate
 }
 
-func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) handler.AuthUsecase {
+func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (handler.AuthUsecase, error) {
 	validate := validator.New()
-	initValidator(validate)
+	err := initValidator(validate)
+	if err != nil {
+		return nil, err
+	}
 
 	return &authUsecase{
 		userRepo:  userRepo,
 		jwtConfig: jwtConfig,
 		validate:  validate,
-	}
+	}, nil
 }
 
-func initValidator(validate *validator.Validate) {
-	validate.RegisterValidation("login", validateLogin)
-	validate.RegisterValidation("password", validatePassword)
+func initValidator(validate *validator.Validate) error {
+	err := validate.RegisterValidation("login", validateLogin)
+	if err != nil {
+		return err
+	}
+
+	err = validate.RegisterValidation("password", validatePassword)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func validateLogin(fl validator.FieldLevel) bool {

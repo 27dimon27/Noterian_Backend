@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"embed"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -10,32 +9,21 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
 )
 
-//go:embed queries/*.sql
-var queriesFS embed.FS
-
 type noteRepository struct {
-	db      *sql.DB
-	queries map[string]string
+	db *sql.DB
 }
 
 func NewNoteRepository(db *sql.DB) (usecase.NoteRepository, error) {
-	queries, err := queries.LoadQueries(queriesFS, "queries")
-	if err != nil {
-		return nil, err
-	}
-
 	return &noteRepository{
-		db:      db,
-		queries: queries,
+		db: db,
 	}, nil
 }
 
 func (r *noteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, error) {
-	rows, err := r.db.Query(r.queries["get_notes_by_user"], userID)
+	rows, err := r.db.Query(GET_NOTES_BY_USER, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +61,7 @@ func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	var note models.Note
 	var parentID sql.NullString
 
-	err := r.db.QueryRow(r.queries["get_note_by_id"], noteID).Scan(
+	err := r.db.QueryRow(GET_NOTE_BY_ID, noteID).Scan(
 		&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
@@ -95,7 +83,7 @@ func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 }
 
 func (r *noteRepository) GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error) {
-	rows, err := r.db.Query(r.queries["get_blocks_by_note"], noteID)
+	rows, err := r.db.Query(GET_BLOCKS_BY_NOTE, noteID)
 	if err != nil {
 		return nil, err
 	}

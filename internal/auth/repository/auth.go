@@ -2,41 +2,29 @@ package repository
 
 import (
 	"database/sql"
-	"embed"
 	"errors"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/queries"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:embed queries/*.sql
-var queriesFS embed.FS
-
 type userRepository struct {
-	db      *sql.DB
-	queries map[string]string
+	db *sql.DB
 }
 
 func NewUserRepository(db *sql.DB) (usecase.UserRepository, error) {
-	queries, err := queries.LoadQueries(queriesFS, "queries")
-	if err != nil {
-		return nil, err
-	}
-
 	return &userRepository{
-		db:      db,
-		queries: queries,
+		db: db,
 	}, nil
 }
 
 func (r *userRepository) CreateUser(login, password string) (*models.Account, error) {
 	var exists bool
-	err := r.db.QueryRow(r.queries["check_user_exists"], login).Scan(&exists)
+	err := r.db.QueryRow(CHECK_USER_EXISTS, login).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
@@ -58,9 +46,7 @@ func (r *userRepository) CreateUser(login, password string) (*models.Account, er
 		UpdatedAt:    time.Now(),
 	}
 
-	_, err = r.db.Exec(r.queries["create_user"],
-		user.ID, user.Username, user.Password, user.TokenVersion, user.CreatedAt, user.UpdatedAt,
-	)
+	_, err = r.db.Exec(CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion, user.CreatedAt, user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +57,7 @@ func (r *userRepository) CreateUser(login, password string) (*models.Account, er
 func (r *userRepository) GetUserByLogin(login string) (*models.Account, error) {
 	user := &models.Account{}
 
-	err := r.db.QueryRow(r.queries["get_user_by_login"], login).Scan(
+	err := r.db.QueryRow(GET_USER_BY_LOGIN, login).Scan(
 		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {

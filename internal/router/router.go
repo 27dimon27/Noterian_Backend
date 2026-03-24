@@ -20,17 +20,17 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
 )
 
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("pong"))
-}
-
 func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	userRepo, err := authRepo.NewUserRepository(db)
 	if err != nil {
 		return nil, err
 	}
 
-	authUsecase := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
+	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
+	if err != nil {
+		return nil, err
+	}
+
 	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
 
 	noteRepo, err := notesRepo.NewNoteRepository(db)
@@ -50,8 +50,6 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	accountsHandler := accountsHandler.NewAccountHandler(accountsUsecase)
 
 	r := http.NewServeMux()
-
-	r.HandleFunc("GET /ping", pingHandler)
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
