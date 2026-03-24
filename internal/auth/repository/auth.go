@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -22,9 +23,9 @@ func NewUserRepository(db *sql.DB) (usecase.UserRepository, error) {
 	}, nil
 }
 
-func (r *userRepository) CreateUser(login, password string) (*models.Account, error) {
+func (r *userRepository) CreateUser(ctx context.Context, login, password string) (*models.Account, error) {
 	var exists bool
-	err := r.db.QueryRow(CHECK_USER_EXISTS, login).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, login).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func (r *userRepository) CreateUser(login, password string) (*models.Account, er
 		UpdatedAt:    time.Now(),
 	}
 
-	_, err = r.db.Exec(CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion, user.CreatedAt, user.UpdatedAt)
+	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion, user.CreatedAt, user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +55,10 @@ func (r *userRepository) CreateUser(login, password string) (*models.Account, er
 	return user, nil
 }
 
-func (r *userRepository) GetUserByLogin(login string) (*models.Account, error) {
+func (r *userRepository) GetUserByLogin(ctx context.Context, login string) (*models.Account, error) {
 	user := &models.Account{}
 
-	err := r.db.QueryRow(GET_USER_BY_LOGIN, login).Scan(
+	err := r.db.QueryRowContext(ctx, GET_USER_BY_LOGIN, login).Scan(
 		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {

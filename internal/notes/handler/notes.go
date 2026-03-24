@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
@@ -12,23 +14,13 @@ import (
 )
 
 type NoteUsecase interface {
-	GetNotesByUserID(userID uuid.UUID) ([]models.Note, error)
-	GetNoteByID(noteID uuid.UUID) (*models.Note, error)
-	GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error)
+	GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
+	GetNoteByID(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
+	GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 }
 
 type NoteHandler struct {
 	noteUsecase NoteUsecase
-}
-
-type NotesResponse struct {
-	Notes []models.Note `json:"notes"`
-	Total int           `json:"total"`
-}
-
-type NoteResponse struct {
-	Note   *models.Note   `json:"note"`
-	Blocks []models.Block `json:"blocks"`
 }
 
 func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
@@ -50,13 +42,13 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notes, err := h.noteUsecase.GetNotesByUserID(userUUID)
+	notes, err := h.noteUsecase.GetNotesByUserID(r.Context(), userUUID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := NotesResponse{
+	response := dto.NotesResponse{
 		Notes: notes,
 		Total: len(notes),
 	}
@@ -77,7 +69,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNoteByID(noteID)
+	note, err := h.noteUsecase.GetNoteByID(r.Context(), noteID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -88,13 +80,13 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks, err := h.noteUsecase.GetBlocksByNoteID(noteID)
+	blocks, err := h.noteUsecase.GetBlocksByNoteID(r.Context(), noteID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := NoteResponse{
+	response := dto.NoteResponse{
 		Note:   note,
 		Blocks: blocks,
 	}

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/dto"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
 )
 
 func GetBody[T dto.SignInUser | dto.SignUpUser](r *http.Request, u *T) error {

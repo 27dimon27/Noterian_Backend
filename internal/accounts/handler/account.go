@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
@@ -12,15 +14,11 @@ import (
 )
 
 type AccountUsecase interface {
-	GetAccount(userID uuid.UUID) (*models.Account, error)
+	GetAccount(ctx context.Context, userID uuid.UUID) (*models.Account, error)
 }
 
 type AccountHandler struct {
 	accountUsecase AccountUsecase
-}
-
-type AccountResponse struct {
-	Account *models.Account `json:"account"`
 }
 
 func NewAccountHandler(accountUsecase AccountUsecase) *AccountHandler {
@@ -42,13 +40,13 @@ func (h *AccountHandler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account, err := h.accountUsecase.GetAccount(userUUID)
+	account, err := h.accountUsecase.GetAccount(r.Context(), userUUID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := AccountResponse{
+	response := dto.AccountResponse{
 		Account: account,
 	}
 

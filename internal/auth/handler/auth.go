@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
@@ -15,18 +16,13 @@ import (
 )
 
 type AuthUsecase interface {
-	CreateUser(login, password string) (*models.Account, error)
-	ValidateUser(login, password string) (*models.Account, error)
+	CreateUser(ctx context.Context, login, password string) (*models.Account, error)
+	ValidateUser(ctx context.Context, login, password string) (*models.Account, error)
 }
 
 type AuthHandler struct {
 	authUsecase AuthUsecase
 	jwtConfig   config.JWTConfig
-}
-
-type UserResponse struct {
-	ID    string `json:"id"`
-	Login string `json:"login"`
 }
 
 func NewAuthHandler(authUsecase AuthUsecase, jwtConfig config.JWTConfig) *AuthHandler {
@@ -53,7 +49,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	signUpUser.Login = strings.TrimSpace(signUpUser.Login)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	user, err := h.authUsecase.CreateUser(signUpUser.Login, signUpUser.Password)
+	user, err := h.authUsecase.CreateUser(r.Context(), signUpUser.Login, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
@@ -66,7 +62,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, user)
+	h.saveUserCookie(w, r.Context(), user)
 }
 
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +82,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	signInUser.Login = strings.TrimSpace(signInUser.Login)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	user, err := h.authUsecase.ValidateUser(signInUser.Login, signInUser.Password)
+	user, err := h.authUsecase.ValidateUser(r.Context(), signInUser.Login, signInUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
@@ -97,7 +93,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, user)
+	h.saveUserCookie(w, r.Context(), user)
 }
 
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +110,7 @@ func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account) {
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, ctx context.Context, user *models.Account) {
 	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
@@ -131,7 +127,7 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Account
 		Path:     "/",
 	})
 
-	write.JSONResponse(w, http.StatusOK, UserResponse{
+	write.JSONResponse(w, http.StatusOK, dto.UserResponse{
 		ID:    user.ID.String(),
 		Login: user.Username,
 	})

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -22,8 +23,8 @@ func NewNoteRepository(db *sql.DB) (usecase.NoteRepository, error) {
 	}, nil
 }
 
-func (r *noteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, error) {
-	rows, err := r.db.Query(GET_NOTES_BY_USER, userID)
+func (r *noteRepository) GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+	rows, err := r.db.QueryContext(ctx, GET_NOTES_BY_USER, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,11 +58,11 @@ func (r *noteRepository) GetNotesByUserID(userID uuid.UUID) ([]models.Note, erro
 	return notes, nil
 }
 
-func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
+func (r *noteRepository) GetNoteByID(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
 	var note models.Note
 	var parentID sql.NullString
 
-	err := r.db.QueryRow(GET_NOTE_BY_ID, noteID).Scan(
+	err := r.db.QueryRowContext(ctx, GET_NOTE_BY_ID, noteID).Scan(
 		&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
@@ -82,8 +83,8 @@ func (r *noteRepository) GetNoteByID(noteID uuid.UUID) (*models.Note, error) {
 	return &note, nil
 }
 
-func (r *noteRepository) GetBlocksByNoteID(noteID uuid.UUID) ([]models.Block, error) {
-	rows, err := r.db.Query(GET_BLOCKS_BY_NOTE, noteID)
+func (r *noteRepository) GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
+	rows, err := r.db.QueryContext(ctx, GET_BLOCKS_BY_NOTE, noteID)
 	if err != nil {
 		return nil, err
 	}

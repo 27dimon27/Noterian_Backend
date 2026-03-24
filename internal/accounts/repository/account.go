@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -20,10 +21,10 @@ func NewAccountRepository(db *sql.DB) (usecase.AccountRepository, error) {
 	}, nil
 }
 
-func (r *accountRepository) GetAccount(userID uuid.UUID) (*models.Account, error) {
+func (r *accountRepository) GetAccount(ctx context.Context, userID uuid.UUID) (*models.Account, error) {
 	user := &models.Account{}
 
-	err := r.db.QueryRow(GET_ACCOUNT_BY_USER_ID, userID).Scan(&user.ID, &user.Username)
+	err := r.db.QueryRowContext(ctx, GET_ACCOUNT_BY_USER_ID, userID).Scan(&user.ID, &user.Username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, accounts.ErrUserNotExist

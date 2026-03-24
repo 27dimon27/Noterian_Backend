@@ -1,13 +1,15 @@
 package usecase
 
 import (
+	"context"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/accounts/handler"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 )
 
 type AccountRepository interface {
-	GetAccount(userID uuid.UUID) (*models.Account, error)
+	GetAccount(ctx context.Context, userID uuid.UUID) (*models.Account, error)
 }
 
 type accountUsecase struct {
@@ -20,8 +22,8 @@ func NewAccountUsecase(accountRepo AccountRepository) handler.AccountUsecase {
 	}
 }
 
-func (u *accountUsecase) GetAccount(userID uuid.UUID) (*models.Account, error) {
-	account, err := u.accountRepo.GetAccount(userID)
+func (u *accountUsecase) GetAccount(ctx context.Context, userID uuid.UUID) (*models.Account, error) {
+	account, err := u.accountRepo.GetAccount(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
