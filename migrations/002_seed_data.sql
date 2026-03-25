@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-INSERT INTO accounts (id, username, password, token_version, created_at, updated_at) VALUES
+INSERT INTO profiles (id, username, password, token_version, created_at, updated_at) VALUES
 (
     '11111111-1111-1111-1111-111111111111',
     'testuser',

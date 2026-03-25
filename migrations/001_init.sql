@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS accounts (
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username VARCHAR(255) UNIQUE NOT NULL,
     password BYTEA NOT NULL,
@@ -21,7 +21,7 @@ ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     parent_id UUID REFERENCES notes(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -59,8 +59,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_accounts_updated_at 
-    BEFORE UPDATE ON accounts 
+CREATE TRIGGER update_profiles_updated_at 
+    BEFORE UPDATE ON profiles 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
