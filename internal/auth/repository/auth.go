@@ -17,10 +17,10 @@ type userRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) (usecase.UserRepository, error) {
+func NewUserRepository(db *sql.DB) usecase.UserRepository {
 	return &userRepository{
 		db: db,
-	}, nil
+	}
 }
 
 func (r *userRepository) CreateUser(ctx context.Context, login, password string) (*models.Profile, error) {

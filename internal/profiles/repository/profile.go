@@ -15,10 +15,10 @@ type profileRepository struct {
 	db *sql.DB
 }
 
-func NewProfileRepository(db *sql.DB) (usecase.ProfileRepository, error) {
+func NewProfileRepository(db *sql.DB) usecase.ProfileRepository {
 	return &profileRepository{
 		db: db,
-	}, nil
+	}
 }
 
 func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {

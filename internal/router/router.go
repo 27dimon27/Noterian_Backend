@@ -21,10 +21,7 @@ import (
 )
 
 func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
-	userRepo, err := authRepo.NewUserRepository(db)
-	if err != nil {
-		return nil, err
-	}
+	userRepo := authRepo.NewUserRepository(db)
 
 	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
 	if err != nil {
@@ -33,21 +30,13 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 
 	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
 
-	noteRepo, err := notesRepo.NewNoteRepository(db)
-	if err != nil {
-		return nil, err
-	}
-
+	noteRepo := notesRepo.NewNoteRepository(db)
 	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
-	profilesRepo, err := profilesRepo.NewProfileRepository(db)
-	if err != nil {
-		return nil, err
-	}
-
-	profilesUsecase := profilesUsecase.NewProfileUsecase(profilesRepo)
-	profilesHandler := profilesHandler.NewProfileHandler(profilesUsecase)
+	profileRepo := profilesRepo.NewProfileRepository(db)
+	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
+	profileHandler := profilesHandler.NewProfileHandler(profileUsecase)
 
 	r := http.NewServeMux()
 
@@ -58,7 +47,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
 	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
 
-	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profilesHandler.GetProfile), cfg.JWT))
+	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 
 	return middleware.Logger(r), nil
 }

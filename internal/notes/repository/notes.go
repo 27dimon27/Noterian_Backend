@@ -17,10 +17,10 @@ type noteRepository struct {
 	db *sql.DB
 }
 
-func NewNoteRepository(db *sql.DB) (usecase.NoteRepository, error) {
+func NewNoteRepository(db *sql.DB) usecase.NoteRepository {
 	return &noteRepository{
 		db: db,
-	}, nil
+	}
 }
 
 func (r *noteRepository) GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
