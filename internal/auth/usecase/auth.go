@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-playground/validator/v10"
@@ -22,7 +21,7 @@ type authUsecase struct {
 	validate  *validator.Validate
 }
 
-func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (handler.AuthUsecase, error) {
+func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (*authUsecase, error) {
 	validate := validator.New()
 	err := initValidator(validate)
 	if err != nil {

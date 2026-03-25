@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
 	"github.com/google/uuid"
 )
 
@@ -18,7 +17,7 @@ type noteUsecase struct {
 	noteRepo NoteRepository
 }
 
-func NewNoteUsecase(noteRepo NoteRepository) handler.NoteUsecase {
+func NewNoteUsecase(noteRepo NoteRepository) *noteUsecase {
 	return &noteUsecase{
 		noteRepo: noteRepo,
 	}

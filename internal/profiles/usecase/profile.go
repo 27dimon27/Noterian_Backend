@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler"
 	"github.com/google/uuid"
 )
 
@@ -16,7 +15,7 @@ type profileUsecase struct {
 	profileRepo ProfileRepository
 }
 
-func NewProfileUsecase(profileRepo ProfileRepository) handler.ProfileUsecase {
+func NewProfileUsecase(profileRepo ProfileRepository) *profileUsecase {
 	return &profileUsecase{
 		profileRepo: profileRepo,
 	}

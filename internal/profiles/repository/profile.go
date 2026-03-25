@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 	"github.com/google/uuid"
 )
 
@@ -15,7 +14,7 @@ type profileRepository struct {
 	db *sql.DB
 }
 
-func NewProfileRepository(db *sql.DB) usecase.ProfileRepository {
+func NewProfileRepository(db *sql.DB) *profileRepository {
 	return &profileRepository{
 		db: db,
 	}

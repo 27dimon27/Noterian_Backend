@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -17,7 +16,7 @@ type userRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) usecase.UserRepository {
+func NewUserRepository(db *sql.DB) *userRepository {
 	return &userRepository{
 		db: db,
 	}

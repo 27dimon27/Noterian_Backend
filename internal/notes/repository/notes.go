@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 	"github.com/google/uuid"
 )
 
@@ -17,7 +16,7 @@ type noteRepository struct {
 	db *sql.DB
 }
 
-func NewNoteRepository(db *sql.DB) usecase.NoteRepository {
+func NewNoteRepository(db *sql.DB) *noteRepository {
 	return &noteRepository{
 		db: db,
 	}
