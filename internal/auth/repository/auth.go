@@ -23,7 +23,7 @@ func NewUserRepository(db *sql.DB) (usecase.UserRepository, error) {
 	}, nil
 }
 
-func (r *userRepository) CreateUser(ctx context.Context, login, password string) (*models.Account, error) {
+func (r *userRepository) CreateUser(ctx context.Context, login, password string) (*models.Profile, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, login).Scan(&exists)
 	if err != nil {
@@ -38,7 +38,7 @@ func (r *userRepository) CreateUser(ctx context.Context, login, password string)
 		return nil, err
 	}
 
-	user := &models.Account{
+	user := &models.Profile{
 		ID:           uuid.New(),
 		Username:     login,
 		Password:     hashPassword,
@@ -55,8 +55,8 @@ func (r *userRepository) CreateUser(ctx context.Context, login, password string)
 	return user, nil
 }
 
-func (r *userRepository) GetUserByLogin(ctx context.Context, login string) (*models.Account, error) {
-	user := &models.Account{}
+func (r *userRepository) GetUserByLogin(ctx context.Context, login string) (*models.Profile, error) {
+	user := &models.Profile{}
 
 	err := r.db.QueryRowContext(ctx, GET_USER_BY_LOGIN, login).Scan(
 		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,

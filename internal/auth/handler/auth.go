@@ -16,8 +16,8 @@ import (
 )
 
 type AuthUsecase interface {
-	CreateUser(ctx context.Context, login, password string) (*models.Account, error)
-	ValidateUser(ctx context.Context, login, password string) (*models.Account, error)
+	CreateUser(ctx context.Context, login, password string) (*models.Profile, error)
+	ValidateUser(ctx context.Context, login, password string) (*models.Profile, error)
 }
 
 type AuthHandler struct {
@@ -110,7 +110,7 @@ func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, ctx context.Context, user *models.Account) {
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, ctx context.Context, user *models.Profile) {
 	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)

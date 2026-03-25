@@ -9,7 +9,7 @@ import (
 
 type MockData struct {
 	Notes       []models.Note
-	Accounts    []models.Account
+	Accounts    []models.Profile
 	Blocks      []models.Block
 	BlockTypes  []models.BlockType
 	BlockStates []models.BlockState
@@ -39,7 +39,7 @@ func (m *MockData) init() {
 	now := time.Now()
 
 	userID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	m.Accounts = append(m.Accounts, models.Account{
+	m.Accounts = append(m.Accounts, models.Profile{
 		ID:           userID,
 		Username:     "testuser",
 		Password:     []byte("hashed_password"),
