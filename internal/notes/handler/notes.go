@@ -30,15 +30,9 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 }
 
 func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(string)
+	userUUID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
-		return
-	}
-
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidUserID)
 		return
 	}
 
