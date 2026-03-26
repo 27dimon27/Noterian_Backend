@@ -62,7 +62,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, r.Context(), user)
+	h.saveUserCookie(w, user)
 }
 
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +93,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, r.Context(), user)
+	h.saveUserCookie(w, user)
 }
 
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +110,7 @@ func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, ctx context.Context, user *models.Profile) {
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile) {
 	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTimeJWT, h.jwtConfig.Secret)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)

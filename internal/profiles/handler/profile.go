@@ -39,9 +39,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.ProfileResponse{
-		Profile: profile,
-	}
+	response := dto.ToProfileDTO(profile)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }

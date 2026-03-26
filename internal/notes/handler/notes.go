@@ -48,10 +48,7 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.NotesResponse{
-		Notes: notes,
-		Total: len(notes),
-	}
+	response := dto.ToNotesResponse(notes)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
@@ -86,10 +83,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.NoteResponse{
-		Note:   note,
-		Blocks: blocks,
-	}
+	response := dto.ToNoteResponse(note, blocks)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
