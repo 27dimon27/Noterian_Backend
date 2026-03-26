@@ -15,4 +15,5 @@ var (
 	ErrUserExist        = errors.New("Пользователь с таким логином уже существует")
 	ErrUserNotExist     = errors.New("Пользователь не найден")
 	ErrTokenCreation    = errors.New("Ошибка при создании пользователя")
+	ErrInvalidUserID    = errors.New("Невалидный ID пользователя")
 )

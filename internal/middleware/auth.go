@@ -9,6 +9,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
+	"github.com/google/uuid"
 )
 
 func Auth(next http.Handler, jwtConfig config.JWTConfig) http.Handler {
@@ -25,7 +26,13 @@ func Auth(next http.Handler, jwtConfig config.JWTConfig) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), types.UserIDKey, tokenPayload.UserID)
+		userUUID, err := uuid.Parse(tokenPayload.UserID)
+		if err != nil {
+			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrInvalidUserID)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), types.UserIDKey, userUUID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
