@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
+	authDTO "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
+	profilesDTO "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
 )
 
-func GetBody[T dto.SignInUser | dto.SignUpUser](r *http.Request, u *T) error {
+func GetBody[T authDTO.SignInUser | authDTO.SignUpUser | profilesDTO.Profile](r *http.Request, u *T) error {
 	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
 		return err
 	}

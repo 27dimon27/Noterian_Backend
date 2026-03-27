@@ -36,7 +36,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 
 	profileRepo := profilesRepo.NewProfileRepository(db)
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
-	profileHandler := profilesHandler.NewProfileHandler(profileUsecase)
+	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	r := http.NewServeMux()
 
@@ -48,6 +48,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
 
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
-
+	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
+	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
 	return middleware.Logger(r), nil
 }

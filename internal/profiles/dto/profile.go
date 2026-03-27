@@ -22,3 +22,10 @@ func ToProfileDTO(profile *models.Profile) Profile {
 		UpdatedAt: profile.UpdatedAt,
 	}
 }
+
+func FromProfileDTO(profile Profile) *models.Profile {
+	return &models.Profile{
+		ID:       profile.ID,
+		Username: profile.Username,
+	}
+}

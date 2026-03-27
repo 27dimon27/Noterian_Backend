@@ -97,16 +97,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     h.jwtConfig.CookieName,
-		Value:    "",
-		HttpOnly: true,
-		Secure:   h.jwtConfig.Secure,
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1,
-		Path:     "/",
-	})
-
+	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
 	w.WriteHeader(http.StatusNoContent)
 }
 
