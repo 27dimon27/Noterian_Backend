@@ -12,6 +12,7 @@ type Block struct {
 	BlockTypeID int
 	Position    int
 	Content     string
+	States      []BlockState
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

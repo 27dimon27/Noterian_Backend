@@ -8,10 +8,16 @@ import (
 )
 
 const (
-	DEFAULT_PORT             = "8000"
-	DEFAULT_COOKIE_NAME      = "NoterianCookieJWT"
-	DEFAULT_COOKIE_TIME_JWT  = 3600
-	DEFAULT_SHUTDOWN_TIMEOUT = 5
+	DEFAULT_PORT                 = "8000"
+	DEFAULT_COOKIE_NAME          = "NoterianCookieJWT"
+	DEFAULT_COOKIE_TIME_JWT      = 3600
+	DEFAULT_SHUTDOWN_TIMEOUT     = 5
+	DEFAULT_DB_PORT              = "5432"
+	DEFAULT_READ_TIMEOUT         = 15
+	DEFAULT_WRITE_TIMEOUT        = 15
+	DEFAULT_IDLE_TIMEOUT         = 15
+	DEFAULT_MAX_OPEN_CONNECTIONS = 25
+	DEFAULT_MAX_IDLE_CONNECTIONS = 5
 )
 
 type JWTConfig struct {
@@ -23,12 +29,27 @@ type JWTConfig struct {
 
 type ServerConfig struct {
 	Port            string
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
 	ShutdownTimeout time.Duration
+}
+
+type DBConfig struct {
+	Host         string
+	Port         string
+	User         string
+	Password     string
+	Name         string
+	SSLMode      string
+	MaxOpenConns int
+	MaxIdleConns int
 }
 
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
+	DB     DBConfig
 }
 
 func Load() *Config {
@@ -51,8 +72,29 @@ func Load() *Config {
 
 	cookieTimeJWT := DEFAULT_COOKIE_TIME_JWT * time.Second
 	if strCookieTimeJWT := os.Getenv("COOKIE_TIME_JWT"); strCookieTimeJWT != "" {
-		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err != nil {
+		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err == nil {
 			cookieTimeJWT = time.Duration(intCookieTimeJWT) * time.Second
+		}
+	}
+
+	readTimeout := DEFAULT_READ_TIMEOUT * time.Second
+	if strReadTimeout := os.Getenv("READ_TIMEOUT"); strReadTimeout != "" {
+		if intReadTimeout, err := strconv.Atoi(strReadTimeout); err == nil {
+			readTimeout = time.Duration(intReadTimeout) * time.Second
+		}
+	}
+
+	writeTimeout := DEFAULT_WRITE_TIMEOUT * time.Second
+	if strWriteTimeout := os.Getenv("WRITE_TIMEOUT"); strWriteTimeout != "" {
+		if intWriteTimeout, err := strconv.Atoi(strWriteTimeout); err == nil {
+			writeTimeout = time.Duration(intWriteTimeout) * time.Second
+		}
+	}
+
+	idleTimeout := DEFAULT_IDLE_TIMEOUT * time.Second
+	if strIdleTimeout := os.Getenv("IDLE_TIMEOUT"); strIdleTimeout != "" {
+		if intIdleTimeout, err := strconv.Atoi(strIdleTimeout); err == nil {
+			idleTimeout = time.Duration(intIdleTimeout) * time.Second
 		}
 	}
 
@@ -61,6 +103,16 @@ func Load() *Config {
 		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
 			shutdownTimeout = time.Duration(timeout) * time.Second
 		}
+	}
+
+	maxOpenConns, err := strconv.Atoi(os.Getenv("MAX_OPEN_CONNECTIONS"))
+	if err != nil {
+		maxOpenConns = DEFAULT_MAX_OPEN_CONNECTIONS
+	}
+
+	maxIdleConns, err := strconv.Atoi(os.Getenv("MAX_IDLE_CONNECTIONS"))
+	if err != nil {
+		maxIdleConns = DEFAULT_MAX_IDLE_CONNECTIONS
 	}
 
 	return &Config{
@@ -72,7 +124,20 @@ func Load() *Config {
 		},
 		Server: ServerConfig{
 			Port:            port,
+			ReadTimeout:     readTimeout,
+			WriteTimeout:    writeTimeout,
+			IdleTimeout:     idleTimeout,
 			ShutdownTimeout: shutdownTimeout,
+		},
+		DB: DBConfig{
+			Host:         os.Getenv("DB_HOST"),
+			Port:         os.Getenv("DB_PORT"),
+			User:         os.Getenv("DB_USER"),
+			Password:     os.Getenv("DB_PASSWORD"),
+			Name:         os.Getenv("DB_NAME"),
+			SSLMode:      os.Getenv("DB_SSL_MODE"),
+			MaxOpenConns: maxOpenConns,
+			MaxIdleConns: maxIdleConns,
 		},
 	}
 }

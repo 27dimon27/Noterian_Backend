@@ -9,7 +9,7 @@ import (
 type BlockState struct {
 	ID         uuid.UUID
 	BlockID    uuid.UUID
-	Formatting string
+	Formatting map[string]interface{}
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }

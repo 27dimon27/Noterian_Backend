@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Account struct {
+type Profile struct {
 	ID           uuid.UUID
 	Username     string
 	Password     []byte
