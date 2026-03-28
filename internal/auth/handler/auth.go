@@ -16,8 +16,8 @@ import (
 )
 
 type AuthUsecase interface {
-	CreateUser(ctx context.Context, login, password string) (*models.Profile, error)
-	ValidateUser(ctx context.Context, login, password string) (*models.Profile, error)
+	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)
+	ValidateUser(ctx context.Context, username, password string) (*models.Profile, error)
 }
 
 type AuthHandler struct {
@@ -46,15 +46,15 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signUpUser.Login = strings.TrimSpace(signUpUser.Login)
+	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	user, err := h.authUsecase.CreateUser(r.Context(), signUpUser.Login, signUpUser.Password)
+	user, err := h.authUsecase.CreateUser(r.Context(), signUpUser.Username, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
 			write.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
-		case errors.Is(err, auth.ErrInvalidLogin) || errors.Is(err, auth.ErrInvalidPassword):
+		case errors.Is(err, auth.ErrInvalidUsername) || errors.Is(err, auth.ErrInvalidPassword):
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
@@ -79,10 +79,10 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signInUser.Login = strings.TrimSpace(signInUser.Login)
+	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	user, err := h.authUsecase.ValidateUser(r.Context(), signInUser.Login, signInUser.Password)
+	user, err := h.authUsecase.ValidateUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
@@ -119,7 +119,7 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile
 	})
 
 	write.JSONResponse(w, http.StatusOK, dto.UserResponse{
-		ID:    user.ID.String(),
-		Login: user.Username,
+		ID:       user.ID.String(),
+		Username: user.Username,
 	})
 }

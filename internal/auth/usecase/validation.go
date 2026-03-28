@@ -12,7 +12,7 @@ const (
 )
 
 func initValidator(validate *validator.Validate) error {
-	err := validate.RegisterValidation("login", validateLogin)
+	err := validate.RegisterValidation("username", validateUsername)
 	if err != nil {
 		return err
 	}
@@ -25,21 +25,21 @@ func initValidator(validate *validator.Validate) error {
 	return nil
 }
 
-func validateLogin(fl validator.FieldLevel) bool {
-	login := fl.Field().String()
+func validateUsername(fl validator.FieldLevel) bool {
+	username := fl.Field().String()
 
-	validLoginRegex := regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9_.]+$`)
-	if !validLoginRegex.MatchString(login) {
+	validUsernameRegex := regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9_.]+$`)
+	if !validUsernameRegex.MatchString(username) {
 		return false
 	}
 
-	if strings.HasPrefix(login, "_") || strings.HasPrefix(login, ".") ||
-		strings.HasSuffix(login, "_") || strings.HasSuffix(login, ".") {
+	if strings.HasPrefix(username, "_") || strings.HasPrefix(username, ".") ||
+		strings.HasSuffix(username, "_") || strings.HasSuffix(username, ".") {
 		return false
 	}
 
-	if strings.Contains(login, "__") || strings.Contains(login, "..") ||
-		strings.Contains(login, "_.") || strings.Contains(login, "._") {
+	if strings.Contains(username, "__") || strings.Contains(username, "..") ||
+		strings.Contains(username, "_.") || strings.Contains(username, "._") {
 		return false
 	}
 

@@ -22,9 +22,9 @@ func NewUserRepository(db *sql.DB) *userRepository {
 	}
 }
 
-func (r *userRepository) CreateUser(ctx context.Context, login, password string) (*models.Profile, error) {
+func (r *userRepository) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	var exists bool
-	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, login).Scan(&exists)
+	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (r *userRepository) CreateUser(ctx context.Context, login, password string)
 
 	user := &models.Profile{
 		ID:           uuid.New(),
-		Username:     login,
+		Username:     username,
 		Password:     hashPassword,
 		TokenVersion: 1,
 		CreatedAt:    time.Now(),
@@ -54,10 +54,10 @@ func (r *userRepository) CreateUser(ctx context.Context, login, password string)
 	return user, nil
 }
 
-func (r *userRepository) GetUserByLogin(ctx context.Context, login string) (*models.Profile, error) {
+func (r *userRepository) GetUserByUsername(ctx context.Context, username string) (*models.Profile, error) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_USER_BY_LOGIN, login).Scan(
+	err := r.db.QueryRowContext(ctx, GET_USER_BY_USERNAME, username).Scan(
 		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {

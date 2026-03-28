@@ -11,8 +11,8 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, login, password string) (*models.Profile, error)
-	GetUserByLogin(ctx context.Context, login string) (*models.Profile, error)
+	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)
+	GetUserByUsername(ctx context.Context, username string) (*models.Profile, error)
 }
 
 type authUsecase struct {
@@ -35,16 +35,16 @@ func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (*authU
 	}, nil
 }
 
-func (u *authUsecase) CreateUser(ctx context.Context, login, password string) (*models.Profile, error) {
-	if err := u.validate.Var(login, "required,login"); err != nil {
-		return nil, auth.ErrInvalidLogin
+func (u *authUsecase) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+	if err := u.validate.Var(username, "required,username"); err != nil {
+		return nil, auth.ErrInvalidUsername
 	}
 
 	if err := u.validate.Var(password, "required,password"); err != nil {
 		return nil, auth.ErrInvalidPassword
 	}
 
-	user, err := u.userRepo.CreateUser(ctx, login, password)
+	user, err := u.userRepo.CreateUser(ctx, username, password)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (u *authUsecase) CreateUser(ctx context.Context, login, password string) (*
 	return user, nil
 }
 
-func (u *authUsecase) ValidateUser(ctx context.Context, login, password string) (*models.Profile, error) {
-	user, err := u.userRepo.GetUserByLogin(ctx, login)
+func (u *authUsecase) ValidateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+	user, err := u.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
