@@ -46,9 +46,13 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 
 	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
 	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
+	r.Handle("POST /notes", middleware.Auth(http.HandlerFunc(noteHandler.CreateNote), cfg.JWT))
+	r.Handle("PUT /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.UpdateNote), cfg.JWT))
+	r.Handle("DELETE /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteNote), cfg.JWT))
 
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
 	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
+
 	return middleware.Logger(r), nil
 }
