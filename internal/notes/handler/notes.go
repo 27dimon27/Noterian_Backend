@@ -113,7 +113,7 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 
 	noteCreationRequest.UserID = userID
 
-	note := dto.FromNoteCreationRequestDTO(noteCreationRequest)
+	note := dto.FromNoteRequestDTO(noteCreationRequest)
 
 	createdNote, err := h.noteUsecase.CreateNote(r.Context(), note)
 	if err != nil {
@@ -156,7 +156,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note := dto.FromNoteCreationRequestDTO(noteUpdateRequest)
+	note := dto.FromNoteRequestDTO(noteUpdateRequest)
 
 	updatedNote, err := h.noteUsecase.UpdateNote(r.Context(), noteID, note)
 	if err != nil {

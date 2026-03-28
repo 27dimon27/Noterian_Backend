@@ -11,7 +11,7 @@ type NoteRequest struct {
 	ParentID *uuid.UUID `json:"parent_id,omitempty"`
 }
 
-func FromNoteCreationRequestDTO(noteReq NoteRequest) models.Note {
+func FromNoteRequestDTO(noteReq NoteRequest) models.Note {
 	return models.Note{
 		UserID:   noteReq.UserID,
 		Title:    noteReq.Title,
