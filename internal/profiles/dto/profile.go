@@ -16,10 +16,8 @@ type Profile struct {
 
 func ToProfileDTO(profile *models.Profile) Profile {
 	return Profile{
-		ID:        profile.ID,
-		Username:  profile.Username,
-		CreatedAt: profile.CreatedAt,
-		UpdatedAt: profile.UpdatedAt,
+		ID:       profile.ID,
+		Username: profile.Username,
 	}
 }
 
