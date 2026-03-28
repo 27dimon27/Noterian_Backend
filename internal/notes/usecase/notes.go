@@ -32,10 +32,14 @@ func (u *noteUsecase) GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([
 	return u.noteRepo.GetNotesByUserID(ctx, userID)
 }
 
-func (u *noteUsecase) GetNoteByID(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
+func (u *noteUsecase) GetNoteByID(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
 	note, err := u.noteRepo.GetNoteByID(ctx, noteID)
 	if err != nil {
 		return nil, err
+	}
+
+	if note.UserID != userID {
+		return nil, notes.ErrForbidden
 	}
 
 	return note, nil
@@ -53,9 +57,18 @@ func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models
 	return u.noteRepo.CreateNote(ctx, note)
 }
 
-func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note) (*models.Note, error) {
+func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error) {
 	if note.Title == "" {
 		return nil, notes.ErrInvalidNoteData
+	}
+
+	existingNote, err := u.noteRepo.GetNoteByID(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingNote.UserID != userID {
+		return nil, notes.ErrForbidden
 	}
 
 	note.ID = noteID
@@ -64,6 +77,15 @@ func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note mod
 	return u.noteRepo.UpdateNote(ctx, noteID, note)
 }
 
-func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID) error {
+func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error {
+	existingNote, err := u.noteRepo.GetNoteByID(ctx, noteID)
+	if err != nil {
+		return err
+	}
+
+	if existingNote.UserID != userID {
+		return notes.ErrForbidden
+	}
+
 	return u.noteRepo.DeleteNote(ctx, noteID)
 }

@@ -17,11 +17,11 @@ import (
 
 type NoteUsecase interface {
 	GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
-	GetNoteByID(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
+	GetNoteByID(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
 	GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
-	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note) (*models.Note, error)
-	DeleteNote(ctx context.Context, noteID uuid.UUID) error
+	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
+	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 }
 
 type NoteHandler struct {
@@ -65,7 +65,13 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNoteByID(r.Context(), noteID)
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		return
+	}
+
+	note, err := h.noteUsecase.GetNoteByID(r.Context(), noteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrForbidden) {
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
@@ -158,10 +164,24 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 
 	note := dto.FromNoteRequestDTO(noteUpdateRequest)
 
-	updatedNote, err := h.noteUsecase.UpdateNote(r.Context(), noteID, note)
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		return
+	}
+
+	updatedNote, err := h.noteUsecase.UpdateNote(r.Context(), noteID, note, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrInvalidNoteData) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
 			return
 		}
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -186,9 +206,19 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.noteUsecase.DeleteNote(r.Context(), noteID); err != nil {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
+		return
+	}
+
+	if err := h.noteUsecase.DeleteNote(r.Context(), noteID, userID); err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
 			return
 		}
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
