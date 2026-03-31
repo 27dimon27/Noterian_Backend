@@ -11,6 +11,14 @@ require (
 )
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
+	go.uber.org/mock v0.6.0 // indirect
+	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
+)
+
+require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect

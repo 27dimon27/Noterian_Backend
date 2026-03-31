@@ -15,6 +15,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
+//go:generate go run go.uber.org/mock/mockgen -source=auth.go -destination=mocks/mock_auth_usecase.go -package=mocks
+
 type AuthUsecase interface {
 	CreateUser(ctx context.Context, login, password string) (*models.Profile, error)
 	ValidateUser(ctx context.Context, login, password string) (*models.Profile, error)
