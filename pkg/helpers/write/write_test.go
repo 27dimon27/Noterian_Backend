@@ -23,18 +23,18 @@ func TestJSONResponse(t *testing.T) {
 			name:   "success response with struct",
 			status: http.StatusOK,
 			data: struct {
-				ID    string `json:"id"`
-				Login string `json:"login"`
+				ID       string `json:"id"`
+				Username string `json:"username"`
 			}{
-				ID:    "123",
-				Login: "test123",
+				ID:       "123",
+				Username: "test123",
 			},
 			checkResponse: func(t *testing.T, body []byte) {
 				var response map[string]interface{}
 				err := json.Unmarshal(body, &response)
 				require.NoError(t, err)
 				assert.Equal(t, "123", response["id"])
-				assert.Equal(t, "test123", response["login"])
+				assert.Equal(t, "test123", response["username"])
 			},
 		},
 		{
