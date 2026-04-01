@@ -16,9 +16,9 @@ import (
 )
 
 type NoteUsecase interface {
-	GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
-	GetNoteByID(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
-	GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
+	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
+	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
 	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
@@ -34,14 +34,14 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 	}
 }
 
-func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
+func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
 		return
 	}
 
-	notes, err := h.noteUsecase.GetNotesByUserID(r.Context(), userID)
+	notes, err := h.noteUsecase.GetNotes(r.Context(), userID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -53,7 +53,7 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -71,7 +71,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNoteByID(r.Context(), noteID, userID)
+	note, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrForbidden) {
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
@@ -86,7 +86,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks, err := h.noteUsecase.GetBlocksByNoteID(r.Context(), noteID)
+	blocks, err := h.noteUsecase.GetBlocks(r.Context(), noteID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -99,7 +99,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 
 func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, notes.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
@@ -143,7 +143,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -194,7 +194,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
