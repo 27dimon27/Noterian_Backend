@@ -44,7 +44,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
 	r.HandleFunc("POST /logout", authHandler.LogOutUser)
 
-	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
+	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetNotes), cfg.JWT))
 	r.Handle("GET /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
 	r.Handle("POST /notes", middleware.Auth(http.HandlerFunc(noteHandler.CreateNote), cfg.JWT))
 	r.Handle("PUT /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.UpdateNote), cfg.JWT))

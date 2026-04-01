@@ -16,14 +16,14 @@ import (
 )
 
 type NoteUsecase interface {
-	GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
-	GetNoteByID(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
-	GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
+	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
+	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
 	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
-	GetBlockByID(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
+	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
@@ -39,14 +39,14 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 	}
 }
 
-func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
+func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
 		return
 	}
 
-	notes, err := h.noteUsecase.GetNotesByUserID(r.Context(), userID)
+	notes, err := h.noteUsecase.GetNotes(r.Context(), userID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -76,7 +76,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNoteByID(r.Context(), noteID, userID)
+	note, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrForbidden) {
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
@@ -91,7 +91,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks, err := h.noteUsecase.GetBlocksByNoteID(r.Context(), noteID)
+	blocks, err := h.noteUsecase.GetBlocks(r.Context(), noteID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -321,7 +321,7 @@ func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	block, err := h.noteUsecase.GetBlockByID(r.Context(), blockID, noteID, userID)
+	block, err := h.noteUsecase.GetBlock(r.Context(), blockID, noteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)

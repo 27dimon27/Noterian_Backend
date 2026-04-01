@@ -23,7 +23,7 @@ func NewNoteRepository(db *sql.DB) *noteRepository {
 	}
 }
 
-func (r *noteRepository) GetNotesByUserID(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_NOTES_BY_USER, userID)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (r *noteRepository) GetNotesByUserID(ctx context.Context, userID uuid.UUID)
 	return notes, nil
 }
 
-func (r *noteRepository) GetNoteByID(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
+func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
 	var note models.Note
 	var parentID sql.NullString
 
@@ -83,7 +83,7 @@ func (r *noteRepository) GetNoteByID(ctx context.Context, noteID uuid.UUID) (*mo
 	return &note, nil
 }
 
-func (r *noteRepository) GetBlocksByNoteID(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
+func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
 	rows, err := r.db.QueryContext(ctx, GET_BLOCKS_BY_NOTE, noteID)
 	if err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*
 	return &block, nil
 }
 
-func (r *noteRepository) GetBlockByID(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
+func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
 	var block models.Block
 
 	err := r.db.QueryRowContext(ctx, GET_BLOCK_BY_ID, blockID).Scan(
