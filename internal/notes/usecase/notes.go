@@ -99,13 +99,18 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 	block.CreatedAt = time.Now()
 	block.UpdatedAt = time.Now()
 
-	if block.Position <= 0 {
-		blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
+	blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if block.Position <= 0 || block.Position > len(blocks) {
+		return nil, notes.ErrInvalidPosition
+	} else {
+		err = u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, 1, time.Now())
 		if err != nil {
 			return nil, err
 		}
-
-		block.Position = len(blocks)
 	}
 
 	return u.noteRepo.CreateBlock(ctx, block)
