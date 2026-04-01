@@ -58,7 +58,7 @@ func (h *NoteHandler) GetAllNotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -148,7 +148,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -199,7 +199,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -240,7 +240,7 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -291,7 +291,7 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -351,7 +351,7 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 	}
 	defer r.Body.Close()
 
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -418,7 +418,7 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
@@ -483,7 +483,7 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
-	noteIDStr := r.PathValue("id")
+	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
 		return
