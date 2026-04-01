@@ -26,8 +26,6 @@ services:
     env_file: ".env"
     expose:
       - "${PORT}"
-    ports:
-      - "${PORT}:${PORT}"
     depends_on:
       postgres:
         condition: service_healthy

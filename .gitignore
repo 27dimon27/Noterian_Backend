@@ -5,3 +5,5 @@ main
 noterian
 
 *.out
+
+docker-compose-test.yml
