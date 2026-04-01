@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -225,5 +226,120 @@ func (r *noteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error
 		return err
 	}
 
+	return nil
+}
+
+func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
+	err := r.db.QueryRowContext(ctx, CREATE_BLOCK,
+		block.NoteID, block.BlockTypeID, block.Position, block.Content, block.CreatedAt, block.UpdatedAt,
+	).Scan(
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	block.States = []models.BlockState{}
+	return &block, nil
+}
+
+func (r *noteRepository) GetBlockByID(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
+	var block models.Block
+
+	err := r.db.QueryRowContext(ctx, GET_BLOCK_BY_ID, blockID).Scan(
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	block.States = []models.BlockState{}
+	return &block, nil
+}
+
+func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error) {
+	var block models.Block
+
+	err := r.db.QueryRowContext(ctx, UPDATE_BLOCK_CONTENT, blockID, content, updatedAt).Scan(
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notes.ErrBlockNotFound
+		}
+		return nil, err
+	}
+
+	block.States = []models.BlockState{}
+	return &block, nil
+}
+
+func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int, updatedAt time.Time) (*models.Block, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			if err == nil {
+				err = rollbackErr
+			}
+		}
+	}()
+
+	if oldPosition < newPosition {
+		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_DOWN, noteID, oldPosition, newPosition, updatedAt)
+		if err != nil {
+			return nil, err
+		}
+	} else if oldPosition > newPosition {
+		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_UP, noteID, oldPosition, newPosition, updatedAt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var updatedBlock models.Block
+
+	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition, updatedAt).Scan(
+		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content, &updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &updatedBlock, nil
+}
+
+func (r *noteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error) {
+	var deletedBlockID uuid.UUID
+	var noteID uuid.UUID
+
+	err := r.db.QueryRowContext(ctx, DELETE_BLOCK, blockID).Scan(&deletedBlockID, &noteID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notes.ErrBlockNotFound
+		}
+		return nil, err
+	}
+
+	return &noteID, nil
+}
+
+func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int, updatedAt time.Time) error {
+	if direction > 0 {
+		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition, updatedAt)
+		return err
+	} else if direction < 0 {
+		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition, updatedAt)
+		return err
+	}
 	return nil
 }
