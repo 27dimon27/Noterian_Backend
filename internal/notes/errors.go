@@ -10,7 +10,7 @@ var (
 	ErrNoteNotFound        = errors.New("Заметка не найдена")
 	ErrForbidden           = errors.New("Доступ запрещен")
 	ErrInvalidUUID         = errors.New("Невалидный UUID")
-	ErrMethodNotAllowed    = errors.New("Неверный метод")
+	ErrBadRequest          = errors.New("Неверный запрос")
 	ErrBlockIDRequired     = errors.New("BlockID обязателен")
 	ErrInvalidBlockID      = errors.New("Невалидный BlockID")
 	ErrInvalidBlockData    = errors.New("Невалидные данные блока")

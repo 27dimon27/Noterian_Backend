@@ -104,7 +104,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 
 func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -235,7 +235,7 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 
 func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBadRequest)
 		return
 	}
 	defer r.Body.Close()
