@@ -143,7 +143,7 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 
 func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteData)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
 	defer r.Body.Close()
@@ -346,7 +346,7 @@ func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
 
 func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockData)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
 	defer r.Body.Close()
@@ -413,7 +413,7 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 
 func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockData)
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
 	defer r.Body.Close()
