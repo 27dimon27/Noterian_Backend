@@ -3,10 +3,10 @@ package dto
 import "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 
 type Formatting struct {
-	Bold      bool `json:"bold,omitempty"`
-	Italic    bool `json:"italic,omitempty"`
-	Underline bool `json:"underline,omitempty"`
-	TextAlign int8 `json:"text_align,omitempty"`
+	Bold      bool `json:"bold"`
+	Italic    bool `json:"italic"`
+	Underline bool `json:"underline"`
+	TextAlign int  `json:"text_align"`
 }
 
 func ToFormattingDTO(formatting models.Formatting) Formatting {

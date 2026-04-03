@@ -19,13 +19,15 @@ type Block struct {
 }
 
 func ToBlockDTO(block models.Block) Block {
+	dtoFormatting := ToFormattingDTO(block.Formatting)
+
 	return Block{
 		ID:          block.ID,
 		NoteID:      block.NoteID,
 		BlockTypeID: block.BlockTypeID,
 		Position:    block.Position,
 		Content:     block.Content,
-		Formatting:  ToFormattingDTO(block.Formatting),
+		Formatting:  dtoFormatting,
 		CreatedAt:   block.CreatedAt,
 		UpdatedAt:   block.UpdatedAt,
 	}

@@ -162,6 +162,12 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		return
+	}
+
 	var noteUpdateRequest dto.NoteRequest
 
 	if err := body.GetBody(r, &noteUpdateRequest); err != nil {
@@ -169,13 +175,9 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note := dto.FromNoteRequestDTO(noteUpdateRequest)
+	noteUpdateRequest.UserID = userID
 
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
-		return
-	}
+	note := dto.FromNoteRequestDTO(noteUpdateRequest)
 
 	updatedNote, err := h.noteUsecase.UpdateNote(r.Context(), noteID, note, userID)
 	if err != nil {

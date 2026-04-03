@@ -1,8 +1,8 @@
 package models
 
 type Formatting struct {
-	Bold      bool
-	Italic    bool
-	Underline bool
-	TextAlign int8
+	Bold      bool `json:"bold"`
+	Italic    bool `json:"italic"`
+	Underline bool `json:"underline"`
+	TextAlign int  `json:"text_align"`
 }
