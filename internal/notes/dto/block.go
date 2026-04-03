@@ -8,29 +8,24 @@ import (
 )
 
 type Block struct {
-	ID          uuid.UUID    `json:"id"`
-	NoteID      uuid.UUID    `json:"note_id"`
-	BlockTypeID int          `json:"block_type_id"`
-	Position    int          `json:"position"`
-	Content     string       `json:"content"`
-	States      []BlockState `json:"states"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   time.Time    `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	NoteID      uuid.UUID  `json:"note_id"`
+	BlockTypeID int        `json:"block_type_id"`
+	Position    int        `json:"position"`
+	Content     string     `json:"content"`
+	Formatting  Formatting `json:"formatting"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 func ToBlockDTO(block models.Block) Block {
-	blockSates := make([]BlockState, len(block.States))
-	for i, state := range block.States {
-		blockSates[i] = ToBlockStateDTO(state)
-	}
-
 	return Block{
 		ID:          block.ID,
 		NoteID:      block.NoteID,
 		BlockTypeID: block.BlockTypeID,
 		Position:    block.Position,
 		Content:     block.Content,
-		States:      blockSates,
+		Formatting:  ToFormattingDTO(block.Formatting),
 		CreatedAt:   block.CreatedAt,
 		UpdatedAt:   block.UpdatedAt,
 	}

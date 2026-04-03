@@ -22,6 +22,8 @@ type NoteRepository interface {
 	MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int, updatedAt time.Time) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error)
 	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int, updatedAt time.Time) error
+	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formatting models.Formatting) (*models.Block, error)
+	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
 }
 
 type noteUsecase struct {
@@ -192,6 +194,34 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 	}
 
 	return u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, -1, time.Now())
+}
+
+func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formatting models.Formatting) (*models.Block, error) {
+	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.noteRepo.UpdateBlockFormatting(ctx, blockID, formatting)
+}
+
+func (u *noteUsecase) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error) {
+	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.noteRepo.ResetBlockFormatting(ctx, blockID)
 }
 
 func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {

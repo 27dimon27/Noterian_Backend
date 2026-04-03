@@ -1,21 +1,22 @@
 package repository
 
 const (
-	GET_BLOCKS_BY_NOTE              = "SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs ON b.id = bs.block_id WHERE b.note_id = $1 ORDER BY b.position, bs.created_at"
+	GET_BLOCKS_BY_NOTE              = "SELECT id, note_id, block_type_id, position, content, formatting, created_at, updated_at FROM blocks WHERE note_id = $1 ORDER BY position"
 	GET_NOTE_BY_ID                  = "SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE id = $1"
 	GET_NOTES_BY_USER               = "SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY updated_at DESC"
 	CREATE_NOTE                     = "INSERT INTO notes (user_id, title, parent_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, title, parent_id, created_at, updated_at"
 	UPDATE_NOTE                     = "UPDATE notes SET title = $2, parent_id = $3, updated_at = $4 WHERE id = $1 RETURNING id, user_id, title, parent_id, created_at, updated_at"
 	DELETE_NOTE                     = "DELETE FROM notes WHERE id = $1 RETURNING id"
-	CREATE_BLOCK                    = "INSERT INTO blocks (note_id, block_type_id, position, content, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, note_id, block_type_id, position, content, created_at, updated_at"
-	GET_BLOCK_BY_ID                 = "SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks WHERE id = $1"
-	UPDATE_BLOCK_CONTENT            = "UPDATE blocks SET content = $2, updated_at = $3 WHERE id = $1 RETURNING id, note_id, block_type_id, position, content, created_at, updated_at"
-	GET_BLOCK_BY_POSITION           = "SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks WHERE note_id = $1 AND position = $2"
+	CREATE_BLOCK                    = "INSERT INTO blocks (note_id, block_type_id, position, content, formatting, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, note_id, block_type_id, position, content, formatting, created_at, updated_at"
+	GET_BLOCK_BY_ID                 = "SELECT id, note_id, block_type_id, position, content, formatting, created_at, updated_at FROM blocks WHERE id = $1"
+	UPDATE_BLOCK_CONTENT            = "UPDATE blocks SET content = $2, updated_at = $3 WHERE id = $1 RETURNING id, note_id, block_type_id, position, content, formatting, created_at, updated_at"
+	GET_BLOCK_BY_POSITION           = "SELECT id, note_id, block_type_id, position, content, formatting, created_at, updated_at FROM blocks WHERE note_id = $1 AND position = $2"
 	GET_MAX_BLOCK_POSITION          = "SELECT COALESCE(MAX(position), -1) FROM blocks WHERE note_id = $1"
-	UPDATE_BLOCK_POSITION           = "UPDATE blocks SET position = $2, updated_at = $3 WHERE id = $1 RETURNING id, note_id, block_type_id, position, content, created_at, updated_at"
+	UPDATE_BLOCK_POSITION           = "UPDATE blocks SET position = $2, updated_at = $3 WHERE id = $1 RETURNING id, note_id, block_type_id, position, content, formatting, created_at, updated_at"
 	DELETE_BLOCK                    = "DELETE FROM blocks WHERE id = $1 RETURNING id, note_id"
 	UPDATE_BLOCKS_POSITION_DOWN     = "UPDATE blocks SET position = position - 1, updated_at = $4 WHERE note_id = $1 AND position > $2 AND position <= $3"
 	UPDATE_BLOCKS_POSITION_UP       = "UPDATE blocks SET position = position + 1, updated_at = $4 WHERE note_id = $1 AND position < $2 AND position >= $3"
 	UPDATE_ALL_BLOCKS_POSITION_DOWN = "UPDATE blocks SET position = position - 1, updated_at = $3 WHERE note_id = $1 AND position > $2"
 	UPDATE_ALL_BLOCKS_POSITION_UP   = "UPDATE blocks SET position = position + 1, updated_at = $3 WHERE note_id = $1 AND position >= $2"
+	UPDATE_BLOCK_FORMATTING         = "UPDATE blocks SET formatting = $2, updated_at = $3 WHERE id = $1 RETURNING id, note_id, block_type_id, position, content, formatting, created_at, updated_at"
 )

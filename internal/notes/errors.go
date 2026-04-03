@@ -18,4 +18,5 @@ var (
 	ErrInvalidBlockType    = errors.New("Невалидный тип блока")
 	ErrInvalidBlockContent = errors.New("Невалидное содержимое блока")
 	ErrInvalidPosition     = errors.New("Невалидная позиция блока")
+	ErrInvalidFormatting   = errors.New("Невалидное форматирование блока")
 )

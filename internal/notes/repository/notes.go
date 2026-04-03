@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"sort"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -90,77 +89,36 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 	}
 	defer rows.Close()
 
-	blocksMap := make(map[uuid.UUID]*models.Block)
+	var blocks []models.Block
 
 	for rows.Next() {
 		var (
-			blockID        uuid.UUID
-			noteID         uuid.UUID
-			blockTypeID    int
-			position       int
-			content        string
-			stateID        sql.NullString
-			formatting     sql.NullString
-			stateCreatedAt sql.NullTime
-			stateUpdatedAt sql.NullTime
+			block      models.Block
+			formatting sql.NullString
 		)
 
-		err := rows.Scan(&blockID, &noteID, &blockTypeID, &position, &content,
-			&stateID, &formatting, &stateCreatedAt, &stateUpdatedAt)
+		err := rows.Scan(&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
+			&formatting, &block.CreatedAt, &block.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
-		block, exists := blocksMap[blockID]
-		if !exists {
-			block = &models.Block{
-				ID:          blockID,
-				NoteID:      noteID,
-				BlockTypeID: blockTypeID,
-				Position:    position,
-				Content:     content,
-				States:      []models.BlockState{},
-			}
-			blocksMap[blockID] = block
-		}
-
-		if stateID.Valid {
-			var formattingData map[string]interface{}
+		if formatting.Valid {
+			var formattingData models.Formatting
 			if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-				formattingData = map[string]interface{}{
-					"format": "text",
-				}
+				return nil, err
 			}
-
-			stateUUID, err := uuid.Parse(stateID.String)
-			if err != nil {
-				return nil, notes.ErrInvalidUUID
-			}
-
-			state := models.BlockState{
-				ID:         stateUUID,
-				BlockID:    blockID,
-				Formatting: formattingData,
-				CreatedAt:  stateCreatedAt.Time,
-				UpdatedAt:  stateUpdatedAt.Time,
-			}
-
-			block.States = append(block.States, state)
+			block.Formatting = formattingData
+		} else {
+			block.Formatting = getDefaultFormatting()
 		}
+
+		blocks = append(blocks, block)
 	}
 
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-
-	blocks := make([]models.Block, 0, len(blocksMap))
-	for _, block := range blocksMap {
-		blocks = append(blocks, *block)
-	}
-
-	sort.Slice(blocks, func(i, j int) bool {
-		return blocks[i].Position < blocks[j].Position
-	})
 
 	return blocks, nil
 }
@@ -230,24 +188,37 @@ func (r *noteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error
 }
 
 func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
-	err := r.db.QueryRowContext(ctx, CREATE_BLOCK,
-		block.NoteID, block.BlockTypeID, block.Position, block.Content, block.CreatedAt, block.UpdatedAt,
+	formattingJSON, err := json.Marshal(getDefaultFormatting())
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.db.QueryRowContext(ctx, CREATE_BLOCK,
+		block.NoteID, block.BlockTypeID, block.Position, block.Content, formattingJSON, block.CreatedAt, block.UpdatedAt,
 	).Scan(
-		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
+		&formattingJSON, &block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	block.States = []models.BlockState{}
+	var formattingData models.Formatting
+	if err := json.Unmarshal(formattingJSON, &formattingData); err != nil {
+		return nil, err
+	}
+
+	block.Formatting = formattingData
 	return &block, nil
 }
 
 func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
 	var block models.Block
+	var formatting sql.NullString
 
 	err := r.db.QueryRowContext(ctx, GET_BLOCK_BY_ID, blockID).Scan(
-		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
+		&formatting, &block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -256,15 +227,26 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 		return nil, err
 	}
 
-	block.States = []models.BlockState{}
+	if formatting.Valid {
+		var formattingData models.Formatting
+		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
+			return nil, err
+		}
+		block.Formatting = formattingData
+	} else {
+		block.Formatting = getDefaultFormatting()
+	}
+
 	return &block, nil
 }
 
 func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error) {
 	var block models.Block
+	var formatting sql.NullString
 
 	err := r.db.QueryRowContext(ctx, UPDATE_BLOCK_CONTENT, blockID, content, updatedAt).Scan(
-		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
+		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
+		&formatting, &block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -273,7 +255,16 @@ func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UU
 		return nil, err
 	}
 
-	block.States = []models.BlockState{}
+	if formatting.Valid {
+		var formattingData models.Formatting
+		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
+			return nil, err
+		}
+		block.Formatting = formattingData
+	} else {
+		block.Formatting = getDefaultFormatting()
+	}
+
 	return &block, nil
 }
 
@@ -303,12 +294,24 @@ func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockI
 	}
 
 	var updatedBlock models.Block
+	var formatting sql.NullString
 
 	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition, updatedAt).Scan(
-		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content, &updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
+		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content,
+		&formatting, &updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if formatting.Valid {
+		var formattingData models.Formatting
+		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
+			return nil, err
+		}
+		updatedBlock.Formatting = formattingData
+	} else {
+		updatedBlock.Formatting = getDefaultFormatting()
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -342,4 +345,78 @@ func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UU
 		return err
 	}
 	return nil
+}
+
+func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingData models.Formatting) (*models.Block, error) {
+	formattingJSON, err := json.Marshal(formattingData)
+	if err != nil {
+		return nil, err
+	}
+
+	var updatedBlock models.Block
+	var formatting sql.NullString
+
+	err = r.db.QueryRowContext(ctx, UPDATE_BLOCK_FORMATTING,
+		blockID, formattingJSON, time.Now(),
+	).Scan(
+		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID,
+		&updatedBlock.Position, &updatedBlock.Content, &formatting,
+		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notes.ErrBlockNotFound
+		}
+		return nil, err
+	}
+
+	if formatting.Valid {
+		var updatedFormattingData models.Formatting
+		if err := json.Unmarshal([]byte(formatting.String), &updatedFormattingData); err != nil {
+			return nil, err
+		}
+		updatedBlock.Formatting = updatedFormattingData
+	} else {
+		updatedBlock.Formatting = getDefaultFormatting()
+	}
+
+	return &updatedBlock, nil
+}
+
+func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
+	defaultFormatting := getDefaultFormatting()
+
+	formattingJSON, err := json.Marshal(defaultFormatting)
+	if err != nil {
+		return nil, err
+	}
+
+	var updatedBlock models.Block
+	var formatting sql.NullString
+
+	err = r.db.QueryRowContext(ctx, UPDATE_BLOCK_FORMATTING,
+		blockID, formattingJSON, time.Now(),
+	).Scan(
+		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID,
+		&updatedBlock.Position, &updatedBlock.Content, &formatting,
+		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notes.ErrBlockNotFound
+		}
+		return nil, err
+	}
+
+	updatedBlock.Formatting = defaultFormatting
+	return &updatedBlock, nil
+}
+
+func getDefaultFormatting() models.Formatting {
+	return models.Formatting{
+		Bold:      false,
+		Italic:    false,
+		Underline: false,
+		TextAlign: -1,
+	}
 }

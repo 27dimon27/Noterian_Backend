@@ -34,14 +34,7 @@ CREATE TABLE IF NOT EXISTS blocks (
     block_type_id INTEGER NOT NULL REFERENCES block_types(id),
     position INTEGER NOT NULL,
     content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS block_states (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    block_id UUID NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
-    formatting JSONB NOT NULL,
+    formatting JSONB NOT NULL DEFAULT '{"bold": false, "italic": false, "underline": false, "text_align": -1}'::JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -49,7 +42,6 @@ CREATE TABLE IF NOT EXISTS block_states (
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);
-CREATE INDEX idx_block_states_block_id ON block_states(block_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -71,10 +63,5 @@ CREATE TRIGGER update_notes_updated_at
 
 CREATE TRIGGER update_blocks_updated_at 
     BEFORE UPDATE ON blocks 
-    FOR EACH ROW 
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_block_states_updated_at 
-    BEFORE UPDATE ON block_states 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
