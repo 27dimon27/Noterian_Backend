@@ -50,6 +50,12 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.Handle("PUT /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.UpdateNote), cfg.JWT))
 	r.Handle("DELETE /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteNote), cfg.JWT))
 
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.GetBlock), cfg.JWT))
+	r.Handle("POST /notes/{noteId}/blocks", middleware.Auth(http.HandlerFunc(noteHandler.CreateBlock), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockContent), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", middleware.Auth(http.HandlerFunc(noteHandler.MoveBlock), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteBlock), cfg.JWT))
+
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
 	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
