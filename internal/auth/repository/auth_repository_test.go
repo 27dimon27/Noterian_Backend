@@ -138,7 +138,7 @@ func TestGetUserByLogin(t *testing.T) {
 			WithArgs(login).
 			WillReturnRows(rows)
 
-		user, err := repo.GetUserByLogin(context.Background(), login)
+		user, err := repo.GetUserByUsername(context.Background(), login)
 		if err != nil {
 			t.Errorf("unexpected err: %s", err)
 			return
@@ -161,7 +161,7 @@ func TestGetUserByLogin(t *testing.T) {
 			WithArgs(login).
 			WillReturnError(sql.ErrNoRows)
 
-		_, err := repo.GetUserByLogin(context.Background(), login)
+		_, err := repo.GetUserByUsername(context.Background(), login)
 		if !errors.Is(err, auth.ErrUserNotExist) {
 			t.Errorf("expected ErrUserNotExist, got %v", err)
 		}
@@ -176,7 +176,7 @@ func TestGetUserByLogin(t *testing.T) {
 			WithArgs(login).
 			WillReturnError(errors.New("db error"))
 
-		_, err := repo.GetUserByLogin(context.Background(), login)
+		_, err := repo.GetUserByUsername(context.Background(), login)
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}
@@ -195,7 +195,7 @@ func TestGetUserByLogin(t *testing.T) {
 			WithArgs(login).
 			WillReturnRows(rows)
 
-		_, err := repo.GetUserByLogin(context.Background(), login)
+		_, err := repo.GetUserByUsername(context.Background(), login)
 		if err == nil {
 			t.Errorf("expected error, got nil")
 		}

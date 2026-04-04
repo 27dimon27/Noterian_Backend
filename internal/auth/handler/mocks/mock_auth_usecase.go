@@ -42,31 +42,31 @@ func (m *MockAuthUsecase) EXPECT() *MockAuthUsecaseMockRecorder {
 }
 
 // CreateUser mocks base method.
-func (m *MockAuthUsecase) CreateUser(ctx context.Context, login, password string) (*models.Profile, error) {
+func (m *MockAuthUsecase) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, login, password)
+	ret := m.ctrl.Call(m, "CreateUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateUser indicates an expected call of CreateUser.
-func (mr *MockAuthUsecaseMockRecorder) CreateUser(ctx, login, password any) *gomock.Call {
+func (mr *MockAuthUsecaseMockRecorder) CreateUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthUsecase)(nil).CreateUser), ctx, login, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthUsecase)(nil).CreateUser), ctx, username, password)
 }
 
 // ValidateUser mocks base method.
-func (m *MockAuthUsecase) ValidateUser(ctx context.Context, login, password string) (*models.Profile, error) {
+func (m *MockAuthUsecase) ValidateUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateUser", ctx, login, password)
+	ret := m.ctrl.Call(m, "ValidateUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ValidateUser indicates an expected call of ValidateUser.
-func (mr *MockAuthUsecaseMockRecorder) ValidateUser(ctx, login, password any) *gomock.Call {
+func (mr *MockAuthUsecaseMockRecorder) ValidateUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateUser", reflect.TypeOf((*MockAuthUsecase)(nil).ValidateUser), ctx, login, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateUser", reflect.TypeOf((*MockAuthUsecase)(nil).ValidateUser), ctx, username, password)
 }

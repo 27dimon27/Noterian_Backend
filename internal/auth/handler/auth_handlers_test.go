@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -47,8 +48,17 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 			CreateUser(gomock.Any(), validLogin, validPassword).
 			Return(expectedUser, nil)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signup", strings.NewReader(body))
+		signUpData := dto.SignUpUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signUpData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signup", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -64,8 +74,8 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 		if response.ID != userID.String() {
 			t.Errorf("expected id %s, got %s", userID.String(), response.ID)
 		}
-		if response.Login != validLogin {
-			t.Errorf("expected login %s, got %s", validLogin, response.Login)
+		if response.Username != validLogin {
+			t.Errorf("expected login %s, got %s", validLogin, response.Username)
 		}
 
 		cookies := w.Result().Cookies()
@@ -82,8 +92,17 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 			CreateUser(gomock.Any(), validLogin, validPassword).
 			Return(nil, auth.ErrUserExist)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signup", strings.NewReader(body))
+		signUpData := dto.SignUpUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signUpData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signup", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -97,10 +116,19 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 	t.Run("invalid login", func(t *testing.T) {
 		mockUsecase.EXPECT().
 			CreateUser(gomock.Any(), "ab", validPassword).
-			Return(nil, auth.ErrInvalidLogin)
+			Return(nil, auth.ErrInvalidUsername)
 
-		body := `{"login":"ab","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signup", strings.NewReader(body))
+		signUpData := dto.SignUpUser{
+			Username: "ab",
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signUpData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signup", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -116,8 +144,17 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 			CreateUser(gomock.Any(), validLogin, "abc").
 			Return(nil, auth.ErrInvalidPassword)
 
-		body := `{"login":"` + validLogin + `","password":"abc"}`
-		req := httptest.NewRequest("POST", "/signup", strings.NewReader(body))
+		signUpData := dto.SignUpUser{
+			Username: validLogin,
+			Password: "abc",
+		}
+		
+		body, err := json.Marshal(signUpData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signup", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -145,8 +182,17 @@ func TestAuthHandler_SignupUser(t *testing.T) {
 			CreateUser(gomock.Any(), validLogin, validPassword).
 			Return(nil, auth.ErrInternal)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signup", strings.NewReader(body))
+		signUpData := dto.SignUpUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signUpData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signup", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -200,8 +246,17 @@ func TestAuthHandler_SigninUser(t *testing.T) {
 			ValidateUser(gomock.Any(), validLogin, validPassword).
 			Return(expectedUser, nil)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signin", strings.NewReader(body))
+		signInData := dto.SignInUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signInData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signin", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -217,8 +272,8 @@ func TestAuthHandler_SigninUser(t *testing.T) {
 		if response.ID != userID.String() {
 			t.Errorf("expected id %s, got %s", userID.String(), response.ID)
 		}
-		if response.Login != validLogin {
-			t.Errorf("expected login %s, got %s", validLogin, response.Login)
+		if response.Username != validLogin {
+			t.Errorf("expected login %s, got %s", validLogin, response.Username)
 		}
 
 		cookies := w.Result().Cookies()
@@ -235,8 +290,17 @@ func TestAuthHandler_SigninUser(t *testing.T) {
 			ValidateUser(gomock.Any(), validLogin, validPassword).
 			Return(nil, auth.ErrBadCredentials)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signin", strings.NewReader(body))
+		signInData := dto.SignInUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signInData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signin", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -252,8 +316,17 @@ func TestAuthHandler_SigninUser(t *testing.T) {
 			ValidateUser(gomock.Any(), validLogin, validPassword).
 			Return(nil, auth.ErrUserNotExist)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signin", strings.NewReader(body))
+		signInData := dto.SignInUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signInData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signin", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -281,8 +354,17 @@ func TestAuthHandler_SigninUser(t *testing.T) {
 			ValidateUser(gomock.Any(), validLogin, validPassword).
 			Return(nil, auth.ErrInternal)
 
-		body := `{"login":"` + validLogin + `","password":"` + validPassword + `"}`
-		req := httptest.NewRequest("POST", "/signin", strings.NewReader(body))
+		signInData := dto.SignInUser{
+			Username: validLogin,
+			Password: validPassword,
+		}
+		
+		body, err := json.Marshal(signInData)
+		if err != nil {
+			t.Errorf("error in parsing json dto")
+		}
+
+		req := httptest.NewRequest("POST", "/signin", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 

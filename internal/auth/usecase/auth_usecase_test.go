@@ -61,43 +61,43 @@ func TestCreateUser(t *testing.T) {
 
 	t.Run("invalid login - empty", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), "", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
 	t.Run("invalid login - invalid characters", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), "test@user", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
 	t.Run("invalid login - starts with underscore", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), "_testuser", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
 	t.Run("invalid login - starts with dot", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), ".testuser", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
 	t.Run("invalid login - ends with underscore", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), "testuser_", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
 	t.Run("invalid login - contains double underscore", func(t *testing.T) {
 		_, err := usecase.CreateUser(context.Background(), "test__user", validPassword)
-		if !errors.Is(err, auth.ErrInvalidLogin) {
-			t.Errorf("expected ErrInvalidLogin, got %v", err)
+		if !errors.Is(err, auth.ErrInvalidUsername) {
+			t.Errorf("expected ErrInvalidUsername, got %v", err)
 		}
 	})
 
@@ -180,7 +180,7 @@ func TestValidateUser(t *testing.T) {
 
 	t.Run("success validation", func(t *testing.T) {
 		mockRepo.EXPECT().
-			GetUserByLogin(gomock.Any(), validLogin).
+			GetUserByUsername(gomock.Any(), validLogin).
 			Return(expectedUser, nil)
 
 		user, err := usecase.ValidateUser(context.Background(), validLogin, validPassword)
@@ -199,7 +199,7 @@ func TestValidateUser(t *testing.T) {
 
 	t.Run("user not found", func(t *testing.T) {
 		mockRepo.EXPECT().
-			GetUserByLogin(gomock.Any(), validLogin).
+			GetUserByUsername(gomock.Any(), validLogin).
 			Return(nil, auth.ErrUserNotExist)
 
 		_, err := usecase.ValidateUser(context.Background(), validLogin, validPassword)
@@ -210,7 +210,7 @@ func TestValidateUser(t *testing.T) {
 
 	t.Run("wrong password", func(t *testing.T) {
 		mockRepo.EXPECT().
-			GetUserByLogin(gomock.Any(), validLogin).
+			GetUserByUsername(gomock.Any(), validLogin).
 			Return(expectedUser, nil)
 
 		_, err := usecase.ValidateUser(context.Background(), validLogin, "wrongPassword123")
@@ -221,7 +221,7 @@ func TestValidateUser(t *testing.T) {
 
 	t.Run("repository returns error", func(t *testing.T) {
 		mockRepo.EXPECT().
-			GetUserByLogin(gomock.Any(), validLogin).
+			GetUserByUsername(gomock.Any(), validLogin).
 			Return(nil, errors.New("db error"))
 
 		_, err := usecase.ValidateUser(context.Background(), validLogin, validPassword)
