@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
@@ -37,9 +36,9 @@ func Run() error {
 	srv := &http.Server{
 		Handler:      srvRouter,
 		Addr:         addr,
-		ReadTimeout:  cfg.Server.ReadTimeout * time.Second,
-		WriteTimeout: cfg.Server.WriteTimeout * time.Second,
-		IdleTimeout:  cfg.Server.IdleTimeout * time.Second,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -59,7 +58,7 @@ func Run() error {
 	case <-ctx.Done():
 		log.Info("Shutting down server...")
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 		defer cancel()
 
 		if err := srv.Shutdown(shutdownCtx); err != nil {

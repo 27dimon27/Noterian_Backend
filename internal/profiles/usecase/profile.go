@@ -4,11 +4,14 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/google/uuid"
 )
 
 type ProfileRepository interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
+	DeleteProfile(ctx context.Context, userID uuid.UUID) error
 }
 
 type profileUsecase struct {
@@ -28,4 +31,21 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 	}
 
 	return profile, nil
+}
+
+func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+	if profile.Username == "" {
+		return nil, profiles.ErrInvalidProfileData
+	}
+
+	updatedProfile, err := u.profileRepo.UpdateProfile(ctx, userID, profile)
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedProfile, nil
+}
+
+func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+	return u.profileRepo.DeleteProfile(ctx, userID)
 }

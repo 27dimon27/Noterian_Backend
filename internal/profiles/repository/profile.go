@@ -23,7 +23,7 @@ func NewProfileRepository(db *sql.DB) *profileRepository {
 func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username)
+	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, profiles.ErrUserNotExist
@@ -32,4 +32,32 @@ func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	}
 
 	return user, nil
+}
+
+func (r *profileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+	updatedProfile := &models.Profile{}
+
+	err := r.db.QueryRowContext(ctx, UPDATE_PROFILE_BY_USER_ID, userID, profile.Username).Scan(&updatedProfile.ID, &updatedProfile.Username, &updatedProfile.CreatedAt, &updatedProfile.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, profiles.ErrUserNotExist
+		}
+		return nil, err
+	}
+
+	return updatedProfile, nil
+}
+
+func (r *profileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+	var id uuid.UUID
+
+	err := r.db.QueryRowContext(ctx, DELETE_PROFILE_BY_USER_ID, userID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return profiles.ErrUserNotExist
+		}
+		return err
+	}
+
+	return nil
 }

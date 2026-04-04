@@ -36,7 +36,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 
 	profileRepo := profilesRepo.NewProfileRepository(db)
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
-	profileHandler := profilesHandler.NewProfileHandler(profileUsecase)
+	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	r := http.NewServeMux()
 
@@ -44,10 +44,21 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
 	r.HandleFunc("POST /logout", authHandler.LogOutUser)
 
-	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetAllNotes), cfg.JWT))
-	r.Handle("GET /notes/{id}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
+	r.Handle("GET /notes", middleware.Auth(http.HandlerFunc(noteHandler.GetNotes), cfg.JWT))
+	r.Handle("GET /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.GetNote), cfg.JWT))
+	r.Handle("POST /notes", middleware.Auth(http.HandlerFunc(noteHandler.CreateNote), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.UpdateNote), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteNote), cfg.JWT))
+
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.GetBlock), cfg.JWT))
+	r.Handle("POST /notes/{noteId}/blocks", middleware.Auth(http.HandlerFunc(noteHandler.CreateBlock), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockContent), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", middleware.Auth(http.HandlerFunc(noteHandler.MoveBlock), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteBlock), cfg.JWT))
 
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
+	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
+	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
 
 	return middleware.Logger(r), nil
 }
