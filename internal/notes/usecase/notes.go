@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate go run go.uber.org/mock/mockgen -source=notes.go -destination=mocks/mock_notes_repository.go -package=mocks
+
 type NoteRepository interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
@@ -104,7 +106,7 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 		return nil, err
 	}
 
-	if block.Position <= 0 || block.Position > len(blocks) {
+	if block.Position < 0 || block.Position > len(blocks) {
 		return nil, notes.ErrInvalidPosition
 	} else {
 		err = u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, 1, time.Now())
