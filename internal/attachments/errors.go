@@ -3,14 +3,14 @@ package attachments
 import "errors"
 
 var (
-	ErrAttachmentNotFound    = errors.New("attachment not found")
-	ErrBlockAlreadyHasAttach = errors.New("block already has attachment")
-	ErrInvalidMimeType       = errors.New("invalid file mime type")
-	ErrFileTooLarge          = errors.New("file size exceeds 100MB limit")
-	ErrFailedToUpload        = errors.New("failed to upload file to MinIO")
-	ErrFailedToDelete        = errors.New("failed to delete file from MinIO")
-	ErrBlockNotFound         = errors.New("block not found")
-	ErrNoteNotFound          = errors.New("note not found")
+	ErrAttachmentNotFound    = errors.New("Вложнение не найдено")
+	ErrBlockAlreadyHasAttach = errors.New("Блок уже содержит вложение")
+	ErrInvalidMimeType       = errors.New("Неподдерживаемый MIME-тип файла")
+	ErrFileTooLarge          = errors.New("Слишком большой файл")
+	ErrFailedToUpload        = errors.New("Не удалось загрузить файл")
+	ErrFailedToDelete        = errors.New("Не удалось удалить файл")
+	ErrBlockNotFound         = errors.New("Блок не найден")
+	ErrNoteNotFound          = errors.New("Заметка не найдена")
 	ErrNoteIDRequired        = errors.New("NoteID обязателен")
 	ErrInvalidNoteID         = errors.New("Невалидный NoteID")
 	ErrBlockIDRequired       = errors.New("BlockID обязателен")

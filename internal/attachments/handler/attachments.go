@@ -75,6 +75,11 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if attachment == nil {
+		write.JSONErrorResponse(w, http.StatusNotFound, attachments.ErrAttachmentNotFound)
+		return
+	}
+
 	response := dto.ToAttachmentDTO(*attachment)
 
 	write.JSONResponse(w, http.StatusOK, response)
@@ -152,6 +157,11 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
+		return
+	}
+
+	if attachment == nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 

@@ -105,7 +105,7 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 	}
 
 	if err := u.attachmentRepo.DeleteAttachment(ctx, blockID); err != nil {
-		return attachments.ErrFailedToDelete
+		return err
 	}
 
 	return nil
