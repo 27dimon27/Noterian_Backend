@@ -15,6 +15,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate go run go.uber.org/mock/mockgen -source=profile.go -destination=mocks/mock_profile_usecase.go -package=mocks
+
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
@@ -52,7 +54,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	if r.Body == nil {
+	if r.Body == nil || r.ContentLength == 0 {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
 		return
 	}
