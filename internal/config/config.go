@@ -18,6 +18,9 @@ const (
 	DEFAULT_IDLE_TIMEOUT         = 15
 	DEFAULT_MAX_OPEN_CONNECTIONS = 25
 	DEFAULT_MAX_IDLE_CONNECTIONS = 5
+	DEFAULT_MINIO_ENDPOINT       = "localhost:9000"
+	DEFAULT_MINIO_USE_SSL        = false
+	DEFAULT_MINIO_BUCKET_NAME    = "attachments"
 )
 
 type JWTConfig struct {
@@ -46,10 +49,19 @@ type DBConfig struct {
 	MaxIdleConns int
 }
 
+type MinIOConfig struct {
+	Endpoint   string
+	AccessKey  string
+	SecretKey  string
+	UseSSL     bool
+	BucketName string
+}
+
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
 	DB     DBConfig
+	MinIO  MinIOConfig
 }
 
 func Load() *Config {
@@ -115,6 +127,21 @@ func Load() *Config {
 		maxIdleConns = DEFAULT_MAX_IDLE_CONNECTIONS
 	}
 
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	if endpoint == "" {
+		endpoint = DEFAULT_MINIO_ENDPOINT
+	}
+
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+
+	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	bucketName := os.Getenv("MINIO_BUCKET_NAME")
+	if bucketName == "" {
+		bucketName = DEFAULT_MINIO_BUCKET_NAME
+	}
+
 	return &Config{
 		JWT: JWTConfig{
 			Secret:        jwtSecret,
@@ -138,6 +165,13 @@ func Load() *Config {
 			SSLMode:      os.Getenv("DB_SSL_MODE"),
 			MaxOpenConns: maxOpenConns,
 			MaxIdleConns: maxIdleConns,
+		},
+		MinIO: MinIOConfig{
+			Endpoint:   endpoint,
+			AccessKey:  accessKey,
+			SecretKey:  secretKey,
+			UseSSL:     useSSL,
+			BucketName: bucketName,
 		},
 	}
 }
