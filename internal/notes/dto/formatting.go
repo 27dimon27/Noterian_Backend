@@ -9,7 +9,7 @@ type FormattingRange struct {
 	Bold      *bool  `json:"bold,omitempty"`
 	Italic    *bool  `json:"italic,omitempty"`
 	Underline *bool  `json:"underline,omitempty"`
-	TextAlign *int   `json:"text_align,omitempty"`
+	TextAlign *int   `json:"text_align,omitempty"` // 0: left, 1: center, 2: right
 }
 
 type BlockFormatting struct {

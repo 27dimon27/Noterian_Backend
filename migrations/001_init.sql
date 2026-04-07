@@ -46,11 +46,12 @@ CREATE TABLE IF NOT EXISTS block_formatting (
     bold BOOLEAN NOT NULL DEFAULT FALSE,
     italic BOOLEAN NOT NULL DEFAULT FALSE,
     underline BOOLEAN NOT NULL DEFAULT FALSE,
-    text_align INTEGER NOT NULL DEFAULT -1,
+    text_align INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    CONSTRAINT check_positions CHECK (start_pos >= 0 AND end_pos > start_pos)
+    CONSTRAINT check_positions CHECK (start_pos >= 0 AND end_pos > start_pos),
+    CONSTRAINT check_text_align CHECK (text_align IS NULL OR (text_align >= 0 AND text_align <= 2))
 );
 
 CREATE INDEX idx_notes_user_id ON notes(user_id);

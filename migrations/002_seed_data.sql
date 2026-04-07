@@ -77,7 +77,7 @@ BEGIN
     (block_id, note_id, 1, 1, block_content, NOW() - INTERVAL '1 month', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 0, 50, TRUE, FALSE, FALSE, -1);
+    (block_id, 0, 50, TRUE, FALSE, FALSE, 0);
     
     block_id := 'f3333333-3333-3333-3333-333333333333';
     block_content := 'I usually begin reviews by talking about presentation. Alas, the graphics are often wonky and the mechanics are stiff. The NPC models are aggressively Bethesda-esque, and that''s not a compliment. Part of game''s fame comes from it starting life as a Skyrim mod made by 3 people, and unfortunately it shows. I can''t deny it''s an impressive feat. Few could create such an experience, but as I paid more for this than for some of my all-time favourite stories, I can''t see such context as an excuse for rocks with poor clipping and countless opportunities to get soft-locked in invisible walls. I think part of my negative perception in this regard stems from TFC going for a "realistic" look, which beside being subjectively boring is hard to do well on a budget. I genuinely think I would''ve liked the exact same game measurably more if it was styled as well as indies tend to be.';
@@ -85,7 +85,7 @@ BEGIN
     (block_id, note_id, 1, 2, block_content, NOW() - INTERVAL '1 month', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 200, 350, FALSE, TRUE, FALSE, -1);
+    (block_id, 200, 350, FALSE, TRUE, FALSE, 0);
 END $$;
 
 DO $$
@@ -100,7 +100,7 @@ BEGIN
     (block_id, note_id, 1, 0, block_content, NOW() - INTERVAL '2 months', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 30, 80, FALSE, FALSE, TRUE, -1);
+    (block_id, 30, 80, FALSE, FALSE, TRUE, 0);
     
     block_id := 'a2222222-2222-2222-2222-222222222222';
     block_content := 'There are special technologies for achieving a goal. Successful people, when they try to achieve their goals, met many obstacles. In order not to stop halfway, they developed their own techniques. Their experience can serve as a good example for others. Let''s look at the important conditions for achieving the goal.';
@@ -136,7 +136,7 @@ BEGIN
     (block_id, note_id, 1, 1, block_content, NOW() - INTERVAL '3 months', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 50, 120, TRUE, FALSE, TRUE, -1);
+    (block_id, 50, 120, TRUE, FALSE, TRUE, 0);
     
     block_id := 'b3333333-3333-3333-3333-333333333333';
     block_content := 'The bird is a very committed partner in marriage. They choose marriage partners for life, and they take care for their babies together. Males and females look alike, but females are usually larger. Eagles build large nests, and usually they do it together. One of the biggest ones was recorded in the Guinness Book of Records, because it weighed almost 2 tons. These birds are one of a kind, because they can see even with their eyes closed. The thing is, in addition to usual eyelids they have special membranes on their eyes. Those membranes help them better preserve their eyes from the dust.';
@@ -172,7 +172,7 @@ BEGIN
     (block_id, note_id, 1, 2, block_content, NOW() - INTERVAL '4 months', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 0, LENGTH(block_content), FALSE, TRUE, TRUE, -1);
+    (block_id, 0, LENGTH(block_content), FALSE, TRUE, TRUE, 0);
 END $$;
 
 DO $$
@@ -193,9 +193,9 @@ BEGIN
     (block_id, note_id, 1, 1, block_content2, NOW() - INTERVAL '5 months', NOW());
     
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 0, 50, TRUE, TRUE, FALSE, -1);
+    (block_id, 0, 50, TRUE, TRUE, FALSE, 0);
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
-    (block_id, 100, 180, FALSE, FALSE, TRUE, -1);
+    (block_id, 100, 180, FALSE, FALSE, TRUE, 0);
     INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES
     (block_id, 200, 280, FALSE, FALSE, FALSE, 1);
     

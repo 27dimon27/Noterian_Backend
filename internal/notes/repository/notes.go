@@ -393,7 +393,10 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 
 	for blockID, formatting := range result {
 		sort.Slice(formatting.Ranges, func(i, j int) bool {
-			return formatting.Ranges[i].StartPos < formatting.Ranges[j].StartPos
+			if formatting.Ranges[i].StartPos != formatting.Ranges[j].StartPos {
+				return formatting.Ranges[i].StartPos < formatting.Ranges[j].StartPos
+			}
+			return formatting.Ranges[i].EndPos < formatting.Ranges[j].EndPos
 		})
 		result[blockID] = formatting
 	}
@@ -546,7 +549,8 @@ func applyFormattingToRanges(existingRanges []models.FormattingRange, newRange m
 
 	for _, segment := range segments {
 		var bold, italic, underline bool
-		textAlign := -1
+		textAlign := 0
+		hasTextAlign := false
 
 		for _, r := range existingRanges {
 			if segment.start >= r.StartPos && segment.end <= r.EndPos {
@@ -560,8 +564,9 @@ func applyFormattingToRanges(existingRanges []models.FormattingRange, newRange m
 					underline = *r.Underline
 				}
 
-				if r.TextAlign != nil && *r.TextAlign != -1 {
+				if r.TextAlign != nil {
 					textAlign = *r.TextAlign
+					hasTextAlign = true
 				}
 			}
 		}
@@ -577,12 +582,13 @@ func applyFormattingToRanges(existingRanges []models.FormattingRange, newRange m
 				underline = *newRange.Underline
 			}
 
-			if newRange.TextAlign != nil && *newRange.TextAlign != -1 {
+			if newRange.TextAlign != nil {
 				textAlign = *newRange.TextAlign
+				hasTextAlign = true
 			}
 		}
 
-		if bold || italic || underline || textAlign != -1 {
+		if bold || italic || underline || hasTextAlign {
 			result = append(result, models.FormattingRange{
 				StartPos:  segment.start,
 				EndPos:    segment.end,
@@ -604,7 +610,12 @@ func applyFormattingToRanges(existingRanges []models.FormattingRange, newRange m
 		last := &merged[len(merged)-1]
 		current := result[i]
 
-		if last.EndPos >= current.StartPos && *last.Bold == *current.Bold && *last.Italic == *current.Italic && *last.Underline == *current.Underline && *last.TextAlign == *current.TextAlign {
+		sameBold := *last.Bold == *current.Bold
+		sameItalic := *last.Italic == *current.Italic
+		sameUnderline := *last.Underline == *current.Underline
+		sameTextAlign := *last.TextAlign == *current.TextAlign
+
+		if last.EndPos >= current.StartPos && sameBold && sameItalic && sameUnderline && sameTextAlign {
 			if last.EndPos >= current.EndPos {
 				continue
 			}
