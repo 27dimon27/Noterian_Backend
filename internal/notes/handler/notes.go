@@ -27,8 +27,10 @@ type NoteUsecase interface {
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
-	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formatting models.Formatting) (*models.Block, error)
-	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
+	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
+	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
+	GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error)
+	GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
 }
 
 type NoteHandler struct {
@@ -93,13 +95,13 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blocks, err := h.noteUsecase.GetBlocks(r.Context(), noteID)
+	blocks, blockFormattings, err := h.noteUsecase.GetBlocksWithFormatting(r.Context(), noteID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := dto.ToNoteResponse(note, blocks)
+	response := dto.ToNoteResponse(note, blocks, blockFormattings)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
@@ -574,15 +576,15 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var formattingRequest dto.Formatting
+	var formattingRequest dto.FormattingRange
 	if err := body.GetBody(r, &formattingRequest); err != nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidFormatting)
 		return
 	}
 
-	formattingData := dto.FromFormattingDTO(formattingRequest)
+	formattingRange := dto.FromFormattingRangeDTO(formattingRequest)
 
-	block, err := h.noteUsecase.UpdateBlockFormatting(r.Context(), blockID, noteID, userID, formattingData)
+	updatedFormatting, err := h.noteUsecase.UpdateBlockFormatting(r.Context(), blockID, noteID, userID, formattingRange)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
@@ -596,11 +598,28 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 			return
 		}
+		if errors.Is(err, notes.ErrInvalidBlockType) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, notes.ErrInvalidFormattingForImageBlock) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, notes.ErrFormattingNotSupported) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
+		if errors.Is(err, notes.ErrInvalidFormattingRange) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := dto.ToBlockDTO(*block)
+	response := dto.ToBlockFormattingDTO(*updatedFormatting)
+
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
@@ -635,7 +654,7 @@ func (h *NoteHandler) ResetBlockFormatting(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	blockState, err := h.noteUsecase.ResetBlockFormatting(r.Context(), blockID, noteID, userID)
+	updatedFormatting, err := h.noteUsecase.ResetBlockFormatting(r.Context(), blockID, noteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
@@ -653,6 +672,61 @@ func (h *NoteHandler) ResetBlockFormatting(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	response := dto.ToBlockDTO(*blockState)
+	response := dto.ToBlockFormattingDTO(*updatedFormatting)
+
+	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *NoteHandler) GetBlockFormatting(w http.ResponseWriter, r *http.Request) {
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	blockIDStr := r.PathValue("blockId")
+	if blockIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBlockIDRequired)
+		return
+	}
+
+	blockID, err := uuid.Parse(blockIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockID)
+		return
+	}
+
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		return
+	}
+
+	formatting, err := h.noteUsecase.GetBlockFormatting(r.Context(), blockID, noteID, userID)
+	if err != nil {
+		if errors.Is(err, notes.ErrNoteNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrBlockNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := dto.ToBlockFormattingDTO(*formatting)
+
 	write.JSONResponse(w, http.StatusOK, response)
 }

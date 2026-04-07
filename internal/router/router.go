@@ -57,6 +57,7 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteBlock), cfg.JWT))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockFormatting), cfg.JWT))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.ResetBlockFormatting), cfg.JWT))
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.GetBlockFormatting), cfg.JWT))
 
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))

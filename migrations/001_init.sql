@@ -34,14 +34,31 @@ CREATE TABLE IF NOT EXISTS blocks (
     block_type_id INTEGER NOT NULL REFERENCES block_types(id),
     position INTEGER NOT NULL,
     content TEXT NOT NULL,
-    formatting JSONB NOT NULL DEFAULT '{"bold": false, "italic": false, "underline": false, "text_align": -1}'::JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS block_formatting (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    block_id UUID NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
+    start_pos INTEGER NOT NULL,
+    end_pos INTEGER NOT NULL,
+    bold BOOLEAN NOT NULL DEFAULT FALSE,
+    italic BOOLEAN NOT NULL DEFAULT FALSE,
+    underline BOOLEAN NOT NULL DEFAULT FALSE,
+    text_align INTEGER NOT NULL DEFAULT -1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT check_positions CHECK (start_pos >= 0 AND end_pos > start_pos)
 );
 
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);
+CREATE INDEX idx_blocks_note_position ON blocks(note_id, position);
+CREATE INDEX idx_block_formatting_block_id ON block_formatting(block_id);
+CREATE INDEX idx_block_formatting_positions ON block_formatting(block_id, start_pos, end_pos);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -63,5 +80,10 @@ CREATE TRIGGER update_notes_updated_at
 
 CREATE TRIGGER update_blocks_updated_at 
     BEFORE UPDATE ON blocks 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_block_formatting_updated_at 
+    BEFORE UPDATE ON block_formatting 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();

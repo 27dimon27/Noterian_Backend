@@ -3,13 +3,14 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 type noteRepository struct {
@@ -92,25 +93,11 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 	var blocks []models.Block
 
 	for rows.Next() {
-		var (
-			block      models.Block
-			formatting sql.NullString
-		)
+		var block models.Block
 
-		err := rows.Scan(&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
-			&formatting, &block.CreatedAt, &block.UpdatedAt)
+		err := rows.Scan(&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt)
 		if err != nil {
 			return nil, err
-		}
-
-		if formatting.Valid {
-			var formattingData models.Formatting
-			if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-				return nil, err
-			}
-			block.Formatting = formattingData
-		} else {
-			block.Formatting = getDefaultFormatting()
 		}
 
 		blocks = append(blocks, block)
@@ -121,6 +108,18 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 	}
 
 	return blocks, nil
+}
+
+func (r *noteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, error) {
+	var blockType models.BlockType
+	err := r.db.QueryRowContext(ctx, "SELECT id, name FROM block_types WHERE id = $1", blockTypeID).Scan(&blockType.ID, &blockType.Name)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &blockType, nil
 }
 
 func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
@@ -188,37 +187,25 @@ func (r *noteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error
 }
 
 func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
-	formattingJSON, err := json.Marshal(getDefaultFormatting())
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.db.QueryRowContext(ctx, CREATE_BLOCK,
-		block.NoteID, block.BlockTypeID, block.Position, block.Content, formattingJSON, block.CreatedAt, block.UpdatedAt,
+	err := r.db.QueryRowContext(ctx, CREATE_BLOCK,
+		block.NoteID, block.BlockTypeID, block.Position, block.Content, block.CreatedAt, block.UpdatedAt,
 	).Scan(
 		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
-		&formattingJSON, &block.CreatedAt, &block.UpdatedAt,
+		&block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	var formattingData models.Formatting
-	if err := json.Unmarshal(formattingJSON, &formattingData); err != nil {
-		return nil, err
-	}
-
-	block.Formatting = formattingData
 	return &block, nil
 }
 
 func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
 	var block models.Block
-	var formatting sql.NullString
 
 	err := r.db.QueryRowContext(ctx, GET_BLOCK_BY_ID, blockID).Scan(
 		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
-		&formatting, &block.CreatedAt, &block.UpdatedAt,
+		&block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -227,42 +214,21 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 		return nil, err
 	}
 
-	if formatting.Valid {
-		var formattingData models.Formatting
-		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-			return nil, err
-		}
-		block.Formatting = formattingData
-	} else {
-		block.Formatting = getDefaultFormatting()
-	}
-
 	return &block, nil
 }
 
 func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error) {
 	var block models.Block
-	var formatting sql.NullString
 
 	err := r.db.QueryRowContext(ctx, UPDATE_BLOCK_CONTENT, blockID, content, updatedAt).Scan(
 		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
-		&formatting, &block.CreatedAt, &block.UpdatedAt,
+		&block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notes.ErrBlockNotFound
 		}
 		return nil, err
-	}
-
-	if formatting.Valid {
-		var formattingData models.Formatting
-		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-			return nil, err
-		}
-		block.Formatting = formattingData
-	} else {
-		block.Formatting = getDefaultFormatting()
 	}
 
 	return &block, nil
@@ -294,24 +260,13 @@ func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockI
 	}
 
 	var updatedBlock models.Block
-	var formatting sql.NullString
 
 	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition, updatedAt).Scan(
 		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content,
-		&formatting, &updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
+		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
-	}
-
-	if formatting.Valid {
-		var formattingData models.Formatting
-		if err := json.Unmarshal([]byte(formatting.String), &formattingData); err != nil {
-			return nil, err
-		}
-		updatedBlock.Formatting = formattingData
-	} else {
-		updatedBlock.Formatting = getDefaultFormatting()
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -347,76 +302,317 @@ func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UU
 	return nil
 }
 
-func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingData models.Formatting) (*models.Block, error) {
-	formattingJSON, err := json.Marshal(formattingData)
+func (r *noteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
+	rows, err := r.db.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	var updatedBlock models.Block
-	var formatting sql.NullString
-
-	err = r.db.QueryRowContext(ctx, UPDATE_BLOCK_FORMATTING,
-		blockID, formattingJSON, time.Now(),
-	).Scan(
-		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID,
-		&updatedBlock.Position, &updatedBlock.Content, &formatting,
-		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notes.ErrBlockNotFound
-		}
-		return nil, err
+	formatting := &models.BlockFormatting{
+		BlockID: blockID.String(),
+		Ranges:  []models.FormattingRange{},
 	}
 
-	if formatting.Valid {
-		var updatedFormattingData models.Formatting
-		if err := json.Unmarshal([]byte(formatting.String), &updatedFormattingData); err != nil {
+	for rows.Next() {
+		var rng models.FormattingRange
+		var bold, italic, underline *bool
+		var textAlign *int
+
+		err := rows.Scan(&rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		if err != nil {
 			return nil, err
 		}
-		updatedBlock.Formatting = updatedFormattingData
-	} else {
-		updatedBlock.Formatting = getDefaultFormatting()
-	}
 
-	return &updatedBlock, nil
-}
-
-func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
-	defaultFormatting := getDefaultFormatting()
-
-	formattingJSON, err := json.Marshal(defaultFormatting)
-	if err != nil {
-		return nil, err
-	}
-
-	var updatedBlock models.Block
-	var formatting sql.NullString
-
-	err = r.db.QueryRowContext(ctx, UPDATE_BLOCK_FORMATTING,
-		blockID, formattingJSON, time.Now(),
-	).Scan(
-		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID,
-		&updatedBlock.Position, &updatedBlock.Content, &formatting,
-		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notes.ErrBlockNotFound
+		if bold != nil {
+			rng.Bold = bold
 		}
+		if italic != nil {
+			rng.Italic = italic
+		}
+		if underline != nil {
+			rng.Underline = underline
+		}
+		if textAlign != nil {
+			rng.TextAlign = textAlign
+		}
+
+		formatting.Ranges = append(formatting.Ranges, rng)
+	}
+
+	return formatting, nil
+}
+
+func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uuid.UUID) (map[string]models.BlockFormatting, error) {
+	if len(blockIDs) == 0 {
+		return map[string]models.BlockFormatting{}, nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, GET_BLOCKS_FORMATTING, pq.Array(blockIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]models.BlockFormatting)
+
+	for rows.Next() {
+		var blockIDStr string
+		var rng models.FormattingRange
+		var bold, italic, underline *bool
+		var textAlign *int
+
+		err := rows.Scan(&blockIDStr, &rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		if err != nil {
+			return nil, err
+		}
+
+		if bold != nil {
+			rng.Bold = bold
+		}
+		if italic != nil {
+			rng.Italic = italic
+		}
+		if underline != nil {
+			rng.Underline = underline
+		}
+		if textAlign != nil {
+			rng.TextAlign = textAlign
+		}
+
+		formatting, exists := result[blockIDStr]
+		if !exists {
+			formatting = models.BlockFormatting{
+				BlockID: blockIDStr,
+				Ranges:  []models.FormattingRange{},
+			}
+		}
+		formatting.Ranges = append(formatting.Ranges, rng)
+		result[blockIDStr] = formatting
+	}
+
+	for blockID, formatting := range result {
+		sort.Slice(formatting.Ranges, func(i, j int) bool {
+			return formatting.Ranges[i].StartPos < formatting.Ranges[j].StartPos
+		})
+		result[blockID] = formatting
+	}
+
+	return result, nil
+}
+
+func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			if err == nil {
+				err = rollbackErr
+			}
+		}
+	}()
+
+	existingRanges, err := r.getFormattingRangesInTx(ctx, tx, blockID)
+	if err != nil {
 		return nil, err
 	}
 
-	updatedBlock.Formatting = defaultFormatting
-	return &updatedBlock, nil
+	newRanges := applyFormattingToRanges(existingRanges, formattingRange)
+
+	_, err = tx.ExecContext(ctx, DELETE_BLOCK_FORMATTING, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(newRanges) > 0 {
+		for _, rng := range newRanges {
+			_, err = tx.ExecContext(ctx, INSERT_BLOCK_FORMATTING,
+				blockID, rng.StartPos, rng.EndPos, rng.Bold, rng.Italic, rng.Underline, rng.TextAlign)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return r.GetBlockFormatting(ctx, blockID)
 }
 
-func getDefaultFormatting() models.Formatting {
-	return models.Formatting{
-		Bold:      false,
-		Italic:    false,
-		Underline: false,
-		TextAlign: -1,
+func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			if err == nil {
+				err = rollbackErr
+			}
+		}
+	}()
+
+	_, err = tx.ExecContext(ctx, DELETE_BLOCK_FORMATTING, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return r.GetBlockFormatting(ctx, blockID)
+}
+
+func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx, blockID uuid.UUID) ([]models.FormattingRange, error) {
+	rows, err := tx.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ranges []models.FormattingRange
+	for rows.Next() {
+		var rng models.FormattingRange
+		var bold, italic, underline *bool
+		var textAlign *int
+
+		err := rows.Scan(&rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		if err != nil {
+			return nil, err
+		}
+
+		if bold != nil {
+			rng.Bold = bold
+		}
+		if italic != nil {
+			rng.Italic = italic
+		}
+		if underline != nil {
+			rng.Underline = underline
+		}
+		if textAlign != nil {
+			rng.TextAlign = textAlign
+		}
+		ranges = append(ranges, rng)
+	}
+
+	sort.Slice(ranges, func(i, j int) bool {
+		if ranges[i].StartPos != ranges[j].StartPos {
+			return ranges[i].StartPos < ranges[j].StartPos
+		}
+		return ranges[i].EndPos < ranges[j].EndPos
+	})
+
+	return ranges, nil
+}
+
+func applyFormattingToRanges(existingRanges []models.FormattingRange, newRange models.FormattingRange) []models.FormattingRange {
+	points := make(map[int]bool)
+
+	for _, r := range existingRanges {
+		points[r.StartPos] = true
+		points[r.EndPos] = true
+	}
+
+	points[newRange.StartPos] = true
+	points[newRange.EndPos] = true
+
+	pointList := make([]int, 0, len(points))
+	for p := range points {
+		pointList = append(pointList, p)
+	}
+	sort.Ints(pointList)
+
+	segments := make([]struct {
+		start int
+		end   int
+	}, 0, len(pointList)-1)
+
+	for i := 0; i < len(pointList)-1; i++ {
+		if pointList[i] < pointList[i+1] {
+			segments = append(segments, struct {
+				start int
+				end   int
+			}{start: pointList[i], end: pointList[i+1]})
+		}
+	}
+
+	result := make([]models.FormattingRange, 0, len(segments))
+
+	for _, segment := range segments {
+		var bold, italic, underline bool
+		textAlign := -1
+
+		for _, r := range existingRanges {
+			if segment.start >= r.StartPos && segment.end <= r.EndPos {
+				if r.Bold != nil {
+					bold = *r.Bold
+				}
+				if r.Italic != nil {
+					italic = *r.Italic
+				}
+				if r.Underline != nil {
+					underline = *r.Underline
+				}
+
+				if r.TextAlign != nil && *r.TextAlign != -1 {
+					textAlign = *r.TextAlign
+				}
+			}
+		}
+
+		if segment.start >= newRange.StartPos && segment.end <= newRange.EndPos {
+			if newRange.Bold != nil {
+				bold = *newRange.Bold
+			}
+			if newRange.Italic != nil {
+				italic = *newRange.Italic
+			}
+			if newRange.Underline != nil {
+				underline = *newRange.Underline
+			}
+
+			if newRange.TextAlign != nil && *newRange.TextAlign != -1 {
+				textAlign = *newRange.TextAlign
+			}
+		}
+
+		if bold || italic || underline || textAlign != -1 {
+			result = append(result, models.FormattingRange{
+				StartPos:  segment.start,
+				EndPos:    segment.end,
+				Bold:      &bold,
+				Italic:    &italic,
+				Underline: &underline,
+				TextAlign: &textAlign,
+			})
+		}
+	}
+
+	merged := make([]models.FormattingRange, 0, len(result))
+	for i := 0; i < len(result); i++ {
+		if len(merged) == 0 {
+			merged = append(merged, result[i])
+			continue
+		}
+
+		last := &merged[len(merged)-1]
+		current := result[i]
+
+		if last.EndPos >= current.StartPos && *last.Bold == *current.Bold && *last.Italic == *current.Italic && *last.Underline == *current.Underline && *last.TextAlign == *current.TextAlign {
+			if last.EndPos >= current.EndPos {
+				continue
+			}
+			last.EndPos = current.EndPos
+		} else {
+			merged = append(merged, current)
+		}
+	}
+
+	return merged
 }
