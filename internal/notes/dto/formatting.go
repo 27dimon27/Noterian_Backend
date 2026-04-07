@@ -3,13 +3,12 @@ package dto
 import "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 
 type FormattingRange struct {
-	ID        string `json:"id,omitempty"`
-	StartPos  int    `json:"start_pos"`
-	EndPos    int    `json:"end_pos"`
-	Bold      *bool  `json:"bold,omitempty"`
-	Italic    *bool  `json:"italic,omitempty"`
-	Underline *bool  `json:"underline,omitempty"`
-	TextAlign *int   `json:"text_align,omitempty"` // 0: left, 1: center, 2: right
+	StartPos  int   `json:"start_pos"` // inclusive
+	EndPos    int   `json:"end_pos"`   // exclusive
+	Bold      *bool `json:"bold,omitempty"`
+	Italic    *bool `json:"italic,omitempty"`
+	Underline *bool `json:"underline,omitempty"`
+	TextAlign *int  `json:"text_align,omitempty"` // 0: left, 1: center, 2: right
 }
 
 type BlockFormatting struct {
@@ -19,7 +18,6 @@ type BlockFormatting struct {
 
 func ToFormattingRangeDTO(rng models.FormattingRange) FormattingRange {
 	return FormattingRange{
-		ID:        rng.ID,
 		StartPos:  rng.StartPos,
 		EndPos:    rng.EndPos,
 		Bold:      rng.Bold,
@@ -31,7 +29,6 @@ func ToFormattingRangeDTO(rng models.FormattingRange) FormattingRange {
 
 func FromFormattingRangeDTO(dto FormattingRange) models.FormattingRange {
 	return models.FormattingRange{
-		ID:        dto.ID,
 		StartPos:  dto.StartPos,
 		EndPos:    dto.EndPos,
 		Bold:      dto.Bold,

@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS blocks (
 );
 
 CREATE TABLE IF NOT EXISTS block_formatting (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     block_id UUID NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
     start_pos INTEGER NOT NULL,
     end_pos INTEGER NOT NULL,

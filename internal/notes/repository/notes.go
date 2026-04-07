@@ -319,7 +319,7 @@ func (r *noteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UU
 		var bold, italic, underline *bool
 		var textAlign *int
 
-		err := rows.Scan(&rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		err := rows.Scan(&rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
 			return nil, err
 		}
@@ -362,7 +362,7 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 		var bold, italic, underline *bool
 		var textAlign *int
 
-		err := rows.Scan(&blockIDStr, &rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		err := rows.Scan(&blockIDStr, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
 			return nil, err
 		}
@@ -484,7 +484,7 @@ func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx
 		var bold, italic, underline *bool
 		var textAlign *int
 
-		err := rows.Scan(&rng.ID, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
+		err := rows.Scan(&rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
 			return nil, err
 		}
