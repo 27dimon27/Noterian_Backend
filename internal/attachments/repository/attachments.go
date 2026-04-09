@@ -51,6 +51,24 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 		return nil, err
 	}
 
+	if time.Now().After(attachment.URLExpiresAt) {
+		newURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, attachment.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
+		if err != nil {
+			return nil, err
+		}
+
+		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
+
+		err = r.UpdateAttachmentURL(ctx, attachment.ID, newURL, newExpiry)
+		if err != nil {
+			return nil, err
+		}
+
+		attachment.AttachURL = newURL
+		attachment.URLExpiresAt = newExpiry
+		attachment.UpdatedAt = time.Now()
+	}
+
 	return attachment, nil
 }
 
@@ -78,16 +96,24 @@ func (r *AttachmentRepository) UploadAttachment(
 	fileSize int64,
 	mimeType string,
 	fileReader io.Reader,
-	presignedURLExpiry time.Duration,
 ) (*models.Attachment, error) {
+	existingAttach, err := r.GetAttachment(ctx, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existingAttach != nil {
+		return nil, attachments.ErrBlockAlreadyHasAttach
+	}
+
 	attachmentID := uuid.New()
 	minioKey := attachmentID.String()
 
 	if err := r.minio.UploadFile(ctx, r.attachmentBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
-		return nil, err
+		return nil, attachments.ErrFailedToUpload
 	}
 
-	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, minioKey, presignedURLExpiry)
+	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, minioKey, attachments.PRESIGNED_URL_EXPIRY)
 	if err != nil {
 		_ = r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey)
 		return nil, attachments.ErrFailedToGenerateURL
@@ -99,7 +125,7 @@ func (r *AttachmentRepository) UploadAttachment(
 		BlockID:      blockID,
 		MinioKey:     minioKey,
 		AttachURL:    presignedURL,
-		URLExpiresAt: now.Add(presignedURLExpiry),
+		URLExpiresAt: now.Add(attachments.PRESIGNED_URL_EXPIRY),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

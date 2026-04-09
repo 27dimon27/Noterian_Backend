@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"io"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -12,8 +11,7 @@ import (
 
 type AttachmentRepository interface {
 	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
-	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, presignedURLExpiry time.Duration) (*models.Attachment, error)
-	UpdateAttachmentURL(ctx context.Context, attachmentID uuid.UUID, url string, expiresAt time.Time) error
+	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
 }
 
@@ -22,25 +20,15 @@ type NoteRepository interface {
 	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
 }
 
-type MinIOService interface {
-	GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error)
-	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
-	DeleteFile(ctx context.Context, bucketName, key string) error
-}
-
 type attachmentUsecase struct {
-	attachmentRepo   AttachmentRepository
-	noteRepo         NoteRepository
-	minioService     MinIOService
-	attachmentBucket string
+	attachmentRepo AttachmentRepository
+	noteRepo       NoteRepository
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository, minioService MinIOService, attachmentBucket string) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository) *attachmentUsecase {
 	return &attachmentUsecase{
-		attachmentRepo:   attachmentRepo,
-		noteRepo:         noteRepo,
-		minioService:     minioService,
-		attachmentBucket: attachmentBucket,
+		attachmentRepo: attachmentRepo,
+		noteRepo:       noteRepo,
 	}
 }
 
@@ -62,24 +50,6 @@ func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID,
 
 	if attachment == nil {
 		return nil, attachments.ErrAttachmentNotFound
-	}
-
-	if time.Now().After(attachment.URLExpiresAt) {
-		newURL, err := u.minioService.GeneratePresignedURL(ctx, u.attachmentBucket, attachment.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
-		if err != nil {
-			return nil, err
-		}
-
-		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
-
-		err = u.attachmentRepo.UpdateAttachmentURL(ctx, attachment.ID, newURL, newExpiry)
-		if err != nil {
-			return nil, err
-		}
-
-		attachment.AttachURL = newURL
-		attachment.URLExpiresAt = newExpiry
-		attachment.UpdatedAt = time.Now()
 	}
 
 	return attachment, nil
@@ -105,18 +75,9 @@ func (u *attachmentUsecase) UploadAttachment(
 		return nil, err
 	}
 
-	existingAttach, err := u.attachmentRepo.GetAttachment(ctx, blockID)
+	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
 		return nil, err
-	}
-
-	if existingAttach != nil {
-		return nil, attachments.ErrBlockAlreadyHasAttach
-	}
-
-	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader, attachments.PRESIGNED_URL_EXPIRY)
-	if err != nil {
-		return nil, attachments.ErrFailedToUpload
 	}
 
 	return attachment, nil
