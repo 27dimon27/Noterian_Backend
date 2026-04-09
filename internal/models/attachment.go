@@ -7,12 +7,11 @@ import (
 )
 
 type Attachment struct {
-	ID        uuid.UUID
-	BlockID   uuid.UUID
-	FileName  string
-	FileSize  int64
-	MimeType  string
-	MinioKey  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID           uuid.UUID
+	BlockID      uuid.UUID
+	MinioKey     string
+	AttachURL    string
+	URLExpiresAt time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }

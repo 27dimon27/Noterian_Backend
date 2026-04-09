@@ -2,15 +2,22 @@ package repository
 
 const (
 	CREATE_ATTACHMENT = `
-		INSERT INTO attachments (id, block_id, file_name, file_size, mime_type, minio_key, created_at, updated_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
-		RETURNING id, block_id, file_name, file_size, mime_type, minio_key, created_at, updated_at
+		INSERT INTO attachments (id, block_id, minio_key, attach_url, url_expires_at, created_at, updated_at) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		RETURNING id, block_id, minio_key, attach_url, url_expires_at, created_at, updated_at
 	`
 
 	GET_ATTACHMENT_BY_BLOCK_ID = `
-		SELECT id, block_id, file_name, file_size, mime_type, minio_key, created_at, updated_at 
+		SELECT id, block_id, minio_key, attach_url, url_expires_at, created_at, updated_at 
 		FROM attachments 
 		WHERE block_id = $1
+	`
+
+	UPDATE_ATTACHMENT_URL = `
+		UPDATE attachments 
+		SET attach_url = $1, url_expires_at = $2, updated_at = $3
+		WHERE id = $4
+		RETURNING attach_url, url_expires_at, updated_at
 	`
 
 	DELETE_ATTACHMENT_BY_ID = `

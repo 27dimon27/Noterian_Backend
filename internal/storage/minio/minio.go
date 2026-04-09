@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/minio/minio-go/v7"
@@ -63,24 +64,10 @@ func (s *MinIOService) DeleteFile(ctx context.Context, key string) error {
 	return s.client.RemoveObject(ctx, s.bucketName, key, minio.RemoveObjectOptions{})
 }
 
-func (s *MinIOService) GetFileInfo(ctx context.Context, key string) (minio.ObjectInfo, error) {
-	return s.client.StatObject(ctx, s.bucketName, key, minio.StatObjectOptions{})
-}
-
-func (s *MinIOService) ListFiles(ctx context.Context, prefix string) ([]minio.ObjectInfo, error) {
-	var files []minio.ObjectInfo
-
-	ch := s.client.ListObjects(ctx, s.bucketName, minio.ListObjectsOptions{
-		Prefix:    prefix,
-		Recursive: true,
-	})
-
-	for object := range ch {
-		if object.Err != nil {
-			return nil, object.Err
-		}
-		files = append(files, object)
+func (s *MinIOService) GeneratePresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucketName, key, expiry, nil)
+	if err != nil {
+		return "", err
 	}
-
-	return files, nil
+	return presignedURL.String(), nil
 }

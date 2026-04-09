@@ -8,25 +8,23 @@ import (
 )
 
 type Attachment struct {
-	ID        uuid.UUID `json:"id"`
-	BlockID   uuid.UUID `json:"block_id"`
-	FileName  string    `json:"file_name"`
-	FileSize  int64     `json:"file_size"`
-	MimeType  string    `json:"mime_type"`
-	MinioKey  string    `json:"minio_key"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           uuid.UUID `json:"id"`
+	BlockID      uuid.UUID `json:"block_id"`
+	MinioKey     string    `json:"minio_key"`
+	AttachURL    string    `json:"attach_url"`
+	URLExpiresAt time.Time `json:"url_expires_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func ToAttachmentDTO(attachment models.Attachment) Attachment {
 	return Attachment{
-		ID:        attachment.ID,
-		BlockID:   attachment.BlockID,
-		FileName:  attachment.FileName,
-		FileSize:  attachment.FileSize,
-		MimeType:  attachment.MimeType,
-		MinioKey:  attachment.MinioKey,
-		CreatedAt: attachment.CreatedAt,
-		UpdatedAt: attachment.UpdatedAt,
+		ID:           attachment.ID,
+		BlockID:      attachment.BlockID,
+		MinioKey:     attachment.MinioKey,
+		AttachURL:    attachment.AttachURL,
+		URLExpiresAt: attachment.URLExpiresAt,
+		CreatedAt:    attachment.CreatedAt,
+		UpdatedAt:    attachment.UpdatedAt,
 	}
 }

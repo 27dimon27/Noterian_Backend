@@ -67,16 +67,11 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 		switch err {
 		case attachments.ErrForbidden:
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound:
+		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
-		return
-	}
-
-	if attachment == nil {
-		write.JSONErrorResponse(w, http.StatusNotFound, attachments.ErrAttachmentNotFound)
 		return
 	}
 
@@ -146,7 +141,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		switch err {
 		case attachments.ErrForbidden:
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound:
+		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		case attachments.ErrInvalidMimeType:
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)

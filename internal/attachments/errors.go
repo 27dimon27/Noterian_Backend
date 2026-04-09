@@ -1,6 +1,9 @@
 package attachments
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	ErrAttachmentNotFound    = errors.New("Вложнение не найдено")
@@ -17,10 +20,12 @@ var (
 	ErrInvalidBlockID        = errors.New("Невалидный BlockID")
 	ErrInvalidUserID         = errors.New("Невалидный UserID")
 	ErrForbidden             = errors.New("Доступ запрещен")
+	ErrFailedToGenerateURL   = errors.New("Не удалось сгенерировать ссылку")
 )
 
 const (
-	MAX_FILE_SIZE = 100 * 1024 * 1024
+	MAX_FILE_SIZE        = 100 * 1024 * 1024
+	PRESIGNED_URL_EXPIRY = 30 * time.Minute
 )
 
 var AllowedMimeTypes = map[string]bool{
