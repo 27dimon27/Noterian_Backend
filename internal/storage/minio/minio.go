@@ -11,8 +11,7 @@ import (
 )
 
 type MinIOService struct {
-	client     *minio.Client
-	bucketName string
+	client *minio.Client
 }
 
 func NewMinIOService(cfg config.MinIOConfig) (*MinIOService, error) {
@@ -25,19 +24,18 @@ func NewMinIOService(cfg config.MinIOConfig) (*MinIOService, error) {
 	}
 
 	return &MinIOService{
-		client:     client,
-		bucketName: cfg.BucketName,
+		client: client,
 	}, nil
 }
 
-func (s *MinIOService) CreateBucketIfNotExists(ctx context.Context) error {
-	exists, err := s.client.BucketExists(ctx, s.bucketName)
+func (s *MinIOService) CreateBucketIfNotExists(ctx context.Context, bucketName string) error {
+	exists, err := s.client.BucketExists(ctx, bucketName)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = s.client.MakeBucket(ctx, s.bucketName, minio.MakeBucketOptions{})
+		err = s.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
 		if err != nil {
 			return err
 		}
@@ -46,10 +44,10 @@ func (s *MinIOService) CreateBucketIfNotExists(ctx context.Context) error {
 	return nil
 }
 
-func (s *MinIOService) UploadFile(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error {
+func (s *MinIOService) UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
 	_, err := s.client.PutObject(
 		ctx,
-		s.bucketName,
+		bucketName,
 		key,
 		reader,
 		size,
@@ -60,12 +58,12 @@ func (s *MinIOService) UploadFile(ctx context.Context, key string, reader io.Rea
 	return err
 }
 
-func (s *MinIOService) DeleteFile(ctx context.Context, key string) error {
-	return s.client.RemoveObject(ctx, s.bucketName, key, minio.RemoveObjectOptions{})
+func (s *MinIOService) DeleteFile(ctx context.Context, bucketName, key string) error {
+	return s.client.RemoveObject(ctx, bucketName, key, minio.RemoveObjectOptions{})
 }
 
-func (s *MinIOService) GeneratePresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
-	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucketName, key, expiry, nil)
+func (s *MinIOService) GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+	presignedURL, err := s.client.PresignedGetObject(ctx, bucketName, key, expiry, nil)
 	if err != nil {
 		return "", err
 	}

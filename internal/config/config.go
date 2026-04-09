@@ -8,19 +8,19 @@ import (
 )
 
 const (
-	DEFAULT_PORT                 = "8000"
-	DEFAULT_COOKIE_NAME          = "NoterianCookieJWT"
-	DEFAULT_COOKIE_TIME_JWT      = 3600
-	DEFAULT_SHUTDOWN_TIMEOUT     = 5
-	DEFAULT_DB_PORT              = "5432"
-	DEFAULT_READ_TIMEOUT         = 15
-	DEFAULT_WRITE_TIMEOUT        = 15
-	DEFAULT_IDLE_TIMEOUT         = 15
-	DEFAULT_MAX_OPEN_CONNECTIONS = 25
-	DEFAULT_MAX_IDLE_CONNECTIONS = 5
-	DEFAULT_MINIO_ENDPOINT       = "minio:9000"
-	DEFAULT_MINIO_USE_SSL        = false
-	DEFAULT_MINIO_BUCKET_NAME    = "attachments"
+	DEFAULT_PORT                     = "8000"
+	DEFAULT_COOKIE_NAME              = "NoterianCookieJWT"
+	DEFAULT_COOKIE_TIME_JWT          = 3600
+	DEFAULT_SHUTDOWN_TIMEOUT         = 5
+	DEFAULT_DB_PORT                  = "5432"
+	DEFAULT_READ_TIMEOUT             = 15
+	DEFAULT_WRITE_TIMEOUT            = 15
+	DEFAULT_IDLE_TIMEOUT             = 15
+	DEFAULT_MAX_OPEN_CONNECTIONS     = 25
+	DEFAULT_MAX_IDLE_CONNECTIONS     = 5
+	DEFAULT_MINIO_ENDPOINT           = "minio:9000"
+	DEFAULT_MINIO_USE_SSL            = false
+	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
 )
 
 type JWTConfig struct {
@@ -50,11 +50,11 @@ type DBConfig struct {
 }
 
 type MinIOConfig struct {
-	Endpoint   string
-	AccessKey  string
-	SecretKey  string
-	UseSSL     bool
-	BucketName string
+	Endpoint          string
+	AccessKey         string
+	SecretKey         string
+	UseSSL            bool
+	AttachmentsBucket string
 }
 
 type Config struct {
@@ -137,9 +137,9 @@ func Load() *Config {
 
 	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
 
-	bucketName := os.Getenv("MINIO_BUCKET_NAME")
-	if bucketName == "" {
-		bucketName = DEFAULT_MINIO_BUCKET_NAME
+	attachmentsBucket := os.Getenv("MINIO_ATTACHMENTS_BUCKET")
+	if attachmentsBucket == "" {
+		attachmentsBucket = DEFAULT_MINIO_ATTACHMENTS_BUCKET
 	}
 
 	return &Config{
@@ -167,11 +167,11 @@ func Load() *Config {
 			MaxIdleConns: maxIdleConns,
 		},
 		MinIO: MinIOConfig{
-			Endpoint:   endpoint,
-			AccessKey:  accessKey,
-			SecretKey:  secretKey,
-			UseSSL:     useSSL,
-			BucketName: bucketName,
+			Endpoint:          endpoint,
+			AccessKey:         accessKey,
+			SecretKey:         secretKey,
+			UseSSL:            useSSL,
+			AttachmentsBucket: attachmentsBucket,
 		},
 	}
 }

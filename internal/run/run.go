@@ -33,7 +33,7 @@ func Run() error {
 	}
 
 	ctx := context.Background()
-	if err := minioService.CreateBucketIfNotExists(ctx); err != nil {
+	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AttachmentsBucket); err != nil {
 		return err
 	}
 

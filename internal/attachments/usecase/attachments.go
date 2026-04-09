@@ -23,22 +23,24 @@ type NoteRepository interface {
 }
 
 type MinIOService interface {
-	GeneratePresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error)
-	UploadFile(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error
-	DeleteFile(ctx context.Context, key string) error
+	GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error)
+	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
+	DeleteFile(ctx context.Context, bucketName, key string) error
 }
 
 type attachmentUsecase struct {
-	attachmentRepo AttachmentRepository
-	noteRepo       NoteRepository
-	minioService   MinIOService
+	attachmentRepo   AttachmentRepository
+	noteRepo         NoteRepository
+	minioService     MinIOService
+	attachmentBucket string
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository, minioService MinIOService) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository, minioService MinIOService, attachmentBucket string) *attachmentUsecase {
 	return &attachmentUsecase{
-		attachmentRepo: attachmentRepo,
-		noteRepo:       noteRepo,
-		minioService:   minioService,
+		attachmentRepo:   attachmentRepo,
+		noteRepo:         noteRepo,
+		minioService:     minioService,
+		attachmentBucket: attachmentBucket,
 	}
 }
 
@@ -63,7 +65,7 @@ func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID,
 	}
 
 	if time.Now().After(attachment.URLExpiresAt) {
-		newURL, err := u.minioService.GeneratePresignedURL(ctx, attachment.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
+		newURL, err := u.minioService.GeneratePresignedURL(ctx, u.attachmentBucket, attachment.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
 		if err != nil {
 			return nil, err
 		}

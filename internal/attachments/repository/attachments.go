@@ -13,24 +13,22 @@ import (
 )
 
 type MinIOService interface {
-	UploadFile(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error
-	DeleteFile(ctx context.Context, key string) error
-	GeneratePresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error)
+	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
+	DeleteFile(ctx context.Context, bucketName, key string) error
+	GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error)
 }
 
 type AttachmentRepository struct {
-	db    *sql.DB
-	minio MinIOService
+	db               *sql.DB
+	minio            MinIOService
+	attachmentBucket string
 }
 
-type NoteRepository struct {
-	db *sql.DB
-}
-
-func NewAttachmentRepository(db *sql.DB, minio MinIOService) *AttachmentRepository {
+func NewAttachmentRepository(db *sql.DB, minio MinIOService, attachmentBucket string) *AttachmentRepository {
 	return &AttachmentRepository{
-		db:    db,
-		minio: minio,
+		db:               db,
+		minio:            minio,
+		attachmentBucket: attachmentBucket,
 	}
 }
 
@@ -85,13 +83,13 @@ func (r *AttachmentRepository) UploadAttachment(
 	attachmentID := uuid.New()
 	minioKey := attachmentID.String()
 
-	if err := r.minio.UploadFile(ctx, minioKey, fileReader, fileSize, mimeType); err != nil {
+	if err := r.minio.UploadFile(ctx, r.attachmentBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
 		return nil, err
 	}
 
-	presignedURL, err := r.minio.GeneratePresignedURL(ctx, minioKey, presignedURLExpiry)
+	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, minioKey, presignedURLExpiry)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, minioKey)
+		_ = r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey)
 		return nil, attachments.ErrFailedToGenerateURL
 	}
 
@@ -126,7 +124,7 @@ func (r *AttachmentRepository) UploadAttachment(
 		&attachment.UpdatedAt,
 	)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, minioKey)
+		_ = r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey)
 		return nil, err
 	}
 
@@ -144,7 +142,7 @@ func (r *AttachmentRepository) DeleteAttachment(ctx context.Context, blockID uui
 		return err
 	}
 
-	if err := r.minio.DeleteFile(ctx, minioKey); err != nil {
+	if err := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); err != nil {
 		return err
 	}
 
