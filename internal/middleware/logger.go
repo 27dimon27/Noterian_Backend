@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 )
@@ -33,11 +33,10 @@ func Logger(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), types.RequestIDKey, requestID)
 		r = r.WithContext(ctx)
 
-		slog.InfoContext(ctx, "request started",
+		logger.Info(ctx, "request started",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"remote_addr", r.RemoteAddr,
-			"request_id", requestID,
 		)
 
 		rw := &responseWriter{
@@ -47,12 +46,20 @@ func Logger(next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		slog.InfoContext(ctx, "request completed",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", rw.statusCode,
-			"duration_ms", time.Since(start).Milliseconds(),
-			"request_id", requestID,
-		)
+		if rw.statusCode >= 500 {
+			logger.Error(ctx, "request completed with error",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", rw.statusCode,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
+		} else {
+			logger.Info(ctx, "request completed",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", rw.statusCode,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
+		}
 	})
 }

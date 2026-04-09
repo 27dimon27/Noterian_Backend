@@ -38,12 +38,19 @@ CREATE TABLE IF NOT EXISTS blocks (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS block_states (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS block_formatting (
     block_id UUID NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
-    formatting JSONB NOT NULL,
+    start_pos INTEGER NOT NULL,
+    end_pos INTEGER NOT NULL,
+    bold BOOLEAN NOT NULL DEFAULT FALSE,
+    italic BOOLEAN NOT NULL DEFAULT FALSE,
+    underline BOOLEAN NOT NULL DEFAULT FALSE,
+    text_align INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT check_positions CHECK (start_pos >= 0 AND end_pos > start_pos),
+    CONSTRAINT check_text_align CHECK (text_align IS NULL OR (text_align >= 0 AND text_align <= 2))
 );
 
 CREATE TABLE IF NOT EXISTS attachments (
@@ -89,7 +96,7 @@ CREATE TRIGGER update_blocks_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_block_states_updated_at 
-    BEFORE UPDATE ON block_states 
+CREATE TRIGGER update_block_formatting_updated_at 
+    BEFORE UPDATE ON block_formatting 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
