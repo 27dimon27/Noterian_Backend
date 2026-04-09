@@ -13,15 +13,20 @@ type NoteRepository interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
 	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
+	GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error)
+	GetBlocksFormatting(ctx context.Context, blockIDs []uuid.UUID) (map[string]models.BlockFormatting, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
 	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID) error
 	CreateBlock(ctx context.Context, block models.Block) (*models.Block, error)
 	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
+	GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, error)
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error)
 	MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int, updatedAt time.Time) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error)
 	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int, updatedAt time.Time) error
+	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
+	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error)
 }
 
 type noteUsecase struct {
@@ -192,6 +197,92 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 	}
 
 	return u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, -1, time.Now())
+}
+
+func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
+	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	blockType, err := u.noteRepo.GetBlockType(ctx, block.BlockTypeID)
+	if err != nil {
+		return nil, err
+	}
+
+	if blockType == nil {
+		return nil, notes.ErrInvalidBlockType
+	}
+
+	if blockType.Name == "image" {
+		if formattingRange.Bold != nil || formattingRange.Italic != nil || formattingRange.Underline != nil {
+			return nil, notes.ErrInvalidFormattingForImageBlock
+		}
+	} else if blockType.Name != "text" {
+		return nil, notes.ErrFormattingNotSupported
+	}
+
+	if formattingRange.StartPos < 0 || formattingRange.EndPos > len(block.Content) || formattingRange.StartPos >= formattingRange.EndPos {
+		return nil, notes.ErrInvalidFormattingRange
+	}
+
+	return u.noteRepo.UpdateBlockFormatting(ctx, blockID, formattingRange)
+}
+
+func (u *noteUsecase) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error) {
+	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.noteRepo.ResetBlockFormatting(ctx, blockID)
+}
+
+func (u *noteUsecase) GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error) {
+	blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(blocks) == 0 {
+		return blocks, make(map[string]models.BlockFormatting), nil
+	}
+
+	blockIDs := make([]uuid.UUID, len(blocks))
+	for i, block := range blocks {
+		blockIDs[i] = block.ID
+	}
+
+	formattings, err := u.noteRepo.GetBlocksFormatting(ctx, blockIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return blocks, formattings, nil
+}
+
+func (u *noteUsecase) GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error) {
+	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	return u.noteRepo.GetBlockFormatting(ctx, blockID)
 }
 
 func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {

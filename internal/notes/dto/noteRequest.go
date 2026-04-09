@@ -6,7 +6,7 @@ import (
 )
 
 type NoteRequest struct {
-	UserID   uuid.UUID  `json:"user_id"`
+	UserID   uuid.UUID  `json:"-"`
 	Title    string     `json:"title"`
 	ParentID *uuid.UUID `json:"parent_id,omitempty"`
 }

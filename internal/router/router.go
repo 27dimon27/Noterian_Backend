@@ -64,6 +64,9 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockContent), cfg.JWT))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", middleware.Auth(http.HandlerFunc(noteHandler.MoveBlock), cfg.JWT))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteBlock), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockFormatting), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.ResetBlockFormatting), cfg.JWT))
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.GetBlockFormatting), cfg.JWT))
 
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.GetAttachment), cfg.JWT))
 	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.UploadAttachment), cfg.JWT))
