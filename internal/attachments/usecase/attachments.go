@@ -15,6 +15,9 @@ type AttachmentRepository interface {
 	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, presignedURLExpiry time.Duration) (*models.Attachment, error)
 	UpdateAttachmentURL(ctx context.Context, attachmentID uuid.UUID, url string, expiresAt time.Time) error
 	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
+}
+
+type NoteRepository interface {
 	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
 	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
 }
@@ -27,12 +30,14 @@ type MinIOService interface {
 
 type attachmentUsecase struct {
 	attachmentRepo AttachmentRepository
+	noteRepo       NoteRepository
 	minioService   MinIOService
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, minioService MinIOService) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository, minioService MinIOService) *attachmentUsecase {
 	return &attachmentUsecase{
 		attachmentRepo: attachmentRepo,
+		noteRepo:       noteRepo,
 		minioService:   minioService,
 	}
 }
@@ -134,7 +139,7 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 }
 
 func (u *attachmentUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
-	note, err := u.attachmentRepo.GetNote(ctx, noteID)
+	note, err := u.noteRepo.GetNote(ctx, noteID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +156,7 @@ func (u *attachmentUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUI
 }
 
 func (u *attachmentUsecase) checkBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, error) {
-	block, err := u.attachmentRepo.GetBlock(ctx, blockID)
+	block, err := u.noteRepo.GetBlock(ctx, blockID)
 	if err != nil {
 		return nil, err
 	}

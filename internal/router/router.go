@@ -44,7 +44,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, minioService)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo, minioService)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	r := http.NewServeMux()

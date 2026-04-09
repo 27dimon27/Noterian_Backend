@@ -23,6 +23,10 @@ type AttachmentRepository struct {
 	minio MinIOService
 }
 
+type NoteRepository struct {
+	db *sql.DB
+}
+
 func NewAttachmentRepository(db *sql.DB, minio MinIOService) *AttachmentRepository {
 	return &AttachmentRepository{
 		db:    db,
@@ -145,47 +149,4 @@ func (r *AttachmentRepository) DeleteAttachment(ctx context.Context, blockID uui
 	}
 
 	return nil
-}
-
-func (r *AttachmentRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
-	var note models.Note
-	var parentID sql.NullString
-
-	err := r.db.QueryRowContext(ctx, GET_NOTE_BY_ID, noteID).Scan(
-		&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	if parentID.Valid {
-		pid, err := uuid.Parse(parentID.String)
-		if err != nil {
-			return nil, err
-		}
-		note.ParentID = &pid
-	}
-
-	return &note, nil
-}
-
-func (r *AttachmentRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
-	var block models.Block
-
-	err := r.db.QueryRowContext(ctx, GET_BLOCK_BY_ID, blockID).Scan(
-		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	block.States = []models.BlockState{}
-
-	return &block, nil
 }

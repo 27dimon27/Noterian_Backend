@@ -130,7 +130,6 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	// mimeType := fileHeader.Header.Get("Content-Type")
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
