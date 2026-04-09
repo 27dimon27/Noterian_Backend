@@ -60,7 +60,9 @@ CREATE TABLE IF NOT EXISTS attachments (
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);
-CREATE INDEX idx_block_states_block_id ON block_states(block_id);
+CREATE INDEX idx_blocks_note_position ON blocks(note_id, position);
+CREATE INDEX idx_block_formatting_block_id ON block_formatting(block_id);
+CREATE INDEX idx_block_formatting_positions ON block_formatting(block_id, start_pos, end_pos);
 CREATE INDEX idx_attachments_block_id ON attachments(block_id);
 CREATE INDEX idx_attachments_created_at ON attachments(created_at DESC);
 
