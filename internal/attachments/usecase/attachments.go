@@ -98,18 +98,11 @@ func (u *attachmentUsecase) UploadAttachment(
 		return nil, err
 	}
 
-	if !attachments.AllowedMimeTypes[mimeType] {
-		return nil, attachments.ErrInvalidMimeType
-	}
-
-	if fileSize > attachments.MAX_FILE_SIZE {
-		return nil, attachments.ErrFileTooLarge
-	}
-
 	existingAttach, err := u.attachmentRepo.GetAttachment(ctx, blockID)
 	if err != nil {
 		return nil, err
 	}
+
 	if existingAttach != nil {
 		return nil, attachments.ErrBlockAlreadyHasAttach
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"mime/multipart"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
@@ -111,8 +110,11 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := r.ParseMultipartForm(attachments.MAX_FILE_SIZE); err != nil {
-		if errors.Is(err, multipart.ErrMessageTooLarge) {
+	r.Body = http.MaxBytesReader(w, r.Body, attachments.MAX_FILE_SIZE)
+
+	if err := r.ParseMultipartForm(0); err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
 			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrFileTooLarge)
 		} else {
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -127,6 +129,12 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
+	mimeType := fileHeader.Header.Get("Content-Type")
+	if !attachments.AllowedMimeTypes[mimeType] {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidMimeType)
+		return
+	}
+
 	attachment, err := h.attachmentUsecase.UploadAttachment(
 		r.Context(),
 		noteID,
@@ -134,7 +142,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		userID,
 		fileHeader.Filename,
 		fileHeader.Size,
-		fileHeader.Header.Get("Content-Type"),
+		mimeType,
 		file,
 	)
 	if err != nil {
@@ -143,10 +151,6 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case attachments.ErrInvalidMimeType:
-			write.JSONErrorResponse(w, http.StatusBadRequest, err)
-		case attachments.ErrFileTooLarge:
-			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, err)
 		case attachments.ErrBlockAlreadyHasAttach:
 			write.JSONErrorResponse(w, http.StatusConflict, err)
 		default:
