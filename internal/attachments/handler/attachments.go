@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -129,7 +130,18 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	mimeType := fileHeader.Header.Get("Content-Type")
+	// mimeType := fileHeader.Header.Get("Content-Type")
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	fileToUpload := io.MultiReader(bytes.NewReader(buffer), file)
+
+	mimeType := http.DetectContentType(buffer)
+
 	if !attachments.AllowedMimeTypes[mimeType] {
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidMimeType)
 		return
@@ -143,7 +155,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		fileHeader.Filename,
 		fileHeader.Size,
 		mimeType,
-		file,
+		fileToUpload,
 	)
 	if err != nil {
 		switch err {
