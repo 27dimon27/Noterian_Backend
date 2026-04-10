@@ -8,19 +8,22 @@ import (
 )
 
 const (
-	DEFAULT_JWT_COOKIE_NAME         = "NoterianJWTCookie"
-	DEFAULT_JWT_COOKIE_TIME         = 3600
-	DEFAULT_SERVER_PORT             = "8000"
-	DEFAULT_SERVER_READ_TIMEOUT     = 15
-	DEFAULT_SERVER_WRITE_TIMEOUT    = 15
-	DEFAULT_SERVER_IDLE_TIMEOUT     = 15
-	DEFAULT_SERVER_SHUTDOWN_TIMEOUT = 5
-	DEFAULT_DB_PORT                 = "5432"
-	DEFAULT_DB_MAX_OPEN_CONNECTIONS = 25
-	DEFAULT_DB_MAX_IDLE_CONNECTIONS = 5
-	DEFAULT_CSRF_COOKIE_NAME        = "NoterianCSRFCookie"
-	DEFAULT_CSRF_COOKIE_TIME        = 12
-	DEFAULT_CSRF_HEADER_NAME        = "X-CSRF-Token"
+	DEFAULT_JWT_COOKIE_NAME          = "NoterianJWTCookie"
+	DEFAULT_JWT_COOKIE_TIME          = 3600
+	DEFAULT_SERVER_PORT              = "8000"
+	DEFAULT_SERVER_READ_TIMEOUT      = 15
+	DEFAULT_SERVER_WRITE_TIMEOUT     = 15
+	DEFAULT_SERVER_IDLE_TIMEOUT      = 15
+	DEFAULT_SERVER_SHUTDOWN_TIMEOUT  = 5
+	DEFAULT_DB_PORT                  = "5432"
+	DEFAULT_DB_MAX_OPEN_CONNECTIONS  = 25
+	DEFAULT_DB_MAX_IDLE_CONNECTIONS  = 5
+	DEFAULT_CSRF_COOKIE_NAME         = "NoterianCSRFCookie"
+	DEFAULT_CSRF_COOKIE_TIME         = 3600
+	DEFAULT_CSRF_HEADER_NAME         = "X-CSRF-Token"
+	DEFAULT_MINIO_ENDPOINT           = "minio:9000"
+	DEFAULT_MINIO_USE_SSL            = false
+	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
 )
 
 type JWTConfig struct {
@@ -56,11 +59,20 @@ type CSRFConfig struct {
 	Secure     bool
 }
 
+type MinIOConfig struct {
+	Endpoint          string
+	AccessKey         string
+	SecretKey         string
+	UseSSL            bool
+	AttachmentsBucket string
+}
+
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
 	DB     DBConfig
 	CSRF   CSRFConfig
+	MinIO  MinIOConfig
 }
 
 func Load() *Config {
@@ -141,6 +153,21 @@ func Load() *Config {
 		csrfHeaderName = DEFAULT_CSRF_HEADER_NAME
 	}
 
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	if endpoint == "" {
+		endpoint = DEFAULT_MINIO_ENDPOINT
+	}
+
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+
+	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	attachmentsBucket := os.Getenv("MINIO_ATTACHMENTS_BUCKET")
+	if attachmentsBucket == "" {
+		attachmentsBucket = DEFAULT_MINIO_ATTACHMENTS_BUCKET
+	}
+
 	secure := os.Getenv("IS_SECURE") == "true"
 
 	return &Config{
@@ -172,6 +199,13 @@ func Load() *Config {
 			CookieTime: csrfCookieTime,
 			HeaderName: csrfHeaderName,
 			Secure:     secure,
+		},
+		MinIO: MinIOConfig{
+			Endpoint:          endpoint,
+			AccessKey:         accessKey,
+			SecretKey:         secretKey,
+			UseSSL:            useSSL,
+			AttachmentsBucket: attachmentsBucket,
 		},
 	}
 }

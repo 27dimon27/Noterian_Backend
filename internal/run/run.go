@@ -10,6 +10,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/router"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
 )
 
 func Run() error {
@@ -26,8 +27,20 @@ func Run() error {
 
 	log.Info("Connected to database successfully")
 
+	minioService, err := minio.NewMinIOService(cfg.MinIO)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AttachmentsBucket); err != nil {
+		return err
+	}
+
+	log.Info("Connected to MinIO successfully")
+
 	addr := ":" + cfg.Server.Port
-	srvRouter, err := router.New(cfg, database)
+	srvRouter, err := router.New(cfg, database, minioService)
 	if err != nil {
 		log.Error("Failed to init router", "error", err)
 		return err

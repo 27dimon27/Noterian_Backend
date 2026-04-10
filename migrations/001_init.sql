@@ -53,12 +53,25 @@ CREATE TABLE IF NOT EXISTS block_formatting (
     CONSTRAINT check_text_align CHECK (text_align IS NULL OR (text_align >= 0 AND text_align <= 2))
 );
 
+CREATE TABLE IF NOT EXISTS attachments (
+    id UUID PRIMARY KEY,
+    block_id UUID NOT NULL UNIQUE,
+    minio_key VARCHAR(255) NOT NULL,
+    attach_url TEXT NOT NULL UNIQUE,
+    url_expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE
+);
+
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);
 CREATE INDEX idx_blocks_note_position ON blocks(note_id, position);
 CREATE INDEX idx_block_formatting_block_id ON block_formatting(block_id);
 CREATE INDEX idx_block_formatting_positions ON block_formatting(block_id, start_pos, end_pos);
+CREATE INDEX idx_attachments_block_id ON attachments(block_id);
+CREATE INDEX idx_attachments_created_at ON attachments(created_at DESC);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
