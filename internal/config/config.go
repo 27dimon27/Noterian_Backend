@@ -129,10 +129,10 @@ func Load() *Config {
 		csrfCookieName = DEFAULT_CSRF_COOKIE_NAME
 	}
 
-	csrfCookieTime := DEFAULT_CSRF_COOKIE_TIME * time.Hour
+	csrfCookieTime := DEFAULT_CSRF_COOKIE_TIME * time.Second
 	if timeoutStr := os.Getenv("CSRF_COOKIE_TIME"); timeoutStr != "" {
 		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
-			csrfCookieTime = time.Duration(timeout) * time.Hour
+			csrfCookieTime = time.Duration(timeout) * time.Second
 		}
 	}
 
