@@ -28,7 +28,3 @@ func (h *Handler) GetToken(w http.ResponseWriter, r *http.Request) {
 		"csrf_token": token,
 	})
 }
-
-func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	h.GetToken(w, r)
-}

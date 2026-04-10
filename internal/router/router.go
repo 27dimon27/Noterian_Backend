@@ -62,7 +62,6 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r := http.NewServeMux()
 
 	r.HandleFunc("GET /csrf-token", csrfHandler.GetToken)
-	r.HandleFunc("POST /csrf-token/refresh", csrfHandler.RefreshToken)
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
@@ -82,17 +81,13 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(http.HandlerFunc(noteHandler.GetBlockFormatting)))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.UpdateBlockFormatting))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.ResetBlockFormatting))))
-	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.GetAttachment), cfg.JWT))
-	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.UploadAttachment), cfg.JWT))
-	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.DeleteAttachment), cfg.JWT))
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(http.HandlerFunc(attachmentHandler.GetAttachment)))
+	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(csrfMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(csrfMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
 
 	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
 	r.Handle("PUT /profile", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
 	r.Handle("DELETE /profile", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
-
-	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
-	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
-	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
 
 	return middleware.Logger(r), nil
 }
