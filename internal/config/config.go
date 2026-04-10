@@ -8,23 +8,26 @@ import (
 )
 
 const (
-	DEFAULT_PORT                 = "8000"
-	DEFAULT_COOKIE_NAME          = "NoterianCookieJWT"
-	DEFAULT_COOKIE_TIME_JWT      = 3600
-	DEFAULT_SHUTDOWN_TIMEOUT     = 5
-	DEFAULT_DB_PORT              = "5432"
-	DEFAULT_READ_TIMEOUT         = 15
-	DEFAULT_WRITE_TIMEOUT        = 15
-	DEFAULT_IDLE_TIMEOUT         = 15
-	DEFAULT_MAX_OPEN_CONNECTIONS = 25
-	DEFAULT_MAX_IDLE_CONNECTIONS = 5
+	DEFAULT_JWT_COOKIE_NAME         = "NoterianJWTCookie"
+	DEFAULT_JWT_COOKIE_TIME         = 3600
+	DEFAULT_SERVER_PORT             = "8000"
+	DEFAULT_SERVER_READ_TIMEOUT     = 15
+	DEFAULT_SERVER_WRITE_TIMEOUT    = 15
+	DEFAULT_SERVER_IDLE_TIMEOUT     = 15
+	DEFAULT_SERVER_SHUTDOWN_TIMEOUT = 5
+	DEFAULT_DB_PORT                 = "5432"
+	DEFAULT_DB_MAX_OPEN_CONNECTIONS = 25
+	DEFAULT_DB_MAX_IDLE_CONNECTIONS = 5
+	DEFAULT_CSRF_COOKIE_NAME        = "NoterianCSRFCookie"
+	DEFAULT_CSRF_COOKIE_TIME        = 12
+	DEFAULT_CSRF_HEADER_NAME        = "X-CSRF-Token"
 )
 
 type JWTConfig struct {
-	Secret        string
-	CookieName    string
-	CookieTimeJWT time.Duration
-	Secure        bool
+	Secret     string
+	CookieName string
+	CookieTime time.Duration
+	Secure     bool
 }
 
 type ServerConfig struct {
@@ -46,10 +49,18 @@ type DBConfig struct {
 	MaxIdleConns int
 }
 
+type CSRFConfig struct {
+	CookieName string
+	CookieTime time.Duration
+	HeaderName string
+	Secure     bool
+}
+
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
 	DB     DBConfig
+	CSRF   CSRFConfig
 }
 
 func Load() *Config {
@@ -58,76 +69,93 @@ func Load() *Config {
 		log.Fatalf("JWT_SECRET was not found, shutting down...")
 	}
 
-	cookieName := os.Getenv("COOKIE_NAME")
-	if cookieName == "" {
-		cookieName = DEFAULT_COOKIE_NAME
+	jwtCookieName := os.Getenv("JWT_COOKIE_NAME")
+	if jwtCookieName == "" {
+		jwtCookieName = DEFAULT_JWT_COOKIE_NAME
+	}
+
+	jwtCookieTime := DEFAULT_JWT_COOKIE_TIME * time.Second
+	if strCookieTimeJWT := os.Getenv("JWT_COOKIE_TIME"); strCookieTimeJWT != "" {
+		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err == nil {
+			jwtCookieTime = time.Duration(intCookieTimeJWT) * time.Second
+		}
+	}
+
+	serverPort := os.Getenv("SERVER_PORT")
+	if serverPort == "" {
+		serverPort = DEFAULT_SERVER_PORT
+	}
+
+	serverReadTimeout := DEFAULT_SERVER_READ_TIMEOUT * time.Second
+	if strReadTimeout := os.Getenv("SERVER_READ_TIMEOUT"); strReadTimeout != "" {
+		if intReadTimeout, err := strconv.Atoi(strReadTimeout); err == nil {
+			serverReadTimeout = time.Duration(intReadTimeout) * time.Second
+		}
+	}
+
+	serverWriteTimeout := DEFAULT_SERVER_WRITE_TIMEOUT * time.Second
+	if strWriteTimeout := os.Getenv("SERVER_WRITE_TIMEOUT"); strWriteTimeout != "" {
+		if intWriteTimeout, err := strconv.Atoi(strWriteTimeout); err == nil {
+			serverWriteTimeout = time.Duration(intWriteTimeout) * time.Second
+		}
+	}
+
+	serverIdleTimeout := DEFAULT_SERVER_IDLE_TIMEOUT * time.Second
+	if strIdleTimeout := os.Getenv("SERVER_IDLE_TIMEOUT"); strIdleTimeout != "" {
+		if intIdleTimeout, err := strconv.Atoi(strIdleTimeout); err == nil {
+			serverIdleTimeout = time.Duration(intIdleTimeout) * time.Second
+		}
+	}
+
+	serverShutdownTimeout := DEFAULT_SERVER_SHUTDOWN_TIMEOUT * time.Second
+	if timeoutStr := os.Getenv("SERVER_SHUTDOWN_TIMEOUT"); timeoutStr != "" {
+		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
+			serverShutdownTimeout = time.Duration(timeout) * time.Second
+		}
+	}
+
+	dbMaxOpenConns, err := strconv.Atoi(os.Getenv("DB_MAX_OPEN_CONNECTIONS"))
+	if err != nil {
+		dbMaxOpenConns = DEFAULT_DB_MAX_OPEN_CONNECTIONS
+	}
+
+	dbMaxIdleConns, err := strconv.Atoi(os.Getenv("DB_MAX_IDLE_CONNECTIONS"))
+	if err != nil {
+		dbMaxIdleConns = DEFAULT_DB_MAX_IDLE_CONNECTIONS
+	}
+
+	csrfCookieName := os.Getenv("CSRF_COOKIE_NAME")
+	if csrfCookieName == "" {
+		csrfCookieName = DEFAULT_CSRF_COOKIE_NAME
+	}
+
+	csrfCookieTime := DEFAULT_CSRF_COOKIE_TIME * time.Hour
+	if timeoutStr := os.Getenv("CSRF_COOKIE_TIME"); timeoutStr != "" {
+		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
+			csrfCookieTime = time.Duration(timeout) * time.Hour
+		}
+	}
+
+	csrfHeaderName := os.Getenv("CSRF_HEADER_NAME")
+	if csrfHeaderName == "" {
+		csrfHeaderName = DEFAULT_CSRF_HEADER_NAME
 	}
 
 	secure := os.Getenv("IS_SECURE") == "true"
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = DEFAULT_PORT
-	}
-
-	cookieTimeJWT := DEFAULT_COOKIE_TIME_JWT * time.Second
-	if strCookieTimeJWT := os.Getenv("COOKIE_TIME_JWT"); strCookieTimeJWT != "" {
-		if intCookieTimeJWT, err := strconv.Atoi(strCookieTimeJWT); err == nil {
-			cookieTimeJWT = time.Duration(intCookieTimeJWT) * time.Second
-		}
-	}
-
-	readTimeout := DEFAULT_READ_TIMEOUT * time.Second
-	if strReadTimeout := os.Getenv("READ_TIMEOUT"); strReadTimeout != "" {
-		if intReadTimeout, err := strconv.Atoi(strReadTimeout); err == nil {
-			readTimeout = time.Duration(intReadTimeout) * time.Second
-		}
-	}
-
-	writeTimeout := DEFAULT_WRITE_TIMEOUT * time.Second
-	if strWriteTimeout := os.Getenv("WRITE_TIMEOUT"); strWriteTimeout != "" {
-		if intWriteTimeout, err := strconv.Atoi(strWriteTimeout); err == nil {
-			writeTimeout = time.Duration(intWriteTimeout) * time.Second
-		}
-	}
-
-	idleTimeout := DEFAULT_IDLE_TIMEOUT * time.Second
-	if strIdleTimeout := os.Getenv("IDLE_TIMEOUT"); strIdleTimeout != "" {
-		if intIdleTimeout, err := strconv.Atoi(strIdleTimeout); err == nil {
-			idleTimeout = time.Duration(intIdleTimeout) * time.Second
-		}
-	}
-
-	shutdownTimeout := DEFAULT_SHUTDOWN_TIMEOUT * time.Second
-	if timeoutStr := os.Getenv("SHUTDOWN_TIMEOUT"); timeoutStr != "" {
-		if timeout, err := strconv.Atoi(timeoutStr); err == nil {
-			shutdownTimeout = time.Duration(timeout) * time.Second
-		}
-	}
-
-	maxOpenConns, err := strconv.Atoi(os.Getenv("MAX_OPEN_CONNECTIONS"))
-	if err != nil {
-		maxOpenConns = DEFAULT_MAX_OPEN_CONNECTIONS
-	}
-
-	maxIdleConns, err := strconv.Atoi(os.Getenv("MAX_IDLE_CONNECTIONS"))
-	if err != nil {
-		maxIdleConns = DEFAULT_MAX_IDLE_CONNECTIONS
-	}
-
 	return &Config{
 		JWT: JWTConfig{
-			Secret:        jwtSecret,
-			CookieName:    cookieName,
-			CookieTimeJWT: cookieTimeJWT,
-			Secure:        secure,
+			Secret:     jwtSecret,
+			CookieName: jwtCookieName,
+			CookieTime: jwtCookieTime,
+			Secure:     secure,
 		},
 		Server: ServerConfig{
-			Port:            port,
-			ReadTimeout:     readTimeout,
-			WriteTimeout:    writeTimeout,
-			IdleTimeout:     idleTimeout,
-			ShutdownTimeout: shutdownTimeout,
+			Port:            serverPort,
+			ReadTimeout:     serverReadTimeout,
+			WriteTimeout:    serverWriteTimeout,
+			IdleTimeout:     serverIdleTimeout,
+			ShutdownTimeout: serverShutdownTimeout,
 		},
 		DB: DBConfig{
 			Host:         os.Getenv("DB_HOST"),
@@ -136,8 +164,14 @@ func Load() *Config {
 			Password:     os.Getenv("DB_PASSWORD"),
 			Name:         os.Getenv("DB_NAME"),
 			SSLMode:      os.Getenv("DB_SSL_MODE"),
-			MaxOpenConns: maxOpenConns,
-			MaxIdleConns: maxIdleConns,
+			MaxOpenConns: dbMaxOpenConns,
+			MaxIdleConns: dbMaxIdleConns,
+		},
+		CSRF: CSRFConfig{
+			CookieName: csrfCookieName,
+			CookieTime: csrfCookieTime,
+			HeaderName: csrfHeaderName,
+			Secure:     secure,
 		},
 	}
 }
