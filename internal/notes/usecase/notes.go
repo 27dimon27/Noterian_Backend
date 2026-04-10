@@ -109,7 +109,7 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 		return nil, err
 	}
 
-	if block.Position <= 0 || block.Position > len(blocks) {
+	if block.Position < 0 || block.Position > len(blocks) {
 		return nil, notes.ErrInvalidPosition
 	} else {
 		err = u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, 1, time.Now())

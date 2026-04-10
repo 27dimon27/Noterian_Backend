@@ -8,16 +8,19 @@ import (
 )
 
 const (
-	DEFAULT_PORT                 = "8000"
-	DEFAULT_COOKIE_NAME          = "NoterianCookieJWT"
-	DEFAULT_COOKIE_TIME_JWT      = 3600
-	DEFAULT_SHUTDOWN_TIMEOUT     = 5
-	DEFAULT_DB_PORT              = "5432"
-	DEFAULT_READ_TIMEOUT         = 15
-	DEFAULT_WRITE_TIMEOUT        = 15
-	DEFAULT_IDLE_TIMEOUT         = 15
-	DEFAULT_MAX_OPEN_CONNECTIONS = 25
-	DEFAULT_MAX_IDLE_CONNECTIONS = 5
+	DEFAULT_PORT                     = "8000"
+	DEFAULT_COOKIE_NAME              = "NoterianCookieJWT"
+	DEFAULT_COOKIE_TIME_JWT          = 3600
+	DEFAULT_SHUTDOWN_TIMEOUT         = 5
+	DEFAULT_DB_PORT                  = "5432"
+	DEFAULT_READ_TIMEOUT             = 15
+	DEFAULT_WRITE_TIMEOUT            = 15
+	DEFAULT_IDLE_TIMEOUT             = 15
+	DEFAULT_MAX_OPEN_CONNECTIONS     = 25
+	DEFAULT_MAX_IDLE_CONNECTIONS     = 5
+	DEFAULT_MINIO_ENDPOINT           = "minio:9000"
+	DEFAULT_MINIO_USE_SSL            = false
+	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
 )
 
 type JWTConfig struct {
@@ -46,10 +49,19 @@ type DBConfig struct {
 	MaxIdleConns int
 }
 
+type MinIOConfig struct {
+	Endpoint          string
+	AccessKey         string
+	SecretKey         string
+	UseSSL            bool
+	AttachmentsBucket string
+}
+
 type Config struct {
 	JWT    JWTConfig
 	Server ServerConfig
 	DB     DBConfig
+	MinIO  MinIOConfig
 }
 
 func Load() *Config {
@@ -115,6 +127,21 @@ func Load() *Config {
 		maxIdleConns = DEFAULT_MAX_IDLE_CONNECTIONS
 	}
 
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	if endpoint == "" {
+		endpoint = DEFAULT_MINIO_ENDPOINT
+	}
+
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+
+	useSSL := os.Getenv("MINIO_USE_SSL") == "true"
+
+	attachmentsBucket := os.Getenv("MINIO_ATTACHMENTS_BUCKET")
+	if attachmentsBucket == "" {
+		attachmentsBucket = DEFAULT_MINIO_ATTACHMENTS_BUCKET
+	}
+
 	return &Config{
 		JWT: JWTConfig{
 			Secret:        jwtSecret,
@@ -138,6 +165,13 @@ func Load() *Config {
 			SSLMode:      os.Getenv("DB_SSL_MODE"),
 			MaxOpenConns: maxOpenConns,
 			MaxIdleConns: maxIdleConns,
+		},
+		MinIO: MinIOConfig{
+			Endpoint:          endpoint,
+			AccessKey:         accessKey,
+			SecretKey:         secretKey,
+			UseSSL:            useSSL,
+			AttachmentsBucket: attachmentsBucket,
 		},
 	}
 }
