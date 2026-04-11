@@ -4,20 +4,13 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 )
 
-type HTTPError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Details any    `json:"details,omitempty"`
-}
-
-func (e HTTPError) Error() string {
-	return e.Message
-}
+var currentLogger *slog.Logger
 
 func Init() *slog.Logger {
 	logLevel := os.Getenv("LOG_LEVEL")
@@ -43,6 +36,7 @@ func Init() *slog.Logger {
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
+	currentLogger = logger
 
 	return logger
 }
@@ -51,7 +45,16 @@ func WithRequest(ctx context.Context, args ...any) (*slog.Logger, []any) {
 	if requestID, ok := ctx.Value(types.RequestIDKey).(string); ok {
 		args = append(args, "request_id", requestID)
 	}
-	return slog.Default(), args
+	if currentLogger == nil {
+		currentLogger = slog.Default()
+	}
+	return currentLogger, args
+}
+
+func getStackTrace() string {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	return string(buf[:n])
 }
 
 func Debug(ctx context.Context, msg string, args ...any) {
@@ -71,5 +74,6 @@ func Warn(ctx context.Context, msg string, args ...any) {
 
 func Error(ctx context.Context, msg string, args ...any) {
 	log, updatedArgs := WithRequest(ctx, args...)
+	updatedArgs = append(updatedArgs, "stacktrace", getStackTrace())
 	log.ErrorContext(ctx, msg, updatedArgs...)
 }

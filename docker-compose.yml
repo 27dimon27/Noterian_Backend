@@ -17,6 +17,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - noterian_network
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:${MINIO_API_PORT}/minio/health/live",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - noterian_network
 
   backend:
     build:
@@ -29,6 +58,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
 
 volumes:
   postgres_data:
+  minio_data:
+
+networks:
+  noterian_network:
+    driver: bridge

@@ -15,106 +15,127 @@ func TestInit(t *testing.T) {
 	origLogLevel := os.Getenv("LOG_LEVEL")
 	defer os.Setenv("LOG_LEVEL", origLogLevel)
 
-	t.Run("default level info when level not set", func(t *testing.T) {
-		os.Clearenv()
-		logger := Init()
+	tests := []struct {
+		name         string
+		logLevel     string
+		expectDebug  bool
+		expectInfo   bool
+		expectWarn   bool
+		expectError  bool
+		expectSource bool
+	}{
+		{
+			name:         "default level info when not set",
+			logLevel:     "",
+			expectDebug:  false,
+			expectInfo:   true,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: false,
+		},
+		{
+			name:         "debug level",
+			logLevel:     "DEBUG",
+			expectDebug:  true,
+			expectInfo:   true,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: true,
+		},
+		{
+			name:         "info level",
+			logLevel:     "INFO",
+			expectDebug:  false,
+			expectInfo:   true,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: false,
+		},
+		{
+			name:         "warn level",
+			logLevel:     "WARN",
+			expectDebug:  false,
+			expectInfo:   false,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: false,
+		},
+		{
+			name:         "error level",
+			logLevel:     "ERROR",
+			expectDebug:  false,
+			expectInfo:   false,
+			expectWarn:   false,
+			expectError:  true,
+			expectSource: false,
+		},
+		{
+			name:         "invalid level defaults to info",
+			logLevel:     "INVALID",
+			expectDebug:  false,
+			expectInfo:   true,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: false,
+		},
+		{
+			name:         "lowercase level works",
+			logLevel:     "debug",
+			expectDebug:  true,
+			expectInfo:   true,
+			expectWarn:   true,
+			expectError:  true,
+			expectSource: true,
+		},
+	}
 
-		if logger == nil {
-			t.Errorf("expected non-nil logger")
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Clearenv()
+			if tt.logLevel != "" {
+				os.Setenv("LOG_LEVEL", tt.logLevel)
+			}
 
-		if !logger.Enabled(context.Background(), slog.LevelInfo) {
-			t.Errorf("expected Info level to be enabled")
-		}
-		if logger.Enabled(context.Background(), slog.LevelDebug) {
-			t.Errorf("expected Debug level to be disabled")
-		}
-	})
+			origStdout := os.Stdout
+			_, w, _ := os.Pipe()
+			os.Stdout = w
 
-	t.Run("debug level", func(t *testing.T) {
-		os.Clearenv()
-		os.Setenv("LOG_LEVEL", "DEBUG")
-		logger := Init()
+			logger := Init()
 
-		if !logger.Enabled(context.Background(), slog.LevelDebug) {
-			t.Errorf("expected Debug level to be enabled")
-		}
-	})
+			w.Close()
+			os.Stdout = origStdout
 
-	t.Run("info level", func(t *testing.T) {
-		os.Clearenv()
-		os.Setenv("LOG_LEVEL", "INFO")
-		logger := Init()
+			if logger == nil {
+				t.Errorf("expected non-nil logger")
+			}
 
-		if !logger.Enabled(context.Background(), slog.LevelInfo) {
-			t.Errorf("expected Info level to be enabled")
-		}
-		if logger.Enabled(context.Background(), slog.LevelDebug) {
-			t.Errorf("expected Debug level to be disabled")
-		}
-	})
-
-	t.Run("warn level", func(t *testing.T) {
-		os.Clearenv()
-		os.Setenv("LOG_LEVEL", "WARN")
-		logger := Init()
-
-		if !logger.Enabled(context.Background(), slog.LevelWarn) {
-			t.Errorf("expected Warn level to be enabled")
-		}
-		if logger.Enabled(context.Background(), slog.LevelInfo) {
-			t.Errorf("expected Info level to be disabled")
-		}
-	})
-
-	t.Run("error level", func(t *testing.T) {
-		os.Clearenv()
-		os.Setenv("LOG_LEVEL", "ERROR")
-		logger := Init()
-
-		if !logger.Enabled(context.Background(), slog.LevelError) {
-			t.Errorf("expected Error level to be enabled")
-		}
-		if logger.Enabled(context.Background(), slog.LevelWarn) {
-			t.Errorf("expected Warn level to be disabled")
-		}
-	})
-}
-
-func TestHTTPError(t *testing.T) {
-	t.Run("error implements error interface", func(t *testing.T) {
-		err := HTTPError{
-			Code:    404,
-			Message: "not found",
-			Details: map[string]string{"id": "123"},
-		}
-
-		if err.Error() != "not found" {
-			t.Errorf("expected message 'not found', got '%s'", err.Error())
-		}
-	})
-
-	t.Run("error without details", func(t *testing.T) {
-		err := HTTPError{
-			Code:    500,
-			Message: "internal error",
-		}
-
-		if err.Error() != "internal error" {
-			t.Errorf("expected message 'internal error', got '%s'", err.Error())
-		}
-	})
+			ctx := context.Background()
+			if logger.Enabled(ctx, slog.LevelDebug) != tt.expectDebug {
+				t.Errorf("Debug level enabled: got %v, want %v", logger.Enabled(ctx, slog.LevelDebug), tt.expectDebug)
+			}
+			if logger.Enabled(ctx, slog.LevelInfo) != tt.expectInfo {
+				t.Errorf("Info level enabled: got %v, want %v", logger.Enabled(ctx, slog.LevelInfo), tt.expectInfo)
+			}
+			if logger.Enabled(ctx, slog.LevelWarn) != tt.expectWarn {
+				t.Errorf("Warn level enabled: got %v, want %v", logger.Enabled(ctx, slog.LevelWarn), tt.expectWarn)
+			}
+			if logger.Enabled(ctx, slog.LevelError) != tt.expectError {
+				t.Errorf("Error level enabled: got %v, want %v", logger.Enabled(ctx, slog.LevelError), tt.expectError)
+			}
+		})
+	}
 }
 
 func TestLogFunctions(t *testing.T) {
-	origLogger := slog.Default()
-	defer slog.SetDefault(origLogger)
+	origLogger := currentLogger
+	defer func() { currentLogger = origLogger }()
 
 	var buf bytes.Buffer
 	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 	logger := slog.New(handler)
+	currentLogger = logger
 	slog.SetDefault(logger)
 
 	t.Run("Debug logs with request_id", func(t *testing.T) {
@@ -142,6 +163,23 @@ func TestLogFunctions(t *testing.T) {
 		}
 	})
 
+	t.Run("Debug without request_id", func(t *testing.T) {
+		buf.Reset()
+		ctx := context.Background()
+
+		Debug(ctx, "debug message no id", "key2", "value2")
+
+		var logEntry map[string]interface{}
+		json.Unmarshal(buf.Bytes(), &logEntry)
+
+		if logEntry["msg"] != "debug message no id" {
+			t.Errorf("expected msg 'debug message no id', got %v", logEntry["msg"])
+		}
+		if _, ok := logEntry["request_id"]; ok {
+			t.Errorf("expected no request_id in log")
+		}
+	})
+
 	t.Run("Info logs", func(t *testing.T) {
 		buf.Reset()
 		ctx := context.Background()
@@ -159,6 +197,20 @@ func TestLogFunctions(t *testing.T) {
 		}
 		if logEntry["user"] != "testuser" {
 			t.Errorf("expected user testuser, got %v", logEntry["user"])
+		}
+	})
+
+	t.Run("Info with request_id", func(t *testing.T) {
+		buf.Reset()
+		ctx := context.WithValue(context.Background(), types.RequestIDKey, "req-789")
+
+		Info(ctx, "info with id", "status", "ok")
+
+		var logEntry map[string]interface{}
+		json.Unmarshal(buf.Bytes(), &logEntry)
+
+		if logEntry["request_id"] != "req-789" {
+			t.Errorf("expected request_id req-789, got %v", logEntry["request_id"])
 		}
 	})
 
@@ -182,7 +234,7 @@ func TestLogFunctions(t *testing.T) {
 		}
 	})
 
-	t.Run("Error logs", func(t *testing.T) {
+	t.Run("Error logs with stacktrace", func(t *testing.T) {
 		buf.Reset()
 		ctx := context.Background()
 
@@ -199,6 +251,26 @@ func TestLogFunctions(t *testing.T) {
 		}
 		if logEntry["error"] != "something went wrong" {
 			t.Errorf("expected error 'something went wrong', got %v", logEntry["error"])
+		}
+		if _, ok := logEntry["stacktrace"]; !ok {
+			t.Errorf("expected stacktrace field in error log")
+		}
+	})
+
+	t.Run("Error with request_id", func(t *testing.T) {
+		buf.Reset()
+		ctx := context.WithValue(context.Background(), types.RequestIDKey, "error-req-456")
+
+		Error(ctx, "error with id", "details", "crash")
+
+		var logEntry map[string]interface{}
+		json.Unmarshal(buf.Bytes(), &logEntry)
+
+		if logEntry["request_id"] != "error-req-456" {
+			t.Errorf("expected request_id error-req-456, got %v", logEntry["request_id"])
+		}
+		if _, ok := logEntry["stacktrace"]; !ok {
+			t.Errorf("expected stacktrace field in error log")
 		}
 	})
 }

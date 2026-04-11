@@ -7,6 +7,11 @@ import (
 	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
 	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+
+	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
+	attachmentsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
+	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
 
 	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
 	notesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
@@ -20,7 +25,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
 )
 
-func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
+func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
 	userRepo := authRepo.NewUserRepository(db)
 
 	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
@@ -37,6 +42,10 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	profileRepo := profilesRepo.NewProfileRepository(db)
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
+
+	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
+	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	r := http.NewServeMux()
 
@@ -55,6 +64,13 @@ func New(cfg *config.Config, db *sql.DB) (http.Handler, error) {
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockContent), cfg.JWT))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", middleware.Auth(http.HandlerFunc(noteHandler.MoveBlock), cfg.JWT))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", middleware.Auth(http.HandlerFunc(noteHandler.DeleteBlock), cfg.JWT))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.UpdateBlockFormatting), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.ResetBlockFormatting), cfg.JWT))
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", middleware.Auth(http.HandlerFunc(noteHandler.GetBlockFormatting), cfg.JWT))
+
+	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.GetAttachment), cfg.JWT))
+	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.UploadAttachment), cfg.JWT))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", middleware.Auth(http.HandlerFunc(attachmentHandler.DeleteAttachment), cfg.JWT))
 
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))

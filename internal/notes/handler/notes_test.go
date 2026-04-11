@@ -15,6 +15,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/mocks"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
@@ -214,20 +215,25 @@ func TestNoteHandler_GetNote(t *testing.T) {
 			UserID: userID,
 			Title:  "Test Note",
 		}
+
 		expectedBlocks := []models.Block{
 			{
-				ID:          uuid.New(),
-				NoteID:      noteID,
-				BlockTypeID: 1,
-				Position:    0,
-				Content:     "Hello world",
+				ID:       uuid.New(),
+				NoteID:   noteID,
+				Position: 0,
+				Content:  "Hello world",
 			},
 			{
-				ID:          uuid.New(),
-				NoteID:      noteID,
-				BlockTypeID: 2,
-				Position:    1,
-				Content:     "https://example.com",
+				ID:       uuid.New(),
+				NoteID:   noteID,
+				Position: 1,
+				Content:  "https://example.com/image.jpg",
+			},
+		}
+
+		expectedFormattings := map[string]models.BlockFormatting{
+			expectedBlocks[0].ID.String(): {
+				BlockID: expectedBlocks[0].ID.String(),
 			},
 		}
 
@@ -236,8 +242,8 @@ func TestNoteHandler_GetNote(t *testing.T) {
 			Return(note, nil)
 
 		mockUsecase.EXPECT().
-			GetBlocks(gomock.Any(), noteID).
-			Return(expectedBlocks, nil)
+			GetBlocksWithFormatting(gomock.Any(), noteID).
+			Return(expectedBlocks, expectedFormattings, nil)
 
 		req := makeTestRequest("GET", "/notes/"+noteID.String(), nil, ctx, map[string]string{
 			"noteId": noteID.String(),
@@ -254,17 +260,21 @@ func TestNoteHandler_GetNote(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 			t.Fatalf("failed to unmarshal response: %v", err)
 		}
+
 		if response.Note.ID != noteID {
 			t.Errorf("expected note ID %v, got %v", noteID, response.Note.ID)
 		}
+
+		if response.Note.Title != "Test Note" {
+			t.Errorf("expected title 'Test Note', got '%s'", response.Note.Title)
+		}
+
 		if len(response.Blocks) != 2 {
 			t.Errorf("expected 2 blocks, got %d", len(response.Blocks))
 		}
+
 		if response.Blocks[0].Content != expectedBlocks[0].Content {
-			t.Errorf("block 0: expected content %s, got %s", expectedBlocks[0].Content, response.Blocks[0].Content)
-		}
-		if response.Blocks[1].BlockTypeID != expectedBlocks[1].BlockTypeID {
-			t.Errorf("block 1: expected type %d, got %d", expectedBlocks[1].BlockTypeID, response.Blocks[1].BlockTypeID)
+			t.Errorf("block 0: expected content '%s', got '%s'", expectedBlocks[0].Content, response.Blocks[0].Content)
 		}
 	})
 
@@ -276,6 +286,15 @@ func TestNoteHandler_GetNote(t *testing.T) {
 
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
+		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != notes.ErrNoteIDRequired.Error() {
+			t.Errorf("expected error '%s', got '%s'", notes.ErrNoteIDRequired.Error(), errorResp["error"])
 		}
 	})
 
@@ -290,10 +309,20 @@ func TestNoteHandler_GetNote(t *testing.T) {
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
 		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != notes.ErrInvalidNoteID.Error() {
+			t.Errorf("expected error '%s', got '%s'", notes.ErrInvalidNoteID.Error(), errorResp["error"])
+		}
 	})
 
 	t.Run("unauthorized no userID", func(t *testing.T) {
-		req := makeTestRequest("GET", "/notes/"+noteID.String(), nil, nil, map[string]string{
+		emptyCtx := context.Background()
+		req := makeTestRequest("GET", "/notes/"+noteID.String(), nil, emptyCtx, map[string]string{
 			"noteId": noteID.String(),
 		})
 		w := httptest.NewRecorder()
@@ -302,6 +331,15 @@ func TestNoteHandler_GetNote(t *testing.T) {
 
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("expected status 401, got %d", w.Code)
+		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != jwt.ErrNoUserID.Error() {
+			t.Errorf("expected error '%s', got '%s'", jwt.ErrNoUserID.Error(), errorResp["error"])
 		}
 	})
 
@@ -320,6 +358,15 @@ func TestNoteHandler_GetNote(t *testing.T) {
 		if w.Code != http.StatusForbidden {
 			t.Errorf("expected status 403, got %d", w.Code)
 		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != notes.ErrForbidden.Error() {
+			t.Errorf("expected error '%s', got '%s'", notes.ErrForbidden.Error(), errorResp["error"])
+		}
 	})
 
 	t.Run("note not found", func(t *testing.T) {
@@ -337,12 +384,21 @@ func TestNoteHandler_GetNote(t *testing.T) {
 		if w.Code != http.StatusNotFound {
 			t.Errorf("expected status 404, got %d", w.Code)
 		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != notes.ErrNoteNotFound.Error() {
+			t.Errorf("expected error '%s', got '%s'", notes.ErrNoteNotFound.Error(), errorResp["error"])
+		}
 	})
 
 	t.Run("internal error on GetNote", func(t *testing.T) {
 		mockUsecase.EXPECT().
 			GetNote(gomock.Any(), noteID, userID).
-			Return(nil, errors.New("db error"))
+			Return(nil, errors.New("database connection error"))
 
 		req := makeTestRequest("GET", "/notes/"+noteID.String(), nil, ctx, map[string]string{
 			"noteId": noteID.String(),
@@ -354,9 +410,18 @@ func TestNoteHandler_GetNote(t *testing.T) {
 		if w.Code != http.StatusInternalServerError {
 			t.Errorf("expected status 500, got %d", w.Code)
 		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != "database connection error" {
+			t.Errorf("expected error 'database connection error', got '%s'", errorResp["error"])
+		}
 	})
 
-	t.Run("internal error on GetBlocks", func(t *testing.T) {
+	t.Run("internal error on GetBlocksWithFormatting", func(t *testing.T) {
 		note := &models.Note{
 			ID:     noteID,
 			UserID: userID,
@@ -367,8 +432,8 @@ func TestNoteHandler_GetNote(t *testing.T) {
 			GetNote(gomock.Any(), noteID, userID).
 			Return(note, nil)
 		mockUsecase.EXPECT().
-			GetBlocks(gomock.Any(), noteID).
-			Return(nil, errors.New("db error"))
+			GetBlocksWithFormatting(gomock.Any(), noteID).
+			Return(nil, nil, errors.New("database error fetching blocks"))
 
 		req := makeTestRequest("GET", "/notes/"+noteID.String(), nil, ctx, map[string]string{
 			"noteId": noteID.String(),
@@ -379,6 +444,15 @@ func TestNoteHandler_GetNote(t *testing.T) {
 
 		if w.Code != http.StatusInternalServerError {
 			t.Errorf("expected status 500, got %d", w.Code)
+		}
+
+		var errorResp map[string]interface{}
+		if err := json.Unmarshal(w.Body.Bytes(), &errorResp); err != nil {
+			t.Fatalf("failed to unmarshal error response: %v", err)
+		}
+
+		if errorResp["error"] != "database error fetching blocks" {
+			t.Errorf("expected error 'database error fetching blocks', got '%s'", errorResp["error"])
 		}
 	})
 }
@@ -1071,7 +1145,7 @@ func TestNoteHandler_UpdateBlockContent(t *testing.T) {
 	noteID := uuid.New()
 	blockID := uuid.New()
 	ctx := context.WithValue(context.Background(), types.UserIDKey, userID)
-	
+
 	updateReq := dto.UpdateBlockContentRequest{Content: "New Content"}
 	pathVars := map[string]string{
 		"noteId":  noteID.String(),
@@ -1212,7 +1286,7 @@ func TestNoteHandler_MoveBlock(t *testing.T) {
 	noteID := uuid.New()
 	blockID := uuid.New()
 	ctx := context.WithValue(context.Background(), types.UserIDKey, userID)
-	
+
 	moveURL := "/notes/" + noteID.String() + "/blocks/" + blockID.String() + "/move"
 	pathVars := map[string]string{
 		"noteId":  noteID.String(),
@@ -1325,7 +1399,7 @@ func TestNoteHandler_DeleteBlock_Refactored(t *testing.T) {
 	noteID := uuid.New()
 	blockID := uuid.New()
 	ctx := context.WithValue(context.Background(), types.UserIDKey, userID)
-	
+
 	pathVars := map[string]string{
 		"noteId":  noteID.String(),
 		"blockId": blockID.String(),

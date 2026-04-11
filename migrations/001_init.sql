@@ -38,18 +38,40 @@ CREATE TABLE IF NOT EXISTS blocks (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS block_states (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS block_formatting (
     block_id UUID NOT NULL REFERENCES blocks(id) ON DELETE CASCADE,
-    formatting JSONB NOT NULL,
+    start_pos INTEGER NOT NULL,
+    end_pos INTEGER NOT NULL,
+    bold BOOLEAN NOT NULL DEFAULT FALSE,
+    italic BOOLEAN NOT NULL DEFAULT FALSE,
+    underline BOOLEAN NOT NULL DEFAULT FALSE,
+    text_align INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT check_positions CHECK (start_pos >= 0 AND end_pos > start_pos),
+    CONSTRAINT check_text_align CHECK (text_align IS NULL OR (text_align >= 0 AND text_align <= 2))
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id UUID PRIMARY KEY,
+    block_id UUID NOT NULL UNIQUE,
+    minio_key VARCHAR(255) NOT NULL,
+    attach_url TEXT NOT NULL UNIQUE,
+    url_expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (block_id) REFERENCES blocks(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);
-CREATE INDEX idx_block_states_block_id ON block_states(block_id);
+CREATE INDEX idx_blocks_note_position ON blocks(note_id, position);
+CREATE INDEX idx_block_formatting_block_id ON block_formatting(block_id);
+CREATE INDEX idx_block_formatting_positions ON block_formatting(block_id, start_pos, end_pos);
+CREATE INDEX idx_attachments_block_id ON attachments(block_id);
+CREATE INDEX idx_attachments_created_at ON attachments(created_at DESC);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -74,7 +96,7 @@ CREATE TRIGGER update_blocks_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_block_states_updated_at 
-    BEFORE UPDATE ON block_states 
+CREATE TRIGGER update_block_formatting_updated_at 
+    BEFORE UPDATE ON block_formatting 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();

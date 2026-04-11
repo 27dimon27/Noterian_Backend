@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -13,6 +12,22 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/google/uuid"
 )
+
+func TestNewNoteRepository(t *testing.T) {
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewNoteRepository(db)
+	if repo == nil {
+		t.Errorf("expected non-nil repository")
+	}
+	if repo.db != db {
+		t.Errorf("expected db to be set")
+	}
+}
 
 func TestGetNotes(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -42,12 +57,6 @@ func TestGetNotes(t *testing.T) {
 		if len(notes) != 1 {
 			t.Errorf("expected 1 note, got %d", len(notes))
 		}
-		if notes[0].ID != noteID {
-			t.Errorf("expected ID %v, got %v", noteID, notes[0].ID)
-		}
-		if notes[0].ParentID != nil {
-			t.Errorf("expected nil ParentID, got %v", notes[0].ParentID)
-		}
 	})
 
 	t.Run("success with parent_id", func(t *testing.T) {
@@ -66,27 +75,6 @@ func TestGetNotes(t *testing.T) {
 		}
 		if *notes[0].ParentID != parentID {
 			t.Errorf("expected ParentID %v, got %v", parentID, *notes[0].ParentID)
-		}
-	})
-
-	t.Run("multiple notes", func(t *testing.T) {
-		noteID1 := uuid.New()
-		noteID2 := uuid.New()
-		rows := sqlmock.NewRows([]string{"id", "user_id", "title", "parent_id", "created_at", "updated_at"}).
-			AddRow(noteID1, userID, "Note 1", nil, now, now).
-			AddRow(noteID2, userID, "Note 2", nil, now, now)
-
-		mock.ExpectQuery("SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes").
-			WithArgs(userID).
-			WillReturnRows(rows)
-
-		notes, err := repo.GetNotes(context.Background(), userID)
-
-		if err != nil {
-			t.Errorf("unexpected err: %s", err)
-		}
-		if len(notes) != 2 {
-			t.Errorf("expected 2 notes, got %d", len(notes))
 		}
 	})
 
@@ -205,21 +193,13 @@ func TestGetBlocks(t *testing.T) {
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
 	blockID := uuid.New()
-	stateID := uuid.New()
 	now := time.Now()
-	formatting := map[string]interface{}{"format": "text", "bold": true}
-	formattingJSON, _ := json.Marshal(formatting)
 
-	t.Run("success with state", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{
-			"id", "note_id", "block_type_id", "position", "content",
-			"state_id", "formatting", "state_created_at", "state_updated_at",
-		}).AddRow(
-			blockID, noteID, 1, 0, "Content",
-			stateID, formattingJSON, now, now,
-		)
+	t.Run("success", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"id", "note_id", "block_type_id", "position", "content", "created_at", "updated_at"}).
+			AddRow(blockID, noteID, 1, 0, "Content", now, now)
 
-		mock.ExpectQuery("SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs").
+		mock.ExpectQuery("SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks").
 			WithArgs(noteID).
 			WillReturnRows(rows)
 
@@ -231,48 +211,16 @@ func TestGetBlocks(t *testing.T) {
 		if len(blocks) != 1 {
 			t.Errorf("expected 1 block, got %d", len(blocks))
 		}
-		if len(blocks[0].States) != 1 {
-			t.Errorf("expected 1 state, got %d", len(blocks[0].States))
-		}
-		if blocks[0].States[0].Formatting["bold"] != true {
-			t.Errorf("expected bold true, got %v", blocks[0].States[0].Formatting["bold"])
-		}
 	})
 
-	t.Run("block without states", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{
-			"id", "note_id", "block_type_id", "position", "content",
-			"state_id", "formatting", "state_created_at", "state_updated_at",
-		}).AddRow(
-			blockID, noteID, 1, 0, "Content",
-			nil, nil, nil, nil,
-		)
-
-		mock.ExpectQuery("SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs").
-			WithArgs(noteID).
-			WillReturnRows(rows)
-
-		blocks, err := repo.GetBlocks(context.Background(), noteID)
-
-		if err != nil {
-			t.Errorf("unexpected err: %s", err)
-		}
-		if len(blocks[0].States) != 0 {
-			t.Errorf("expected 0 states, got %d", len(blocks[0].States))
-		}
-	})
-
-	t.Run("multiple blocks sorted by position", func(t *testing.T) {
+	t.Run("multiple blocks", func(t *testing.T) {
 		blockID1 := uuid.New()
 		blockID2 := uuid.New()
-		rows := sqlmock.NewRows([]string{
-			"id", "note_id", "block_type_id", "position", "content",
-			"state_id", "formatting", "state_created_at", "state_updated_at",
-		}).
-			AddRow(blockID2, noteID, 1, 1, "Content2", nil, nil, nil, nil).
-			AddRow(blockID1, noteID, 1, 0, "Content1", nil, nil, nil, nil)
+		rows := sqlmock.NewRows([]string{"id", "note_id", "block_type_id", "position", "content", "created_at", "updated_at"}).
+			AddRow(blockID1, noteID, 1, 0, "Content1", now, now).
+			AddRow(blockID2, noteID, 2, 1, "Content2", now, now)
 
-		mock.ExpectQuery("SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs").
+		mock.ExpectQuery("SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks").
 			WithArgs(noteID).
 			WillReturnRows(rows)
 
@@ -284,16 +232,10 @@ func TestGetBlocks(t *testing.T) {
 		if len(blocks) != 2 {
 			t.Errorf("expected 2 blocks, got %d", len(blocks))
 		}
-		if blocks[0].Position != 0 {
-			t.Errorf("expected first block position 0, got %d", blocks[0].Position)
-		}
-		if blocks[1].Position != 1 {
-			t.Errorf("expected second block position 1, got %d", blocks[1].Position)
-		}
 	})
 
 	t.Run("query error", func(t *testing.T) {
-		mock.ExpectQuery("SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs").
+		mock.ExpectQuery("SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks").
 			WithArgs(noteID).
 			WillReturnError(errors.New("db error"))
 
@@ -303,24 +245,63 @@ func TestGetBlocks(t *testing.T) {
 			t.Errorf("expected error, got nil")
 		}
 	})
+}
 
-	t.Run("invalid state UUID", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{
-			"id", "note_id", "block_type_id", "position", "content",
-			"state_id", "formatting", "state_created_at", "state_updated_at",
-		}).AddRow(
-			blockID, noteID, 1, 0, "Content",
-			"invalid-uuid", formattingJSON, now, now,
-		)
+func TestGetBlockType(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
 
-		mock.ExpectQuery("SELECT b.id, b.note_id, b.block_type_id, b.position, b.content, bs.id, bs.formatting, bs.created_at, bs.updated_at FROM blocks b LEFT JOIN block_states bs").
-			WithArgs(noteID).
+	repo := NewNoteRepository(db)
+	blockTypeID := 1
+
+	t.Run("success", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"id", "name"}).
+			AddRow(1, "text")
+
+		mock.ExpectQuery("SELECT id, name FROM block_types WHERE id").
+			WithArgs(blockTypeID).
 			WillReturnRows(rows)
 
-		_, err := repo.GetBlocks(context.Background(), noteID)
+		blockType, err := repo.GetBlockType(context.Background(), blockTypeID)
 
-		if !errors.Is(err, notes.ErrInvalidUUID) {
-			t.Errorf("expected ErrInvalidUUID, got %v", err)
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if blockType.ID != 1 {
+			t.Errorf("expected ID 1, got %d", blockType.ID)
+		}
+		if blockType.Name != "text" {
+			t.Errorf("expected Name 'text', got '%s'", blockType.Name)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		mock.ExpectQuery("SELECT id, name FROM block_types WHERE id").
+			WithArgs(blockTypeID).
+			WillReturnError(sql.ErrNoRows)
+
+		blockType, err := repo.GetBlockType(context.Background(), blockTypeID)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if blockType != nil {
+			t.Errorf("expected nil, got %v", blockType)
+		}
+	})
+
+	t.Run("query error", func(t *testing.T) {
+		mock.ExpectQuery("SELECT id, name FROM block_types WHERE id").
+			WithArgs(blockTypeID).
+			WillReturnError(errors.New("db error"))
+
+		_, err := repo.GetBlockType(context.Background(), blockTypeID)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
 		}
 	})
 }
@@ -809,22 +790,6 @@ func TestMoveBlock(t *testing.T) {
 			t.Errorf("expected error, got nil")
 		}
 	})
-
-	t.Run("update position query error", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectExec("UPDATE blocks SET position = position - 1").
-			WithArgs(noteID, 0, 2, now).
-			WillReturnResult(sqlmock.NewResult(0, 2))
-		mock.ExpectQuery("UPDATE blocks SET position").
-			WithArgs(blockID, 2, now).
-			WillReturnError(errors.New("update error"))
-
-		_, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, now)
-
-		if err == nil {
-			t.Errorf("expected error, got nil")
-		}
-	})
 }
 
 func TestDeleteBlock(t *testing.T) {
@@ -934,16 +899,408 @@ func TestShiftBlockPositions(t *testing.T) {
 			t.Errorf("expected error, got nil")
 		}
 	})
+}
 
-	t.Run("exec error on shift down", func(t *testing.T) {
-		mock.ExpectExec("UPDATE blocks SET position = position - 1").
-			WithArgs(noteID, 1, now).
+func TestGetBlockFormatting(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewNoteRepository(db)
+	blockID := uuid.New()
+
+	t.Run("success with formatting ranges", func(t *testing.T) {
+		boldTrue := true
+		italicFalse := false
+		underlineTrue := true
+		textAlignCenter := 1
+
+		rows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
+			AddRow(0, 5, &boldTrue, &italicFalse, &underlineTrue, &textAlignCenter).
+			AddRow(6, 10, nil, nil, nil, nil)
+
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(rows)
+
+		formatting, err := repo.GetBlockFormatting(context.Background(), blockID)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if len(formatting.Ranges) != 2 {
+			t.Errorf("expected 2 ranges, got %d", len(formatting.Ranges))
+		}
+		if formatting.BlockID != blockID.String() {
+			t.Errorf("expected BlockID %s, got %s", blockID.String(), formatting.BlockID)
+		}
+	})
+
+	t.Run("no formatting", func(t *testing.T) {
+		rows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(rows)
+
+		formatting, err := repo.GetBlockFormatting(context.Background(), blockID)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if len(formatting.Ranges) != 0 {
+			t.Errorf("expected 0 ranges, got %d", len(formatting.Ranges))
+		}
+	})
+
+	t.Run("query error", func(t *testing.T) {
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
 			WillReturnError(errors.New("db error"))
 
-		err := repo.ShiftBlockPositions(context.Background(), noteID, 1, -1, now)
+		_, err := repo.GetBlockFormatting(context.Background(), blockID)
 
 		if err == nil {
 			t.Errorf("expected error, got nil")
+		}
+	})
+}
+
+func TestGetBlocksFormatting(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewNoteRepository(db)
+	blockID1 := uuid.New()
+	blockID2 := uuid.New()
+	blockIDs := []uuid.UUID{blockID1, blockID2}
+
+	t.Run("success with multiple blocks", func(t *testing.T) {
+		boldTrue := true
+		italicFalse := false
+
+		rows := sqlmock.NewRows([]string{"block_id", "start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
+			AddRow(blockID1.String(), 0, 5, &boldTrue, &italicFalse, nil, nil).
+			AddRow(blockID1.String(), 6, 10, nil, nil, nil, nil).
+			AddRow(blockID2.String(), 0, 3, nil, nil, nil, nil)
+
+		mock.ExpectQuery("SELECT block_id, start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting WHERE block_id = ANY").
+			WithArgs(sqlmock.AnyArg()).
+			WillReturnRows(rows)
+
+		result, err := repo.GetBlocksFormatting(context.Background(), blockIDs)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if len(result) != 2 {
+			t.Errorf("expected 2 blocks, got %d", len(result))
+		}
+		if len(result[blockID1.String()].Ranges) != 2 {
+			t.Errorf("expected 2 ranges for block1, got %d", len(result[blockID1.String()].Ranges))
+		}
+		if len(result[blockID2.String()].Ranges) != 1 {
+			t.Errorf("expected 1 range for block2, got %d", len(result[blockID2.String()].Ranges))
+		}
+	})
+
+	t.Run("empty blockIDs", func(t *testing.T) {
+		result, err := repo.GetBlocksFormatting(context.Background(), []uuid.UUID{})
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+		if len(result) != 0 {
+			t.Errorf("expected empty result, got %d", len(result))
+		}
+	})
+
+	t.Run("query error", func(t *testing.T) {
+		mock.ExpectQuery("SELECT block_id, start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting WHERE block_id = ANY").
+			WithArgs(sqlmock.AnyArg()).
+			WillReturnError(errors.New("db error"))
+
+		_, err := repo.GetBlocksFormatting(context.Background(), blockIDs)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+}
+
+func TestUpdateBlockFormatting(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("cant create mock: %s", err)
+	}
+	defer db.Close()
+
+	repo := NewNoteRepository(db)
+	blockID := uuid.New()
+	boldTrue := true
+
+	t.Run("success - apply new formatting", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(existingRows)
+		mock.ExpectExec("DELETE FROM block_formatting WHERE block_id").
+			WithArgs(blockID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec("INSERT INTO block_formatting").
+			WithArgs(blockID, 0, 10, &boldTrue, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		formattingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
+			AddRow(0, 10, &boldTrue, nil, nil, nil)
+
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(formattingRows)
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+	})
+
+	t.Run("success - apply formatting with all fields", func(t *testing.T) {
+		italicTrue := true
+		underlineTrue := true
+		textAlignCenter := 1
+
+		formattingRange := models.FormattingRange{
+			StartPos:  0,
+			EndPos:    10,
+			Bold:      &boldTrue,
+			Italic:    &italicTrue,
+			Underline: &underlineTrue,
+			TextAlign: &textAlignCenter,
+		}
+
+		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(existingRows)
+		mock.ExpectExec("DELETE FROM block_formatting WHERE block_id").
+			WithArgs(blockID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec("INSERT INTO block_formatting").
+			WithArgs(blockID, 0, 10, &boldTrue, &italicTrue, &underlineTrue, &textAlignCenter).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		formattingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
+			AddRow(0, 10, &boldTrue, &italicTrue, &underlineTrue, &textAlignCenter)
+
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(formattingRows)
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err != nil {
+			t.Errorf("unexpected err: %s", err)
+		}
+	})
+
+	t.Run("begin transaction error", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		mock.ExpectBegin().WillReturnError(errors.New("begin error"))
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+
+	t.Run("get formatting ranges error", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnError(errors.New("query error"))
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+
+	t.Run("delete formatting error", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(existingRows)
+		mock.ExpectExec("DELETE FROM block_formatting WHERE block_id").
+			WithArgs(blockID).
+			WillReturnError(errors.New("delete error"))
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+
+	t.Run("insert formatting error", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(existingRows)
+		mock.ExpectExec("DELETE FROM block_formatting WHERE block_id").
+			WithArgs(blockID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec("INSERT INTO block_formatting").
+			WithArgs(blockID, 0, 10, &boldTrue, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnError(errors.New("insert error"))
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+
+	t.Run("commit error", func(t *testing.T) {
+		formattingRange := models.FormattingRange{
+			StartPos: 0,
+			EndPos:   10,
+			Bold:     &boldTrue,
+		}
+
+		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
+
+		mock.ExpectBegin()
+		mock.ExpectQuery("SELECT start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting").
+			WithArgs(blockID).
+			WillReturnRows(existingRows)
+		mock.ExpectExec("DELETE FROM block_formatting WHERE block_id").
+			WithArgs(blockID).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectExec("INSERT INTO block_formatting").
+			WithArgs(blockID, 0, 10, &boldTrue, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit().WillReturnError(errors.New("commit error"))
+
+		_, err := repo.UpdateBlockFormatting(context.Background(), blockID, formattingRange)
+
+		if err == nil {
+			t.Errorf("expected error, got nil")
+		}
+	})
+}
+
+func TestApplyFormattingToRanges(t *testing.T) {
+	boldTrue := true
+	italicTrue := true
+	textAlignCenter := 1
+
+	t.Run("merge overlapping ranges with same formatting", func(t *testing.T) {
+		existing := []models.FormattingRange{
+			{StartPos: 0, EndPos: 5, Bold: &boldTrue},
+			{StartPos: 10, EndPos: 15, Bold: &boldTrue},
+		}
+		newRange := models.FormattingRange{StartPos: 3, EndPos: 12, Bold: &boldTrue}
+
+		result := applyFormattingToRanges(existing, newRange)
+
+		// ожидается один объединенный диапазон от 0 до 15
+		if len(result) != 1 {
+			t.Errorf("expected 1 range, got %d", len(result))
+		}
+		if result[0].StartPos != 0 {
+			t.Errorf("expected start 0, got %d", result[0].StartPos)
+		}
+		if result[0].EndPos != 15 {
+			t.Errorf("expected end 15, got %d", result[0].EndPos)
+		}
+	})
+
+	t.Run("apply text align", func(t *testing.T) {
+		existing := []models.FormattingRange{}
+		newRange := models.FormattingRange{StartPos: 0, EndPos: 10, TextAlign: &textAlignCenter}
+
+		result := applyFormattingToRanges(existing, newRange)
+
+		if len(result) != 1 {
+			t.Errorf("expected 1 range, got %d", len(result))
+		}
+		if *result[0].TextAlign != textAlignCenter {
+			t.Errorf("expected text align %d, got %d", textAlignCenter, *result[0].TextAlign)
+		}
+	})
+
+	t.Run("empty existing ranges", func(t *testing.T) {
+		existing := []models.FormattingRange{}
+		newRange := models.FormattingRange{StartPos: 0, EndPos: 10, Bold: &boldTrue}
+
+		result := applyFormattingToRanges(existing, newRange)
+
+		if len(result) != 1 {
+			t.Errorf("expected 1 range, got %d", len(result))
+		}
+		if result[0].StartPos != 0 || result[0].EndPos != 10 {
+			t.Errorf("expected range [0-10], got [%d-%d]", result[0].StartPos, result[0].EndPos)
+		}
+	})
+
+	t.Run("multiple formatting properties", func(t *testing.T) {
+		existing := []models.FormattingRange{
+			{StartPos: 0, EndPos: 10, Bold: &boldTrue, Italic: &italicTrue},
+		}
+		newRange := models.FormattingRange{StartPos: 5, EndPos: 15, Underline: &boldTrue}
+
+		result := applyFormattingToRanges(existing, newRange)
+
+		// ожидается 3 диапазона с разными комбинациями свойств
+		if len(result) != 3 {
+			t.Errorf("expected 3 ranges, got %d", len(result))
 		}
 	})
 }

@@ -117,6 +117,36 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlock(ctx, blockID any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlock", reflect.TypeOf((*MockNoteRepository)(nil).GetBlock), ctx, blockID)
 }
 
+// GetBlockFormatting mocks base method.
+func (m *MockNoteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockFormatting", ctx, blockID)
+	ret0, _ := ret[0].(*models.BlockFormatting)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockFormatting indicates an expected call of GetBlockFormatting.
+func (mr *MockNoteRepositoryMockRecorder) GetBlockFormatting(ctx, blockID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockFormatting", reflect.TypeOf((*MockNoteRepository)(nil).GetBlockFormatting), ctx, blockID)
+}
+
+// GetBlockType mocks base method.
+func (m *MockNoteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlockType", ctx, blockTypeID)
+	ret0, _ := ret[0].(*models.BlockType)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlockType indicates an expected call of GetBlockType.
+func (mr *MockNoteRepositoryMockRecorder) GetBlockType(ctx, blockTypeID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockType", reflect.TypeOf((*MockNoteRepository)(nil).GetBlockType), ctx, blockTypeID)
+}
+
 // GetBlocks mocks base method.
 func (m *MockNoteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
 	m.ctrl.T.Helper()
@@ -130,6 +160,21 @@ func (m *MockNoteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([
 func (mr *MockNoteRepositoryMockRecorder) GetBlocks(ctx, noteID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlocks", reflect.TypeOf((*MockNoteRepository)(nil).GetBlocks), ctx, noteID)
+}
+
+// GetBlocksFormatting mocks base method.
+func (m *MockNoteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uuid.UUID) (map[string]models.BlockFormatting, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlocksFormatting", ctx, blockIDs)
+	ret0, _ := ret[0].(map[string]models.BlockFormatting)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlocksFormatting indicates an expected call of GetBlocksFormatting.
+func (mr *MockNoteRepositoryMockRecorder) GetBlocksFormatting(ctx, blockIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlocksFormatting", reflect.TypeOf((*MockNoteRepository)(nil).GetBlocksFormatting), ctx, blockIDs)
 }
 
 // GetNote mocks base method.
@@ -177,6 +222,21 @@ func (mr *MockNoteRepositoryMockRecorder) MoveBlock(ctx, noteID, blockID, oldPos
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoveBlock", reflect.TypeOf((*MockNoteRepository)(nil).MoveBlock), ctx, noteID, blockID, oldPosition, newPosition, updatedAt)
 }
 
+// ResetBlockFormatting mocks base method.
+func (m *MockNoteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetBlockFormatting", ctx, blockID)
+	ret0, _ := ret[0].(*models.BlockFormatting)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResetBlockFormatting indicates an expected call of ResetBlockFormatting.
+func (mr *MockNoteRepositoryMockRecorder) ResetBlockFormatting(ctx, blockID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetBlockFormatting", reflect.TypeOf((*MockNoteRepository)(nil).ResetBlockFormatting), ctx, blockID)
+}
+
 // ShiftBlockPositions mocks base method.
 func (m *MockNoteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int, updatedAt time.Time) error {
 	m.ctrl.T.Helper()
@@ -204,6 +264,21 @@ func (m *MockNoteRepository) UpdateBlockContent(ctx context.Context, blockID uui
 func (mr *MockNoteRepositoryMockRecorder) UpdateBlockContent(ctx, blockID, content, updatedAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBlockContent", reflect.TypeOf((*MockNoteRepository)(nil).UpdateBlockContent), ctx, blockID, content, updatedAt)
+}
+
+// UpdateBlockFormatting mocks base method.
+func (m *MockNoteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateBlockFormatting", ctx, blockID, formattingRange)
+	ret0, _ := ret[0].(*models.BlockFormatting)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateBlockFormatting indicates an expected call of UpdateBlockFormatting.
+func (mr *MockNoteRepositoryMockRecorder) UpdateBlockFormatting(ctx, blockID, formattingRange any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBlockFormatting", reflect.TypeOf((*MockNoteRepository)(nil).UpdateBlockFormatting), ctx, blockID, formattingRange)
 }
 
 // UpdateNote mocks base method.
