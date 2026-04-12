@@ -41,7 +41,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
-	profileRepo := profilesRepo.NewProfileRepository(db)
+	profileRepo := profilesRepo.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
@@ -96,6 +96,9 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
 	r.Handle("PUT /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
 	r.Handle("DELETE /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
+	r.Handle("GET /profile/avatar", authMiddleware(http.HandlerFunc(profileHandler.GetAvatar)))
+	r.Handle("POST /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
+	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 
 	return middleware.Logger(r), nil
 }

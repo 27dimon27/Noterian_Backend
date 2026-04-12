@@ -24,6 +24,7 @@ const (
 	DEFAULT_MINIO_ENDPOINT           = "minio:9000"
 	DEFAULT_MINIO_USE_SSL            = false
 	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
+	DEFAULT_MINIO_AVATARS_BUCKET     = "avatars"
 )
 
 type JWTConfig struct {
@@ -65,6 +66,7 @@ type MinIOConfig struct {
 	SecretKey         string
 	UseSSL            bool
 	AttachmentsBucket string
+	AvatarsBucket     string
 }
 
 type Config struct {
@@ -168,6 +170,11 @@ func Load() *Config {
 		attachmentsBucket = DEFAULT_MINIO_ATTACHMENTS_BUCKET
 	}
 
+	avatarsBucket := os.Getenv("MINIO_AVATARS_BUCKET")
+	if avatarsBucket == "" {
+		avatarsBucket = DEFAULT_MINIO_AVATARS_BUCKET
+	}
+
 	secure := os.Getenv("IS_SECURE") == "true"
 
 	return &Config{
@@ -206,6 +213,7 @@ func Load() *Config {
 			SecretKey:         secretKey,
 			UseSSL:            useSSL,
 			AttachmentsBucket: attachmentsBucket,
+			AvatarsBucket:     avatarsBucket,
 		},
 	}
 }
