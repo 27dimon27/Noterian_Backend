@@ -6,7 +6,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-var sanitizer = bluemonday.StrictPolicy()
+var sanitizer = bluemonday.UGCPolicy()
 
 func SanitizeStruct(v any) {
 	val := reflect.ValueOf(v)
