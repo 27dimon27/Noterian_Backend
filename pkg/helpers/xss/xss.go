@@ -1,12 +1,13 @@
 package xss
 
 import (
+	"html"
 	"reflect"
 
 	"github.com/microcosm-cc/bluemonday"
 )
 
-var sanitizer = bluemonday.UGCPolicy()
+var sanitizer = bluemonday.StrictPolicy()
 
 func SanitizeStruct(v any) {
 	val := reflect.ValueOf(v)
@@ -22,6 +23,7 @@ func sanitizeValue(val reflect.Value) {
 	case reflect.String:
 		if val.CanSet() {
 			clean := sanitizer.Sanitize(val.String())
+			clean = html.UnescapeString(clean)
 			val.SetString(clean)
 		}
 
