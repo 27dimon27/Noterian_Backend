@@ -1,6 +1,7 @@
 package xss
 
 import (
+	"html"
 	"reflect"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -22,6 +23,7 @@ func sanitizeValue(val reflect.Value) {
 	case reflect.String:
 		if val.CanSet() {
 			clean := sanitizer.Sanitize(val.String())
+			clean = html.UnescapeString(clean)
 			val.SetString(clean)
 		}
 
