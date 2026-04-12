@@ -45,6 +45,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
+	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
+	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+
 	csrfHandler := csrf.NewHandler(cfg.CSRF)
 
 	authMiddleware := func(handler http.Handler) http.Handler {
@@ -52,12 +56,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	}
 
 	csrfMiddleware := func(handler http.Handler) http.Handler {
-		return csrf.NewMiddleware(cfg.CSRF).Protect(handler)
+		return middleware.CSRF(handler, cfg.CSRF)
 	}
-
-	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
-	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	r := http.NewServeMux()
 
