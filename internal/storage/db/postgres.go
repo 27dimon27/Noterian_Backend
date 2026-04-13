@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -20,8 +21,11 @@ func NewPostgresConnection(cfg config.DBConfig) (*sql.DB, error) {
 	}
 
 	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		closeErr := db.Close()
+		return nil, errors.Join(
+			fmt.Errorf("failed to ping database: %w", err),
+			fmt.Errorf("failed to close connection: %v", closeErr),
+		)
 	}
 
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
