@@ -45,6 +45,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
+	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
+	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+
 	csrfHandler := csrf.NewHandler(cfg.CSRF)
 
 	authMiddleware := func(handler http.Handler) http.Handler {
@@ -52,12 +56,16 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	}
 
 	csrfMiddleware := func(handler http.Handler) http.Handler {
-		return csrf.NewMiddleware(cfg.CSRF).Protect(handler)
+		return middleware.CSRF(handler, cfg.CSRF)
 	}
 
-	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
-	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+	xssMiddleware := func(handler http.Handler) http.Handler {
+		return middleware.XSS(handler)
+	}
+
+	securityMiddleware := func(handler http.Handler) http.Handler {
+		return csrfMiddleware(xssMiddleware(handler))
+	}
 
 	r := http.NewServeMux()
 
@@ -69,29 +77,29 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 
 	r.Handle("GET /notes", authMiddleware(http.HandlerFunc(noteHandler.GetNotes)))
 	r.Handle("GET /notes/{noteId}", authMiddleware(http.HandlerFunc(noteHandler.GetNote)))
-	r.Handle("POST /notes", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.CreateNote))))
-	r.Handle("PUT /notes/{noteId}", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.UpdateNote))))
-	r.Handle("DELETE /notes/{noteId}", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.DeleteNote))))
+	r.Handle("POST /notes", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateNote))))
+	r.Handle("PUT /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateNote))))
+	r.Handle("DELETE /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteNote))))
 
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}", authMiddleware(http.HandlerFunc(noteHandler.GetBlock)))
-	r.Handle("POST /notes/{noteId}/blocks", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.CreateBlock))))
-	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.UpdateBlockContent))))
-	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.MoveBlock))))
-	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.DeleteBlock))))
+	r.Handle("POST /notes/{noteId}/blocks", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateBlock))))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateBlockContent))))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.MoveBlock))))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteBlock))))
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(http.HandlerFunc(noteHandler.GetBlockFormatting)))
-	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.UpdateBlockFormatting))))
-	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(csrfMiddleware(http.HandlerFunc(noteHandler.ResetBlockFormatting))))
+	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateBlockFormatting))))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.ResetBlockFormatting))))
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(http.HandlerFunc(attachmentHandler.GetAttachment)))
-	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(csrfMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
-	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(csrfMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
+	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
+	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
 
 	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
-	r.Handle("PUT /profile", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
-	r.Handle("DELETE /profile", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
+	r.Handle("PUT /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
+	r.Handle("DELETE /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
 	r.Handle("GET /profile/avatar", authMiddleware(http.HandlerFunc(profileHandler.GetAvatar)))
-	r.Handle("POST /profile/avatar", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
-	r.Handle("DELETE /profile/avatar", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
-	r.Handle("PUT /profile/password", authMiddleware(http.HandlerFunc(profileHandler.ChangePassword)))
+	r.Handle("POST /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
+	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
+	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))
 
 	return middleware.Logger(r), nil
 }
