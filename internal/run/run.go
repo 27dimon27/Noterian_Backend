@@ -2,6 +2,7 @@ package run
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -36,6 +37,11 @@ func Run() error {
 	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AttachmentsBucket); err != nil {
 		return err
 	}
+	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.AttachmentsBucket))
+	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AvatarsBucket); err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.AvatarsBucket))
 
 	log.Info("Connected to MinIO successfully")
 
