@@ -14,6 +14,7 @@ var (
 	ErrFailedToUpload      = errors.New("Не удалось загрузить файл")
 	ErrFailedToGenerateURL = errors.New("Не удалось сгенерировать ссылку")
 	ErrAvatarNotFound      = errors.New("Аватар не найден")
+	ErrWrongPassword       = errors.New("Неверный пароль")
 )
 
 const (
