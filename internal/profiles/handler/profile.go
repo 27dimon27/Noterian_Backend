@@ -25,6 +25,7 @@ type ProfileUsecase interface {
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
 	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
+	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error)
 }
 
 type ProfileHandler struct {
@@ -198,4 +199,41 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Body == nil {
+		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		return
+	}
+	defer r.Body.Close()
+
+	var dtoUpdatePassword dto.UpdatePassword
+	if err := body.GetBody(r, &dtoUpdatePassword); err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+		return
+	}
+
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		return
+	}
+
+	updatedProfile, err := h.profileUsecase.ChangePassword(r.Context(), userID, dtoUpdatePassword.OldPassword, dtoUpdatePassword.NewPassword)
+	if err != nil {
+		switch err {
+		case profiles.ErrUserNotExist:
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		case profiles.ErrWrongPassword:
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	response := dto.ToProfileDTO(updatedProfile)
+
+	write.JSONResponse(w, http.StatusOK, response)
 }

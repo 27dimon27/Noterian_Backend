@@ -25,4 +25,6 @@ const (
 		WHERE profile_id = $1 
 		RETURNING minio_key
 	`
+	CHANGE_PASSWORD_BY_USER_ID = "UPDATE profiles SET password = $2 WHERE id = $1 RETURNING id, username, created_at, updated_at"
+	GET_PASSWORD_BY_USER_ID    = "SELECT password FROM profiles WHERE id = $1"
 )
