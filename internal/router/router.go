@@ -97,8 +97,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("PUT /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
 	r.Handle("DELETE /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
 	r.Handle("GET /profile/avatar", authMiddleware(http.HandlerFunc(profileHandler.GetAvatar)))
-	r.Handle("POST /profile/avatar", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
-	r.Handle("DELETE /profile/avatar", authMiddleware(csrfMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
+	r.Handle("POST /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
+	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 
 	return middleware.Logger(r), nil
 }
