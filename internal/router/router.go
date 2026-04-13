@@ -75,6 +75,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("GET /profile", middleware.Auth(http.HandlerFunc(profileHandler.GetProfile), cfg.JWT))
 	r.Handle("PUT /profile", middleware.Auth(http.HandlerFunc(profileHandler.UpdateProfile), cfg.JWT))
 	r.Handle("DELETE /profile", middleware.Auth(http.HandlerFunc(profileHandler.DeleteProfile), cfg.JWT))
+	r.Handle("PUT /profile/password", middleware.Auth(http.HandlerFunc(profileHandler.ChangePassword), cfg.JWT))
 
 	return middleware.Logger(r), nil
 }

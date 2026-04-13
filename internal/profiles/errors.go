@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	ErrUserNotExist      = errors.New("Пользователь не найден")
-	ErrInvalidUserID     = errors.New("Невалидный UserID")
+	ErrUserNotExist       = errors.New("Пользователь не найден")
+	ErrInvalidUserID      = errors.New("Невалидный UserID")
 	ErrInvalidProfileData = errors.New("Невалидные данные профиля")
+	ErrWrongPassword      = errors.New("Неверный пароль")
 )
