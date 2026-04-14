@@ -42,36 +42,36 @@ func TestLoad(t *testing.T) {
 		if cfg.JWT.Secret != "test-secret-key" {
 			t.Errorf("expected secret test-secret, got %s", cfg.JWT.Secret)
 		}
-		if cfg.JWT.CookieName != DEFAULT_COOKIE_NAME {
-			t.Errorf("expected cookie name %s, got %s", DEFAULT_COOKIE_NAME, cfg.JWT.CookieName)
+		if cfg.JWT.CookieName != DEFAULT_JWT_COOKIE_NAME {
+			t.Errorf("expected cookie name %s, got %s", DEFAULT_JWT_COOKIE_NAME, cfg.JWT.CookieName)
 		}
-		if cfg.JWT.CookieTimeJWT != DEFAULT_COOKIE_TIME_JWT*time.Second {
-			t.Errorf("expected cookie time %v, got %v", DEFAULT_COOKIE_TIME_JWT*time.Second, cfg.JWT.CookieTimeJWT)
+		if cfg.JWT.CookieTime != DEFAULT_JWT_COOKIE_TIME*time.Second {
+			t.Errorf("expected cookie time %v, got %v", DEFAULT_JWT_COOKIE_TIME*time.Second, cfg.JWT.CookieTime)
 		}
 		if cfg.JWT.Secure != false {
 			t.Errorf("expected secure false, got %v", cfg.JWT.Secure)
 		}
-		if cfg.Server.Port != DEFAULT_PORT {
-			t.Errorf("expected port %s, got %s", DEFAULT_PORT, cfg.Server.Port)
+		if cfg.Server.Port != DEFAULT_SERVER_PORT {
+			t.Errorf("expected port %s, got %s", DEFAULT_SERVER_PORT, cfg.Server.Port)
 		}
-		if cfg.Server.ReadTimeout != DEFAULT_READ_TIMEOUT*time.Second {
-			t.Errorf("expected read timeout %v, got %v", DEFAULT_READ_TIMEOUT*time.Second, cfg.Server.ReadTimeout)
+		if cfg.Server.ReadTimeout != DEFAULT_SERVER_READ_TIMEOUT*time.Second {
+			t.Errorf("expected read timeout %v, got %v", DEFAULT_SERVER_READ_TIMEOUT*time.Second, cfg.Server.ReadTimeout)
 		}
-		if cfg.Server.WriteTimeout != DEFAULT_WRITE_TIMEOUT*time.Second {
-			t.Errorf("expected write timeout %v, got %v", DEFAULT_WRITE_TIMEOUT*time.Second, cfg.Server.WriteTimeout)
+		if cfg.Server.WriteTimeout != DEFAULT_SERVER_WRITE_TIMEOUT*time.Second {
+			t.Errorf("expected write timeout %v, got %v", DEFAULT_SERVER_WRITE_TIMEOUT*time.Second, cfg.Server.WriteTimeout)
 		}
-		if cfg.Server.IdleTimeout != DEFAULT_IDLE_TIMEOUT*time.Second {
-			t.Errorf("expected idle timeout %v, got %v", DEFAULT_IDLE_TIMEOUT*time.Second, cfg.Server.IdleTimeout)
+		if cfg.Server.IdleTimeout != DEFAULT_SERVER_IDLE_TIMEOUT*time.Second {
+			t.Errorf("expected idle timeout %v, got %v", DEFAULT_SERVER_IDLE_TIMEOUT*time.Second, cfg.Server.IdleTimeout)
 		}
-		if cfg.Server.ShutdownTimeout != DEFAULT_SHUTDOWN_TIMEOUT*time.Second {
-			t.Errorf("expected shutdown timeout %v, got %v", DEFAULT_SHUTDOWN_TIMEOUT*time.Second, cfg.Server.ShutdownTimeout)
+		if cfg.Server.ShutdownTimeout != DEFAULT_SERVER_SHUTDOWN_TIMEOUT*time.Second {
+			t.Errorf("expected shutdown timeout %v, got %v", DEFAULT_SERVER_SHUTDOWN_TIMEOUT*time.Second, cfg.Server.ShutdownTimeout)
 		}
 
-		if cfg.DB.MaxOpenConns != DEFAULT_MAX_OPEN_CONNECTIONS {
-			t.Errorf("expected max open conns %d, got %d", DEFAULT_MAX_OPEN_CONNECTIONS, cfg.DB.MaxOpenConns)
+		if cfg.DB.MaxOpenConns != DEFAULT_DB_MAX_OPEN_CONNECTIONS {
+			t.Errorf("expected max open conns %d, got %d", DEFAULT_DB_MAX_OPEN_CONNECTIONS, cfg.DB.MaxOpenConns)
 		}
-		if cfg.DB.MaxIdleConns != DEFAULT_MAX_IDLE_CONNECTIONS {
-			t.Errorf("expected max idle conns %d, got %d", DEFAULT_MAX_IDLE_CONNECTIONS, cfg.DB.MaxIdleConns)
+		if cfg.DB.MaxIdleConns != DEFAULT_DB_MAX_IDLE_CONNECTIONS {
+			t.Errorf("expected max idle conns %d, got %d", DEFAULT_DB_MAX_IDLE_CONNECTIONS, cfg.DB.MaxIdleConns)
 		}
 	})
 
@@ -103,8 +103,8 @@ func TestLoad(t *testing.T) {
 		if cfg.JWT.CookieName != "custom-cookie" {
 			t.Errorf("expected cookie name custom-cookie, got %s", cfg.JWT.CookieName)
 		}
-		if cfg.JWT.CookieTimeJWT != 7200*time.Second {
-			t.Errorf("expected cookie time 7200s, got %v", cfg.JWT.CookieTimeJWT)
+		if cfg.JWT.CookieTime != 7200*time.Second {
+			t.Errorf("expected cookie time 7200s, got %v", cfg.JWT.CookieTime)
 		}
 		if cfg.JWT.Secure != true {
 			t.Errorf("expected secure true, got %v", cfg.JWT.Secure)
@@ -165,26 +165,26 @@ func TestLoad(t *testing.T) {
 
 		cfg := Load()
 
-		if cfg.JWT.CookieTimeJWT != DEFAULT_COOKIE_TIME_JWT*time.Second {
-			t.Errorf("expected default cookie time %v, got %v", DEFAULT_COOKIE_TIME_JWT*time.Second, cfg.JWT.CookieTimeJWT)
+		if cfg.JWT.CookieTime != DEFAULT_JWT_COOKIE_TIME*time.Second {
+			t.Errorf("expected default cookie time %v, got %v", DEFAULT_JWT_COOKIE_TIME*time.Second, cfg.JWT.CookieTime)
 		}
-		if cfg.Server.ReadTimeout != DEFAULT_READ_TIMEOUT*time.Second {
-			t.Errorf("expected default read timeout %v, got %v", DEFAULT_READ_TIMEOUT*time.Second, cfg.Server.ReadTimeout)
+		if cfg.Server.ReadTimeout != DEFAULT_SERVER_READ_TIMEOUT*time.Second {
+			t.Errorf("expected default read timeout %v, got %v", DEFAULT_SERVER_READ_TIMEOUT*time.Second, cfg.Server.ReadTimeout)
 		}
-		if cfg.Server.WriteTimeout != DEFAULT_WRITE_TIMEOUT*time.Second {
-			t.Errorf("expected default write timeout %v, got %v", DEFAULT_WRITE_TIMEOUT*time.Second, cfg.Server.WriteTimeout)
+		if cfg.Server.WriteTimeout != DEFAULT_SERVER_WRITE_TIMEOUT*time.Second {
+			t.Errorf("expected default write timeout %v, got %v", DEFAULT_SERVER_WRITE_TIMEOUT*time.Second, cfg.Server.WriteTimeout)
 		}
-		if cfg.Server.IdleTimeout != DEFAULT_IDLE_TIMEOUT*time.Second {
-			t.Errorf("expected default idle timeout %v, got %v", DEFAULT_IDLE_TIMEOUT*time.Second, cfg.Server.IdleTimeout)
+		if cfg.Server.IdleTimeout != DEFAULT_SERVER_IDLE_TIMEOUT*time.Second {
+			t.Errorf("expected default idle timeout %v, got %v", DEFAULT_SERVER_IDLE_TIMEOUT*time.Second, cfg.Server.IdleTimeout)
 		}
-		if cfg.Server.ShutdownTimeout != DEFAULT_SHUTDOWN_TIMEOUT*time.Second {
-			t.Errorf("expected default shutdown timeout %v, got %v", DEFAULT_SHUTDOWN_TIMEOUT*time.Second, cfg.Server.ShutdownTimeout)
+		if cfg.Server.ShutdownTimeout != DEFAULT_SERVER_SHUTDOWN_TIMEOUT*time.Second {
+			t.Errorf("expected default shutdown timeout %v, got %v", DEFAULT_SERVER_SHUTDOWN_TIMEOUT*time.Second, cfg.Server.ShutdownTimeout)
 		}
-		if cfg.DB.MaxOpenConns != DEFAULT_MAX_OPEN_CONNECTIONS {
-			t.Errorf("expected default max open conns %d, got %d", DEFAULT_MAX_OPEN_CONNECTIONS, cfg.DB.MaxOpenConns)
+		if cfg.DB.MaxOpenConns != DEFAULT_DB_MAX_OPEN_CONNECTIONS {
+			t.Errorf("expected default max open conns %d, got %d", DEFAULT_DB_MAX_OPEN_CONNECTIONS, cfg.DB.MaxOpenConns)
 		}
-		if cfg.DB.MaxIdleConns != DEFAULT_MAX_IDLE_CONNECTIONS {
-			t.Errorf("expected default max idle conns %d, got %d", DEFAULT_MAX_IDLE_CONNECTIONS, cfg.DB.MaxIdleConns)
+		if cfg.DB.MaxIdleConns != DEFAULT_DB_MAX_IDLE_CONNECTIONS {
+			t.Errorf("expected default max idle conns %d, got %d", DEFAULT_DB_MAX_IDLE_CONNECTIONS, cfg.DB.MaxIdleConns)
 		}
 	})
 }

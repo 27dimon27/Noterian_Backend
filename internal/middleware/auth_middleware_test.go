@@ -14,14 +14,14 @@ import (
 
 func TestAuth(t *testing.T) {
 	jwtConfig := config.JWTConfig{
-		Secret:        "secret-key",
-		CookieName:    "auth",
-		CookieTimeJWT: 3600,
-		Secure:        false,
+		Secret:     "secret-key",
+		CookieName: "auth",
+		CookieTime: 3600,
+		Secure:     false,
 	}
 
 	userID := uuid.New()
-	token, err := jwt.GenerateToken(userID.String(), jwtConfig.CookieTimeJWT*time.Second, jwtConfig.Secret)
+	token, err := jwt.GenerateToken(userID.String(), jwtConfig.CookieTime*time.Second, jwtConfig.Secret)
 	if err != nil {
 		t.Fatalf("failed to generate token: %s", err)
 	}
