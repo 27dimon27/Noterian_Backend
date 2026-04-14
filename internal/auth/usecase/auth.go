@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=auth.go -destination=mocks/mock_user_repository.go -package=mocks
+//go:generate mockgen -source=auth.go -destination=mocks/mock_usecase_auth.go -package=mocks
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)

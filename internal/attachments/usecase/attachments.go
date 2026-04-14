@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=attachments.go -destination=mocks/mock_attachments_repository.go -package=mocks
+//go:generate mockgen -source=attachments.go -destination=mocks/mock_usecase_attachments.go -package=mocks
 
 type AttachmentRepository interface {
 	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)

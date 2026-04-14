@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=attachments.go -destination=mocks/mock_minio.go -package=mocks
+//go:generate mockgen -source=attachments.go -destination=mocks/mock_repository_minio.go -package=mocks
 
 type MinIOService interface {
 	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error

@@ -4,11 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/google/uuid"
 )
+
+//go:generate mockgen -source=profile.go -destination=mocks/mock_repository_minio.go -package=mocks
+
+type MinIOService interface {
+	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
+	DeleteFile(ctx context.Context, bucketName, key string) error
+	GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error)
+}
 
 type profileRepository struct {
 	db *sql.DB

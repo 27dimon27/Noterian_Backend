@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=attachments.go -destination=mocks/mock_attachments_usecase.go -package=mocks
+//go:generate mockgen -source=attachments.go -destination=mocks/mock_handler_attachments.go -package=mocks
 
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)

@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate go run go.uber.org/mock/mockgen -source=profile.go -destination=mocks/mock_profile_usecase.go -package=mocks
+//go:generate mockgen -source=profile.go -destination=mocks/mock_handler_profile.go -package=mocks
 
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
