@@ -20,6 +20,7 @@ type ProfileRepository interface {
 	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
 	ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error)
+	GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error)
 }
 
 type profileUsecase struct {
@@ -38,7 +39,6 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 		return nil, err
 	}
 
-	profile.Password = []byte{}
 	return profile, nil
 }
 
@@ -94,12 +94,12 @@ func (u *profileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) 
 }
 
 func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error) {
-	user, err := u.profileRepo.GetProfile(ctx, userID)
+	password, err := u.profileRepo.GetPassword(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword))
+	err = bcrypt.CompareHashAndPassword(password, []byte(oldPassword))
 	if err != nil {
 		return nil, profiles.ErrWrongPassword
 	}

@@ -36,7 +36,7 @@ func NewProfileRepository(db *sql.DB, minio MinIOService, avatarBucket string) *
 func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username, &user.Password, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, profiles.ErrUserNotExist
@@ -233,4 +233,18 @@ func (r *profileRepository) ChangePassword(ctx context.Context, userID uuid.UUID
 	}
 
 	return updatedProfile, nil
+}
+
+func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+	var password []byte
+
+	err := r.db.QueryRowContext(ctx, GET_PASSWORD_BY_USER_ID, userID).Scan(&password)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, profiles.ErrUserNotExist
+		}
+		return nil, err
+	}
+
+	return password, nil
 }
