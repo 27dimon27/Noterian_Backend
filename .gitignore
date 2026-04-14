@@ -5,5 +5,7 @@ main
 noterian
 
 *.out
+coverage
+filtered
 
 docker-compose-test.yml
