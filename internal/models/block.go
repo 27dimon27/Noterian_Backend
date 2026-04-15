@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// swagger:model Block
 type Block struct {
 	ID          uuid.UUID
 	NoteID      uuid.UUID

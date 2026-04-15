@@ -31,6 +31,21 @@ func NewAttachmentHandler(attachmentUsecase AttachmentUsecase) *AttachmentHandle
 	}
 }
 
+// GetAttachment godoc
+// @Summary Получение вложения
+// @Tags attachments
+// @Accept json
+// @Produce json
+// @Param noteId path string true "ID заметки"
+// @Param blockId path string true "ID блока"
+// @Success 200 {object} dto.Attachment "Информация о вложении"
+// @Failure 400 {object} map[string]string "Невалидный NoteID или BlockID"
+// @Failure 401 {object} map[string]string "Невалидный UserID"
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 404 {object} map[string]string "Заметка, блок или вложение не найдены"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Security ApiKeyAuth
+// @Router /notes/{noteId}/blocks/{blockId}/attachments [get]
 func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -80,6 +95,24 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// UploadAttachment godoc
+// @Summary Загрузка вложения
+// @Tags attachments
+// @Accept mpfd
+// @Produce json
+// @Param noteId path string true "ID заметки"
+// @Param blockId path string true "ID блока"
+// @Param file formData file true "Файл для загрузки (JPEG, PNG, WEBP, макс. 100MB)"
+// @Success 201 {object} dto.Attachment "Информация о загруженном вложении"
+// @Failure 400 {object} map[string]string "Невалидный NoteID/BlockID или неподдерживаемый MIME-тип"
+// @Failure 401 {object} map[string]string "Невалидный UserID"
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 404 {object} map[string]string "Заметка или блок не найдены"
+// @Failure 409 {object} map[string]string "Блок уже содержит вложение"
+// @Failure 413 {object} map[string]string "Файл слишком большой"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Security ApiKeyAuth
+// @Router /notes/{noteId}/blocks/{blockId}/attachments [post]
 func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -180,6 +213,21 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// DeleteAttachment godoc
+// @Summary Удаление вложения
+// @Tags attachments
+// @Accept json
+// @Produce json
+// @Param noteId path string true "ID заметки"
+// @Param blockId path string true "ID блока"
+// @Success 204 "Вложение успешно удалено"
+// @Failure 400 {object} map[string]string "Невалидный NoteID или BlockID"
+// @Failure 401 {object} map[string]string "Невалидный UserID"
+// @Failure 403 {object} map[string]string "Доступ запрещен"
+// @Failure 404 {object} map[string]string "Заметка, блок или вложение не найдены"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Security ApiKeyAuth
+// @Router /notes/{noteId}/blocks/{blockId}/attachments [delete]
 func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {

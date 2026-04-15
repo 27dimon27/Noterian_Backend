@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// swagger:model Avatar
 type Avatar struct {
 	ID           uuid.UUID
 	ProfileID    uuid.UUID

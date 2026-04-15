@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// swagger:model Profile
 type Profile struct {
 	ID           uuid.UUID
 	Username     string

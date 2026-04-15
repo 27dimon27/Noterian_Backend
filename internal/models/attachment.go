@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// swagger:model Attachment
 type Attachment struct {
 	ID           uuid.UUID
 	BlockID      uuid.UUID
