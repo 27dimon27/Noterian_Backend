@@ -34,6 +34,19 @@ func NewAuthHandler(authUsecase AuthUsecase, jwtConfig config.JWTConfig) *AuthHa
 	}
 }
 
+// SignupUser godoc
+// @Summary Регистрация пользователя
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.SignUpUser true "Данные для регистрации"
+// @Success 200 {object} dto.UserResponse "Успешная регистрация"
+// @Failure 400 {object} map[string]string "Невалидный ввод или невалидные username/password"
+// @Failure 401 {object} map[string]string "Неавторизован"
+// @Failure 405 {object} map[string]string "Неверный метод"
+// @Failure 409 {object} map[string]string "Пользователь уже существует"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Router /signup [post]
 func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
@@ -67,6 +80,18 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	h.saveUserCookie(w, user)
 }
 
+// SigninUser godoc
+// @Summary Вход пользователя
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body dto.SignInUser true "Данные для входа"
+// @Success 200 {object} dto.UserResponse "Успешный вход"
+// @Failure 400 {object} map[string]string "Невалидный ввод"
+// @Failure 401 {object} map[string]string "Неверный логин или пароль"
+// @Failure 405 {object} map[string]string "Неверный метод"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Router /signin [post]
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
@@ -98,6 +123,15 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	h.saveUserCookie(w, user)
 }
 
+// LogOutUser godoc
+// @Summary Выход пользователя
+// @Tags auth
+// @Produce json
+// @Success 204 "Успешный выход, тело ответа отсутствует"
+// @Failure 401 {object} map[string]string "Неавторизован"
+// @Failure 405 {object} map[string]string "Неверный метод"
+// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
+// @Router /logout [post]
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
 	w.WriteHeader(http.StatusNoContent)

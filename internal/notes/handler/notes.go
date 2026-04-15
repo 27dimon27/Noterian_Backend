@@ -44,6 +44,16 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 	}
 }
 
+// GetNotes godoc
+// @Summary Получение всех заметок для пользователя
+// @Tags notes
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {object} dto.NotesResponse "List of notes retrieved successfully"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes [get]
 func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -62,6 +72,20 @@ func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// GetNote godoc
+// @Summary Получение заметки по ID
+// @Tags notes
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Success 200 {object} dto.NoteResponse "Note retrieved successfully"
+// @Failure 400 {object} map[string]string "Invalid note ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId} [get]
 func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -107,6 +131,18 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// CreateNote godoc
+// @Summary Создание заметки
+// @Tags notes
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param request body dto.NoteRequest true "Note creation data"
+// @Success 201 {object} dto.Note "Note created successfully"
+// @Failure 400 {object} map[string]string "Invalid request body or note data"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes [post]
 func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -146,6 +182,21 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// UpdateNote godoc
+// @Summary Обновление заметки
+// @Tags notes
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param request body dto.NoteRequest true "Note update data"
+// @Success 200 {object} dto.Note "Note updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body, note ID, or note data"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId} [put]
 func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -205,6 +256,20 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteNote godoc
+// @Summary Удаление заметки
+// @Tags notes
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Success 204 "Note deleted successfully (no content)"
+// @Failure 400 {object} map[string]string "Invalid note ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId} [delete]
 func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -240,6 +305,21 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// CreateBlock godoc
+// @Summary Создание блока в заметке
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param request body dto.BlockRequest true "Block creation data"
+// @Success 201 {object} dto.Block "Block created successfully"
+// @Failure 400 {object} map[string]string "Invalid request body, note ID, block data, or block type"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks [post]
 func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -297,6 +377,21 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// GetBlock godoc
+// @Summary Получение блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Success 200 {object} dto.Block "Block retrieved successfully"
+// @Failure 400 {object} map[string]string "Invalid note ID or block ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId} [get]
 func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -351,6 +446,22 @@ func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// UpdateBlockContent godoc
+// @Summary Обновление контента блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Param request body dto.UpdateBlockContentRequest true "New block content"
+// @Success 200 {object} dto.Block "Block content updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body, note ID, block ID, or block data"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId}/content [put]
 func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -418,6 +529,22 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// MoveBlock godoc
+// @Summary Перемещение блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Param request body dto.MoveBlockRequest true "New position data"
+// @Success 200 {object} dto.Block "Block moved successfully"
+// @Failure 400 {object} map[string]string "Invalid request body, note ID, block ID, or position"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId}/move [put]
 func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -489,6 +616,21 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteBlock godoc
+// @Summary Удаление блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Success 204 "Block deleted successfully (no content)"
+// @Failure 400 {object} map[string]string "Invalid note ID or block ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId} [delete]
 func (h *NoteHandler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -540,6 +682,22 @@ func (h *NoteHandler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// UpdateBlockFormatting godoc
+// @Summary Обновление форматирования блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Param request body dto.FormattingRange true "Formatting range and styles to apply"
+// @Success 200 {object} dto.BlockFormatting "Formatting updated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body, note ID, block ID, formatting data, or formatting not supported for this block type"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId}/formatting [put]
 func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -624,6 +782,21 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// ResetBlockFormatting godoc
+// @Summary Сброс форматирования блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Success 200 {object} dto.BlockFormatting "All formatting reset successfully"
+// @Failure 400 {object} map[string]string "Invalid note ID or block ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId}/formatting [delete]
 func (h *NoteHandler) ResetBlockFormatting(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -678,6 +851,21 @@ func (h *NoteHandler) ResetBlockFormatting(w http.ResponseWriter, r *http.Reques
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// GetBlockFormatting godoc
+// @Summary Получение форматирования блока
+// @Tags blocks
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param noteId path string true "Note ID (UUID format)"
+// @Param blockId path string true "Block ID (UUID format)"
+// @Success 200 {object} dto.BlockFormatting "Block formatting retrieved successfully"
+// @Failure 400 {object} map[string]string "Invalid note ID or block ID format"
+// @Failure 401 {object} map[string]string "Unauthorized - missing or invalid token"
+// @Failure 403 {object} map[string]string "Forbidden - user does not have access to this note"
+// @Failure 404 {object} map[string]string "Note or block not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /notes/{noteId}/blocks/{blockId}/formatting [get]
 func (h *NoteHandler) GetBlockFormatting(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
