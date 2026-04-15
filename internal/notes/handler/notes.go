@@ -11,9 +11,10 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 	"github.com/google/uuid"
 )
+
+//go:generate mockgen -source=notes.go -destination=mocks/mock_handler_notes.go -package=mocks
 
 type NoteUsecase interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
@@ -46,7 +47,7 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -76,7 +77,7 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -166,7 +167,7 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -260,7 +261,7 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -323,7 +324,7 @@ func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -383,7 +384,7 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -450,7 +451,7 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
@@ -704,7 +705,7 @@ func (h *NoteHandler) GetBlockFormatting(w http.ResponseWriter, r *http.Request)
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrNoUserID)
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 

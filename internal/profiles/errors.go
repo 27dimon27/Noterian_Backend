@@ -15,6 +15,8 @@ var (
 	ErrFailedToGenerateURL = errors.New("Не удалось сгенерировать ссылку")
 	ErrAvatarNotFound      = errors.New("Аватар не найден")
 	ErrWrongPassword       = errors.New("Неверный пароль")
+	ErrBodyRequired        = errors.New("Тело запроса обязательно")
+	ErrInvalidPasswordData = errors.New("Невалидные данные пароля")
 )
 
 const (

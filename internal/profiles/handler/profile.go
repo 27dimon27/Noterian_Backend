@@ -18,6 +18,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -source=profile.go -destination=mocks/mock_handler_profile.go -package=mocks
+
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
@@ -60,7 +62,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
 	defer r.Body.Close()
@@ -73,7 +75,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	var dtoUpdateProfile dto.Profile
 	if err := body.GetBody(r, &dtoUpdateProfile); err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidProfileData)
 		return
 	}
 
@@ -203,14 +205,14 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
 	defer r.Body.Close()
 
 	var dtoUpdatePassword dto.UpdatePassword
 	if err := body.GetBody(r, &dtoUpdatePassword); err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidPasswordData)
 		return
 	}
 

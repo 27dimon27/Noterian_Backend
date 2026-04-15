@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -source=attachments.go -destination=mocks/mock_repository_minio.go -package=mocks
+
 type MinIOService interface {
 	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
 	DeleteFile(ctx context.Context, bucketName, key string) error
