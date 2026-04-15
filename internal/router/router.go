@@ -25,6 +25,8 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
+
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
@@ -68,6 +70,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	}
 
 	r := http.NewServeMux()
+
+	r.Handle("/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("doc.json"),
+	))
 
 	r.HandleFunc("GET /csrf-token", csrfHandler.GetToken)
 

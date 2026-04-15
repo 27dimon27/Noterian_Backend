@@ -13,6 +13,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+//go:generate mockgen -source=profile.go -destination=mocks/mock_repository_profile.go -package=mocks
+
 type MinIOService interface {
 	UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
 	DeleteFile(ctx context.Context, bucketName, key string) error
