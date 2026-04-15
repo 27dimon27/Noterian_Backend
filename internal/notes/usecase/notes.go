@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -source=notes.go -destination=mocks/mock_usecase_notes.go -package=mocks
+
 type NoteRepository interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)

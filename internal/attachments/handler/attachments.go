@@ -15,6 +15,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockgen -source=attachments.go -destination=mocks/mock_handler_attachments.go -package=mocks
+
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
 	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
