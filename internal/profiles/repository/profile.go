@@ -49,6 +49,20 @@ func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	return user, nil
 }
 
+func (r *profileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+	user := &models.Profile{}
+
+	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USERNAME, username).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, profiles.ErrUserNotExist
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func (r *profileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
 	updatedProfile := &models.Profile{}
 

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 type ProfileRepository interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+	GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
 	DeleteProfile(ctx context.Context, userID uuid.UUID) error
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
@@ -56,6 +58,14 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
 	if err := u.validate.Var(profile.Username, "required,username"); err != nil {
 		return nil, profiles.ErrInvalidProfileData
+	}
+
+	_, err := u.profileRepo.GetProfileByUsername(ctx, profile.Username)
+	if err == nil {
+		return nil, profiles.ErrUsernameExists
+	}
+	if !errors.Is(err, profiles.ErrUserNotExist) {
+		return nil, err
 	}
 
 	updatedProfile, err := u.profileRepo.UpdateProfile(ctx, userID, profile)

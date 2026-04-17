@@ -17,6 +17,7 @@ var (
 	ErrWrongPassword       = errors.New("Неверный пароль")
 	ErrBodyRequired        = errors.New("Тело запроса обязательно")
 	ErrInvalidPasswordData = errors.New("Невалидные данные пароля")
+	ErrUsernameExists      = errors.New("Пользователь с таким именем уже существует")
 )
 
 const (

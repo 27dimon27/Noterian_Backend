@@ -105,6 +105,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.profileUsecase.UpdateProfile(r.Context(), userID, *updateProfile)
 	if err != nil {
+		if errors.Is(err, profiles.ErrInvalidProfileData) {
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+			return
+		}
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
