@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -27,12 +28,20 @@ type ProfileRepository interface {
 
 type profileUsecase struct {
 	profileRepo ProfileRepository
+	validate    *validator.Validate
 }
 
-func NewProfileUsecase(profileRepo ProfileRepository) *profileUsecase {
+func NewProfileUsecase(profileRepo ProfileRepository) (*profileUsecase, error) {
+	validate := validator.New()
+	err := initValidator(validate)
+	if err != nil {
+		return nil, err
+	}
+
 	return &profileUsecase{
 		profileRepo: profileRepo,
-	}
+		validate:    validate,
+	}, nil
 }
 
 func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
@@ -45,7 +54,7 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 }
 
 func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
-	if profile.Username == "" {
+	if err := u.validate.Var(profile.Username, "required,username"); err != nil {
 		return nil, profiles.ErrInvalidProfileData
 	}
 
@@ -96,6 +105,10 @@ func (u *profileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) 
 }
 
 func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error) {
+	if err := u.validate.Var(newPassword, "required,password"); err != nil {
+		return nil, profiles.ErrInvalidPasswordData
+	}
+
 	password, err := u.profileRepo.GetPassword(ctx, userID)
 	if err != nil {
 		return nil, err

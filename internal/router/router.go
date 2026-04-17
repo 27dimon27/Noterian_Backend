@@ -44,7 +44,12 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
 	profileRepo := profilesRepo.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
-	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
+
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepo)
+	if err != nil {
+		return nil, err
+	}
+
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
