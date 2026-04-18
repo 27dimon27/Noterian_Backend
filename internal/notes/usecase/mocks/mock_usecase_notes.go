@@ -12,7 +12,6 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	uuid "github.com/google/uuid"
@@ -223,18 +222,18 @@ func (mr *MockNoteRepositoryMockRecorder) GetSubnotes(ctx, noteID any) *gomock.C
 }
 
 // MoveBlock mocks base method.
-func (m *MockNoteRepository) MoveBlock(ctx context.Context, noteID, blockID uuid.UUID, oldPosition, newPosition int, updatedAt time.Time) (*models.Block, error) {
+func (m *MockNoteRepository) MoveBlock(ctx context.Context, noteID, blockID uuid.UUID, oldPosition, newPosition int) (*models.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MoveBlock", ctx, noteID, blockID, oldPosition, newPosition, updatedAt)
+	ret := m.ctrl.Call(m, "MoveBlock", ctx, noteID, blockID, oldPosition, newPosition)
 	ret0, _ := ret[0].(*models.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // MoveBlock indicates an expected call of MoveBlock.
-func (mr *MockNoteRepositoryMockRecorder) MoveBlock(ctx, noteID, blockID, oldPosition, newPosition, updatedAt any) *gomock.Call {
+func (mr *MockNoteRepositoryMockRecorder) MoveBlock(ctx, noteID, blockID, oldPosition, newPosition any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoveBlock", reflect.TypeOf((*MockNoteRepository)(nil).MoveBlock), ctx, noteID, blockID, oldPosition, newPosition, updatedAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoveBlock", reflect.TypeOf((*MockNoteRepository)(nil).MoveBlock), ctx, noteID, blockID, oldPosition, newPosition)
 }
 
 // ResetBlockFormatting mocks base method.
@@ -253,32 +252,32 @@ func (mr *MockNoteRepositoryMockRecorder) ResetBlockFormatting(ctx, blockID any)
 }
 
 // ShiftBlockPositions mocks base method.
-func (m *MockNoteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int, updatedAt time.Time) error {
+func (m *MockNoteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShiftBlockPositions", ctx, noteID, fromPosition, direction, updatedAt)
+	ret := m.ctrl.Call(m, "ShiftBlockPositions", ctx, noteID, fromPosition, direction)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ShiftBlockPositions indicates an expected call of ShiftBlockPositions.
-func (mr *MockNoteRepositoryMockRecorder) ShiftBlockPositions(ctx, noteID, fromPosition, direction, updatedAt any) *gomock.Call {
+func (mr *MockNoteRepositoryMockRecorder) ShiftBlockPositions(ctx, noteID, fromPosition, direction any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShiftBlockPositions", reflect.TypeOf((*MockNoteRepository)(nil).ShiftBlockPositions), ctx, noteID, fromPosition, direction, updatedAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShiftBlockPositions", reflect.TypeOf((*MockNoteRepository)(nil).ShiftBlockPositions), ctx, noteID, fromPosition, direction)
 }
 
 // UpdateBlockContent mocks base method.
-func (m *MockNoteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error) {
+func (m *MockNoteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string) (*models.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateBlockContent", ctx, blockID, content, updatedAt)
+	ret := m.ctrl.Call(m, "UpdateBlockContent", ctx, blockID, content)
 	ret0, _ := ret[0].(*models.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateBlockContent indicates an expected call of UpdateBlockContent.
-func (mr *MockNoteRepositoryMockRecorder) UpdateBlockContent(ctx, blockID, content, updatedAt any) *gomock.Call {
+func (mr *MockNoteRepositoryMockRecorder) UpdateBlockContent(ctx, blockID, content any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBlockContent", reflect.TypeOf((*MockNoteRepository)(nil).UpdateBlockContent), ctx, blockID, content, updatedAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBlockContent", reflect.TypeOf((*MockNoteRepository)(nil).UpdateBlockContent), ctx, blockID, content)
 }
 
 // UpdateBlockFormatting mocks base method.

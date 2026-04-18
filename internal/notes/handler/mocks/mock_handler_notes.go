@@ -116,17 +116,17 @@ func (mr *MockNoteUsecaseMockRecorder) DeleteNote(ctx, noteID, userID any) *gomo
 }
 
 // DeleteSubnote mocks base method.
-func (m *MockNoteUsecase) DeleteSubnote(ctx context.Context, noteID, userID uuid.UUID) error {
+func (m *MockNoteUsecase) DeleteSubnote(ctx context.Context, noteID, subnoteID, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteSubnote", ctx, noteID, userID)
+	ret := m.ctrl.Call(m, "DeleteSubnote", ctx, noteID, subnoteID, userID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteSubnote indicates an expected call of DeleteSubnote.
-func (mr *MockNoteUsecaseMockRecorder) DeleteSubnote(ctx, noteID, userID any) *gomock.Call {
+func (mr *MockNoteUsecaseMockRecorder) DeleteSubnote(ctx, noteID, subnoteID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubnote", reflect.TypeOf((*MockNoteUsecase)(nil).DeleteSubnote), ctx, noteID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSubnote", reflect.TypeOf((*MockNoteUsecase)(nil).DeleteSubnote), ctx, noteID, subnoteID, userID)
 }
 
 // GetBlock mocks base method.
