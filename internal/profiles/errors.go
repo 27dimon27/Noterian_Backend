@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	MAX_FILE_SIZE        = 100 * 1024 * 1024
+	MAX_FILE_SIZE        = 5 * 1024 * 1024
 	PRESIGNED_URL_EXPIRY = 30 * time.Minute
 )
 
