@@ -32,6 +32,9 @@ type NoteUsecase interface {
 	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
 	GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error)
 	GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
+	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
+	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
+	DeleteSubnote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 }
 
 type NoteHandler struct {
@@ -918,4 +921,127 @@ func (h *NoteHandler) GetBlockFormatting(w http.ResponseWriter, r *http.Request)
 	response := dto.ToBlockFormattingDTO(*formatting)
 
 	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *NoteHandler) GetSubnotes(w http.ResponseWriter, r *http.Request) {
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
+		return
+	}
+
+	subnotes, err := h.noteUsecase.GetSubnotes(r.Context(), noteID, userID)
+	if err != nil {
+		if errors.Is(err, notes.ErrNoteNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := dto.ToSubnotesDTO(subnotes)
+
+	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
+		return
+	}
+
+	var subnoteCreationRequest dto.NoteRequest
+
+	if err := body.GetBody(r, &subnoteCreationRequest); err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteData)
+		return
+	}
+
+	subnoteCreationRequest.UserID = userID
+
+	note := dto.FromNoteRequestDTO(subnoteCreationRequest)
+
+	createdNote, err := h.noteUsecase.CreateSubnote(r.Context(), noteID, userID, note)
+	if err != nil {
+		if errors.Is(err, notes.ErrNoteNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := dto.ToNoteDTO(createdNote)
+
+	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *NoteHandler) DeleteSubnote(w http.ResponseWriter, r *http.Request) {
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
+		return
+	}
+
+	err = h.noteUsecase.DeleteSubnote(r.Context(), noteID, userID)
+	if err != nil {
+		if errors.Is(err, notes.ErrNoteNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, notes.ErrForbidden) {
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
+			return
+		}
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

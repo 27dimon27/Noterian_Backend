@@ -22,4 +22,5 @@ const (
 	GET_BLOCKS_FORMATTING           = "SELECT block_id, start_pos, end_pos, bold, italic, underline, text_align FROM block_formatting WHERE block_id = ANY($1::UUID[]) ORDER BY block_id, start_pos"
 	INSERT_BLOCK_FORMATTING         = "INSERT INTO block_formatting (block_id, start_pos, end_pos, bold, italic, underline, text_align) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 	DELETE_BLOCK_FORMATTING         = "DELETE FROM block_formatting WHERE block_id = $1"
+	GET_SUBNOTES_BY_NOTE            = "SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE parent_id = $1 ORDER BY updated_at DESC"
 )

@@ -471,6 +471,27 @@ func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.
 	return r.GetBlockFormatting(ctx, blockID)
 }
 
+func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
+	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	var subnotes []models.Note
+	for rows.Next() {
+		var subnote models.Note
+
+		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.CreatedAt, &subnote.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		subnotes = append(subnotes, subnote)
+	}
+
+	return subnotes, nil
+}
+
 func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx, blockID uuid.UUID) ([]models.FormattingRange, error) {
 	rows, err := tx.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
 	if err != nil {

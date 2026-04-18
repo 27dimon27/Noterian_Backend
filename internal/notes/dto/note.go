@@ -26,3 +26,12 @@ func ToNoteDTO(note *models.Note) Note {
 		UpdatedAt: note.UpdatedAt,
 	}
 }
+
+func ToSubnotesDTO(subnotes []models.Note) []Note {
+	var result []Note
+	for _, s := range subnotes {
+		subnote := ToNoteDTO(&s)
+		result = append(result, subnote)
+	}
+	return result
+}

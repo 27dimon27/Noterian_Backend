@@ -207,6 +207,21 @@ func (mr *MockNoteRepositoryMockRecorder) GetNotes(ctx, userID any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotes", reflect.TypeOf((*MockNoteRepository)(nil).GetNotes), ctx, userID)
 }
 
+// GetSubnotes mocks base method.
+func (m *MockNoteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSubnotes", ctx, noteID)
+	ret0, _ := ret[0].([]models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSubnotes indicates an expected call of GetSubnotes.
+func (mr *MockNoteRepositoryMockRecorder) GetSubnotes(ctx, noteID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSubnotes", reflect.TypeOf((*MockNoteRepository)(nil).GetSubnotes), ctx, noteID)
+}
+
 // MoveBlock mocks base method.
 func (m *MockNoteRepository) MoveBlock(ctx context.Context, noteID, blockID uuid.UUID, oldPosition, newPosition int, updatedAt time.Time) (*models.Block, error) {
 	m.ctrl.T.Helper()
