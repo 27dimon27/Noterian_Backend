@@ -136,7 +136,7 @@ func (r *profileRepository) UpdateAvatarURL(ctx context.Context, avatarID uuid.U
 	var returnedExpiresAt time.Time
 	var returnedUpdatedAt time.Time
 
-	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, url, expiresAt, time.Now(), avatarID).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
 		&returnedURL,
 		&returnedExpiresAt,
 		&returnedUpdatedAt,
@@ -193,8 +193,6 @@ func (r *profileRepository) UploadAvatar(
 		avatar.MinioKey,
 		avatar.AvatarURL,
 		avatar.URLExpiresAt,
-		avatar.CreatedAt,
-		avatar.UpdatedAt,
 	).Scan(
 		&avatar.ID,
 		&avatar.ProfileID,

@@ -232,9 +232,9 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	noteUpdateRequest.UserID = userID
-
 	note := dto.FromNoteRequestDTO(noteUpdateRequest)
+
+	note.UserID = userID
 
 	updatedNote, err := h.noteUsecase.UpdateNote(r.Context(), noteID, note, userID)
 	if err != nil {
@@ -739,6 +739,7 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 	}
 
 	var formattingRequest dto.FormattingRange
+
 	if err := body.GetBody(r, &formattingRequest); err != nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidFormatting)
 		return

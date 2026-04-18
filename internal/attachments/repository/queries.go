@@ -3,7 +3,7 @@ package repository
 const (
 	CREATE_ATTACHMENT = `
 		INSERT INTO attachments (id, block_id, minio_key, attach_url, url_expires_at, created_at, updated_at) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		VALUES ($1, $2, $3, $4, $5, now(), now()) 
 		RETURNING id, block_id, minio_key, attach_url, url_expires_at, created_at, updated_at
 	`
 
@@ -15,8 +15,8 @@ const (
 
 	UPDATE_ATTACHMENT_URL = `
 		UPDATE attachments 
-		SET attach_url = $1, url_expires_at = $2, updated_at = $3
-		WHERE id = $4
+		SET attach_url = $2, url_expires_at = $3, updated_at = now()
+		WHERE id = $1
 		RETURNING attach_url, url_expires_at, updated_at
 	`
 

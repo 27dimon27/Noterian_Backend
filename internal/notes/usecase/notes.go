@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -78,7 +77,6 @@ func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note mod
 	}
 
 	note.ID = noteID
-	note.UpdatedAt = time.Now()
 
 	return u.noteRepo.UpdateNote(ctx, noteID, note)
 }
@@ -104,8 +102,6 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 
 	block.NoteID = noteID
 	block.Content = ""
-	block.CreatedAt = time.Now()
-	block.UpdatedAt = time.Now()
 
 	blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
 	if err != nil {

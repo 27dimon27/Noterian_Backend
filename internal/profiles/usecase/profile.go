@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
@@ -21,7 +20,6 @@ type ProfileRepository interface {
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
 	DeleteProfile(ctx context.Context, userID uuid.UUID) error
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
-	UpdateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error
 	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
 	ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error)
