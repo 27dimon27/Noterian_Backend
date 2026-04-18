@@ -23,10 +23,10 @@ type NoteRepository interface {
 	CreateBlock(ctx context.Context, block models.Block) (*models.Block, error)
 	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
 	GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, error)
-	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error)
-	MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int, updatedAt time.Time) (*models.Block, error)
+	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string) (*models.Block, error)
+	MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error)
-	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int, updatedAt time.Time) error
+	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error
 	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
 	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error)
@@ -115,7 +115,7 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 	if block.Position < 0 || block.Position > len(blocks) {
 		return nil, notes.ErrInvalidPosition
 	} else {
-		err = u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, 1, time.Now())
+		err = u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +149,7 @@ func (u *noteUsecase) UpdateBlockContent(ctx context.Context, blockID uuid.UUID,
 		return nil, err
 	}
 
-	return u.noteRepo.UpdateBlockContent(ctx, blockID, content, time.Now())
+	return u.noteRepo.UpdateBlockContent(ctx, blockID, content)
 }
 
 func (u *noteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error) {
@@ -176,7 +176,7 @@ func (u *noteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID u
 		return nil, notes.ErrInvalidPosition
 	}
 
-	return u.noteRepo.MoveBlock(ctx, noteID, blockID, block.Position, newPosition, time.Now())
+	return u.noteRepo.MoveBlock(ctx, noteID, blockID, block.Position, newPosition)
 }
 
 func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error {
@@ -199,7 +199,7 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 		return notes.ErrBlockNotFound
 	}
 
-	return u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, -1, time.Now())
+	return u.noteRepo.ShiftBlockPositions(ctx, noteID, block.Position, -1)
 }
 
 func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
@@ -316,13 +316,13 @@ func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID,
 	return createdNote, nil
 }
 
-func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error {
+func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return err
 	}
 
-	err = u.noteRepo.DeleteNote(ctx, noteID)
+	err = u.noteRepo.DeleteNote(ctx, subnoteID)
 	if err != nil {
 		return err
 	}

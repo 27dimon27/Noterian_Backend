@@ -28,10 +28,9 @@ func ToNoteDTO(note *models.Note) Note {
 }
 
 func ToSubnotesDTO(subnotes []models.Note) []Note {
-	var result []Note
-	for _, s := range subnotes {
-		subnote := ToNoteDTO(&s)
-		result = append(result, subnote)
+	dtoSubnotes := make([]Note, len(subnotes))
+	for i, s := range subnotes {
+		dtoSubnotes[i] = ToNoteDTO(&s)
 	}
-	return result
+	return dtoSubnotes
 }

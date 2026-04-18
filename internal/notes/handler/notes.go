@@ -34,7 +34,7 @@ type NoteUsecase interface {
 	GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
 	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
-	DeleteSubnote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
+	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
 }
 
 type NoteHandler struct {
@@ -988,6 +988,7 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	subnoteCreationRequest.UserID = userID
+	subnoteCreationRequest.ParentID = &noteID
 
 	note := dto.FromNoteRequestDTO(subnoteCreationRequest)
 
@@ -1023,13 +1024,25 @@ func (h *NoteHandler) DeleteSubnote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	subnoteIDStr := r.PathValue("subnoteId")
+	if subnoteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	subnoteID, err := uuid.Parse(subnoteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
 		return
 	}
 
-	err = h.noteUsecase.DeleteSubnote(r.Context(), noteID, userID)
+	err = h.noteUsecase.DeleteSubnote(r.Context(), noteID, subnoteID, userID)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
