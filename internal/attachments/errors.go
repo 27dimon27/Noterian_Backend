@@ -2,6 +2,7 @@ package attachments
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -21,15 +22,36 @@ var (
 	ErrInvalidUserID         = errors.New("Невалидный UserID")
 	ErrForbidden             = errors.New("Доступ запрещен")
 	ErrFailedToGenerateURL   = errors.New("Не удалось сгенерировать ссылку")
+	ErrSpecificFileTooLarge  = map[string]error{
+		"IMAGE": fmt.Errorf("Слишком большой файл фотографии, максимальный размер - %d МБ", MAX_IMAGE_SIZE/MB_CONST),
+		"GIF":   fmt.Errorf("Слишком большой файл GIF, максимальный размер - %d МБ", MAX_GIF_SIZE/MB_CONST),
+		"VIDEO": fmt.Errorf("Слишком большой файл видео, максимальный размер - %d МБ", MAX_VIDEO_SIZE/MB_CONST),
+	}
 )
 
 const (
-	MAX_FILE_SIZE        = 100 * 1024 * 1024
+	MB_CONST             = 1024 * 1024
+	MAX_IMAGE_SIZE       = 5 * 1024 * 1024
+	MAX_GIF_SIZE         = 15 * 1024 * 1024
+	MAX_VIDEO_SIZE       = 50 * 1024 * 1024
 	PRESIGNED_URL_EXPIRY = 30 * time.Minute
 )
 
-var AllowedMimeTypes = map[string]bool{
+var AllowedMimeTypesForImage = map[string]bool{
 	"image/jpeg": true,
 	"image/png":  true,
 	"image/webp": true,
+}
+
+var AllowedMimeTypesForGIF = map[string]bool{
+	"image/gif": true,
+}
+
+var AllowedMimeTypesForVideo = map[string]bool{
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/ogg":       true,
+	"video/quicktime": true,
+	"video/x-msvideo": true,
+	"video/mpeg":      true,
 }

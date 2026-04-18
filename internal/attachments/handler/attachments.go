@@ -146,7 +146,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, attachments.MAX_FILE_SIZE)
+	r.Body = http.MaxBytesReader(w, r.Body, attachments.MAX_VIDEO_SIZE)
 
 	if err := r.ParseMultipartForm(0); err != nil {
 		var maxBytesError *http.MaxBytesError
@@ -172,14 +172,20 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	fileToUpload := io.MultiReader(bytes.NewReader(buffer), file)
-
 	mimeType := http.DetectContentType(buffer)
 
-	if !attachments.AllowedMimeTypes[mimeType] {
-		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidMimeType)
+	maxSize, contentType, err := getMaxSizeByMimeType(mimeType)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
+
+	if fileHeader.Size > maxSize {
+		write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrSpecificFileTooLarge[contentType])
+		return
+	}
+
+	fileToUpload := io.MultiReader(bytes.NewReader(buffer), file)
 
 	attachment, err := h.attachmentUsecase.UploadAttachment(
 		r.Context(),
@@ -274,4 +280,17 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func getMaxSizeByMimeType(mimeType string) (int64, string, error) {
+	if attachments.AllowedMimeTypesForImage[mimeType] {
+		return attachments.MAX_IMAGE_SIZE, "IMAGE", nil
+	}
+	if attachments.AllowedMimeTypesForGIF[mimeType] {
+		return attachments.MAX_GIF_SIZE, "GIF", nil
+	}
+	if attachments.AllowedMimeTypesForVideo[mimeType] {
+		return attachments.MAX_VIDEO_SIZE, "VIDEO", nil
+	}
+	return 0, "", attachments.ErrInvalidMimeType
 }
