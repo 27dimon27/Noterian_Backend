@@ -2,10 +2,10 @@ package repository
 
 const (
 	GET_BLOCKS_BY_NOTE              = "SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks WHERE note_id = $1 ORDER BY position"
-	GET_NOTE_BY_ID                  = "SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE id = $1"
-	GET_NOTES_BY_USER               = "SELECT id, user_id, title, parent_id, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY updated_at DESC"
-	CREATE_NOTE                     = "INSERT INTO notes (user_id, title, parent_id, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, title, parent_id, created_at, updated_at"
-	UPDATE_NOTE                     = "UPDATE notes SET title = $2, parent_id = $3, updated_at = $4 WHERE id = $1 RETURNING id, user_id, title, parent_id, created_at, updated_at"
+	GET_NOTE_BY_ID                  = "SELECT id, user_id, title, parent_id, is_public, created_at, updated_at FROM notes WHERE id = $1"
+	GET_NOTES_BY_USER               = "SELECT id, user_id, title, parent_id, is_public, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY updated_at DESC"
+	CREATE_NOTE                     = "INSERT INTO notes (user_id, title, parent_id, is_public, created_at, updated_at) VALUES ($1, $2, $3, false, now(), now()) RETURNING id, user_id, title, parent_id, is_public, created_at, updated_at"
+	UPDATE_NOTE                     = "UPDATE notes SET title = $2, parent_id = $3, is_public = $4, updated_at = now() WHERE id = $1 RETURNING id, user_id, title, parent_id, is_public, created_at, updated_at"
 	DELETE_NOTE                     = "DELETE FROM notes WHERE id = $1 RETURNING id"
 	CREATE_BLOCK                    = "INSERT INTO blocks (note_id, block_type_id, position, content, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, note_id, block_type_id, position, content, created_at, updated_at"
 	GET_BLOCK_BY_ID                 = "SELECT id, note_id, block_type_id, position, content, created_at, updated_at FROM blocks WHERE id = $1"

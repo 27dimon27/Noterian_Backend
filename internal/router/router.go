@@ -8,6 +8,7 @@ import (
 	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 
 	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
 	attachmentsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
@@ -50,6 +51,11 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+
+	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
+	go wsHub.Run()
+
+	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)
 
 	csrfHandler := csrf.NewHandler(cfg.CSRF)
 
@@ -107,5 +113,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))
 
-	return middleware.Logger(r), nil
+	r.HandleFunc("GET /ws/notes/{noteId}", wsHandler.ServeWS)
+
+	// return middleware.Logger(r), nil
+	return r, nil
 }

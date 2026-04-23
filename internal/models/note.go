@@ -12,6 +12,7 @@ type Note struct {
 	UserID    uuid.UUID
 	Title     string
 	ParentID  *uuid.UUID
+	IsPublic  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

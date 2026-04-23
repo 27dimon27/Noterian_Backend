@@ -35,7 +35,7 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 		var note models.Note
 		var parentID sql.NullString
 
-		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt)
+		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,7 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 	var parentID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, GET_NOTE_BY_ID, noteID).Scan(
-		&note.ID, &note.UserID, &note.Title, &parentID, &note.CreatedAt, &note.UpdatedAt,
+		&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -132,9 +132,9 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 	}
 
 	err := r.db.QueryRowContext(ctx, CREATE_NOTE,
-		note.UserID, note.Title, parentID, note.CreatedAt, note.UpdatedAt,
+		note.UserID, note.Title, parentID,
 	).Scan(
-		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.CreatedAt, &note.UpdatedAt,
+		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -154,11 +154,12 @@ func (r *noteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note 
 
 	updatedNote := &models.Note{}
 
-	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.UpdatedAt).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.IsPublic).Scan(
 		&updatedNote.ID,
 		&updatedNote.UserID,
 		&updatedNote.Title,
 		&updatedNote.ParentID,
+		&updatedNote.IsPublic,
 		&updatedNote.CreatedAt,
 		&updatedNote.UpdatedAt,
 	)
