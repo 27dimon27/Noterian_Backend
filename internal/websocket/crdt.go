@@ -119,10 +119,10 @@ func (doc *CRDTDocument) ApplyDelete(op DeleteCharOperation) {
 	}
 
 	visiblePos := 0
-	for _, c := range doc.characters {
+	for i, c := range doc.characters {
 		if c.Visible {
 			if visiblePos == op.Position {
-				c.Visible = false
+				doc.characters[i].Visible = false
 				break
 			}
 			visiblePos++

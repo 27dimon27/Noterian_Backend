@@ -297,7 +297,7 @@ func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, use
 		return nil, notes.ErrNoteNotFound
 	}
 
-	if note.UserID != userID {
+	if !note.IsPublic && note.UserID != userID {
 		return nil, notes.ErrForbidden
 	}
 

@@ -42,7 +42,14 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// 	return
 	// }
 
-	userID, _ := uuid.Parse("11111111-1111-1111-1111-111111111111")
+	var userID uuid.UUID
+
+	user := r.URL.Query().Get("user")
+	if user == "1" {
+		userID, _ = uuid.Parse("11111111-1111-1111-1111-111111111111")
+	} else {
+		userID, _ = uuid.Parse("22222222-2222-2222-2222-222222222222")
+	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
