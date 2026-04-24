@@ -12,9 +12,11 @@ import (
 type MessageType string
 
 const (
-	// messages from client
-	MsgJoin             MessageType = "join"
-	MsgLeave            MessageType = "leave"
+	MsgUserJoined MessageType = "user_joined"
+	MsgUserLeft   MessageType = "user_left"
+	MsgError      MessageType = "error"
+	MsgSyncState  MessageType = "sync_state"
+
 	MsgCursorMove       MessageType = "cursor_move"
 	MsgInsertChar       MessageType = "insert_char"
 	MsgDeleteChar       MessageType = "delete_char"
@@ -26,49 +28,44 @@ const (
 	MsgUpdateNotePublic MessageType = "update_note_public"
 	MsgDeleteNote       MessageType = "delete_note"
 
-	// messages from server
-	MsgUserJoined    MessageType = "user_joined"
-	MsgUserLeft      MessageType = "user_left"
-	MsgCursorsUpdate MessageType = "cursors_update"
-	MsgSyncState     MessageType = "sync_state"
-	MsgOperation     MessageType = "operation"
-	MsgError         MessageType = "error"
-	MsgNoteDeleted   MessageType = "note_deleted"
-	MsgNotePrivate   MessageType = "note_private"
+	MsgNotePrivate MessageType = "note_private"
+	MsgNoteDeleted MessageType = "note_deleted"
 )
 
 type WebSocketMessage struct {
-	Type      MessageType `json:"type"`
-	UserID    string      `json:"userId,omitempty"`
-	UserName  string      `json:"userName,omitempty"`
-	NoteID    string      `json:"noteId,omitempty"`
-	BlockID   string      `json:"blockId,omitempty"`
-	Data      interface{} `json:"data,omitempty"`
-	Timestamp int64       `json:"timestamp"`
-	// Version   int64       `json:"version,omitempty"` // где юзается?
+	Type     MessageType `json:"type"`
+	IsLocal  bool        `json:"is_local"`
+	UserID   string      `json:"userId,omitempty"`
+	UserName string      `json:"userName,omitempty"`
+	NoteID   string      `json:"noteId,omitempty"`
+	Msg      any         `json:"msg"`
+}
+
+type InfoMessage struct {
+	Info any
+}
+
+type ErrMessage struct {
+	Error any
 }
 
 type CursorPosition struct {
 	BlockID  string `json:"blockId"`
 	Position int    `json:"position"`
-	UserID   string `json:"userId"`
-	UserName string `json:"userName"`
 }
 
 type InsertCharOperation struct {
 	BlockID  string `json:"blockId"`
 	Position int    `json:"position"`
 	Char     string `json:"char"`
-	UserID   string `json:"userId"`
-	Lamport  int64  `json:"lamport"`  // зачем нужно?
-	UniqueID string `json:"uniqueId"` // зачем нужно?
+	Lamport  int64  `json:"lamport"`
+	UniqueID string `json:"uniqueId"`
 }
 
 type DeleteCharOperation struct {
 	BlockID  string `json:"blockId"`
 	Position int    `json:"position"`
-	UserID   string `json:"userId"`
-	Lamport  int64  `json:"lamport"` // зачем нужно?
+	Lamport  int64  `json:"lamport"`
 }
 
 type FormattingOperation struct {
@@ -79,37 +76,15 @@ type FormattingOperation struct {
 	Italic     *bool  `json:"italic,omitempty"`
 	Underline  *bool  `json:"underline,omitempty"`
 	TextAlign  *int   `json:"textAlign,omitempty"`
-	UserID     string `json:"userId"`
-	SequenceID int64  `json:"sequenceId"` // зачем нужно?
-}
-
-type OperationType string // зачем нужна эта структура? +всё с ней связанное
-
-const (
-	OpCreateBlock     OperationType = "create_block"
-	OpDeleteBlock     OperationType = "delete_block"
-	OpMoveBlock       OperationType = "move_block"
-	OpUpdateTitle     OperationType = "update_title"
-	OpUpdatePublic    OperationType = "update_public"
-	OpApplyFormatting OperationType = "apply_formatting"
-)
-
-type Operation struct { // зачем нужна эта структура? +всё с ней связанное
-	ID         string                 `json:"id"`
-	Type       OperationType          `json:"type"`
-	Data       map[string]interface{} `json:"data"`
-	SequenceID int64                  `json:"sequenceId"`
-	UserID     string                 `json:"userId"`
-	Timestamp  int64                  `json:"timestamp"`
+	SequenceID int64  `json:"sequenceId"`
 }
 
 type ClientInfo struct {
 	UserID     string
 	UserName   string
 	NoteID     string
-	LastCursor *CursorPosition
+	LastCursor CursorPosition
 	Send       chan WebSocketMessage
-	// убрал conn, если сломается - вернуть
 }
 
 // type SyncState struct {
@@ -124,20 +99,9 @@ type ClientInfo struct {
 // 	SequenceID    int64                    `json:"sequenceId"`
 // }
 
-// type BlockSnapshot struct {
-// 	ID          string      `json:"id"`
-// 	NoteID      string      `json:"noteId"`
-// 	BlockTypeID int         `json:"blockTypeId"`
-// 	Position    int         `json:"position"`
-// 	Content     string      `json:"content"`
-// 	CreatedAt   string      `json:"createdAt"`
-// 	UpdatedAt   string      `json:"updatedAt"`
-// 	Formatting  interface{} `json:"formatting,omitempty"`
-// }
-
 type CRDTDocument struct {
 	mu           sync.RWMutex
-	characters   []*CRDTChar
+	characters   []CRDTChar
 	lamportClock int64
 }
 
@@ -152,21 +116,20 @@ type CRDTChar struct {
 type Hub struct {
 	mu             sync.RWMutex
 	rooms          map[string]*NoteRoom // noteID -> room
-	register       chan *ClientInfo
-	unregister     chan *ClientInfo
-	broadcast      chan *BroadcastMessage
+	register       chan ClientInfo
+	unregister     chan ClientInfo
+	broadcast      chan BroadcastMessage
 	noteUsecase    NoteUsecaseInterface
 	profileUsecase ProfileUsecaseInterface
 }
 
 type NoteRoom struct {
-	mu             sync.RWMutex
-	NoteID         string
-	Clients        map[string]*ClientInfo   // userID -> client
-	CRDTDocuments  map[string]*CRDTDocument // blockID -> CRDT document
-	OperationQueue []Operation              // очередь операций для OT (где используется? зачем нужна?)
-	SequenceID     int64                    // текущий sequence ID для OT (зачем нужен?)
-	IsDeleted      bool
+	mu            sync.RWMutex
+	NoteID        string
+	Clients       map[string]ClientInfo    // userID -> client
+	CRDTDocuments map[string]*CRDTDocument // blockID -> CRDT document
+	SequenceID    int64                    // текущий sequence ID для OT (зачем нужен?)
+	IsDeleted     bool
 }
 
 type BroadcastMessage struct {

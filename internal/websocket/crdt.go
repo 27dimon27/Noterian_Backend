@@ -7,7 +7,7 @@ import (
 
 func NewCRDTDocument() *CRDTDocument {
 	return &CRDTDocument{
-		characters: make([]*CRDTChar, 0),
+		characters: make([]CRDTChar, 0),
 	}
 }
 
@@ -29,18 +29,13 @@ func (doc *CRDTDocument) Insert(pos int, char string, userID string, lamport int
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
-	// if lamport > doc.lamportClock {
-	// 	doc.lamportClock = lamport
-	// }
-	// doc.lamportClock++
-
 	doc.lamportClock = max(doc.lamportClock, lamport) + 1
 
 	insertIndex := doc.findInsertIndex(pos)
 
 	fmt.Println(insertIndex)
 
-	newChar := &CRDTChar{
+	newChar := CRDTChar{
 		ID:      uniqueID,
 		Char:    char,
 		UserID:  userID,
@@ -48,13 +43,12 @@ func (doc *CRDTDocument) Insert(pos int, char string, userID string, lamport int
 		Visible: true,
 	}
 
-	doc.characters = append(doc.characters[:insertIndex], append([]*CRDTChar{newChar}, doc.characters[insertIndex:]...)...)
+	doc.characters = append(doc.characters[:insertIndex], append([]CRDTChar{newChar}, doc.characters[insertIndex:]...)...)
 
 	return &InsertCharOperation{
 		BlockID:  "",
 		Position: pos,
 		Char:     char,
-		UserID:   userID,
 		Lamport:  doc.lamportClock,
 		UniqueID: uniqueID,
 	}, nil
@@ -64,22 +58,16 @@ func (doc *CRDTDocument) Delete(pos int, userID string, lamport int64) (*DeleteC
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
-	// if lamport > doc.lamportClock {
-	// 	doc.lamportClock = lamport
-	// }
-	// doc.lamportClock++
-
 	doc.lamportClock = max(doc.lamportClock, lamport) + 1
 
 	visiblePos := 0
-	for _, c := range doc.characters {
+	for i, c := range doc.characters {
 		if c.Visible {
 			if visiblePos == pos {
-				c.Visible = false
+				doc.characters[i].Visible = false
 				return &DeleteCharOperation{
 					BlockID:  "",
 					Position: pos,
-					UserID:   userID,
 					Lamport:  doc.lamportClock,
 				}, nil
 			}
@@ -90,7 +78,7 @@ func (doc *CRDTDocument) Delete(pos int, userID string, lamport int64) (*DeleteC
 	return nil, nil
 }
 
-func (doc *CRDTDocument) ApplyInsert(op InsertCharOperation) {
+func (doc *CRDTDocument) ApplyInsert(op InsertCharOperation, userID string) {
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
@@ -104,10 +92,10 @@ func (doc *CRDTDocument) ApplyInsert(op InsertCharOperation) {
 		}
 	}
 
-	newChar := &CRDTChar{
+	newChar := CRDTChar{
 		ID:      op.UniqueID,
 		Char:    op.Char,
-		UserID:  op.UserID,
+		UserID:  userID,
 		Lamport: op.Lamport,
 		Visible: true,
 	}
@@ -119,7 +107,7 @@ func (doc *CRDTDocument) ApplyInsert(op InsertCharOperation) {
 		return doc.characters[i].Lamport > op.Lamport
 	})
 
-	doc.characters = append(doc.characters[:insertIndex], append([]*CRDTChar{newChar}, doc.characters[insertIndex:]...)...)
+	doc.characters = append(doc.characters[:insertIndex], append([]CRDTChar{newChar}, doc.characters[insertIndex:]...)...)
 }
 
 func (doc *CRDTDocument) ApplyDelete(op DeleteCharOperation) {
@@ -147,35 +135,11 @@ func (doc *CRDTDocument) GetCRDTState() []CRDTChar {
 	defer doc.mu.RUnlock()
 
 	result := make([]CRDTChar, len(doc.characters))
-	for i, c := range doc.characters {
-		result[i] = *c
-	}
+	copy(result, doc.characters)
 	return result
 }
 
-// func (doc *CRDTDocument) LoadCRDTState(chars []CRDTChar) {
-// 	doc.mu.Lock()
-// 	defer doc.mu.Unlock()
-
-// 	doc.characters = make([]*CRDTChar, len(chars))
-// 	for i, c := range chars {
-// 		doc.characters[i] = &CRDTChar{
-// 			ID:      c.ID,
-// 			Char:    c.Char,
-// 			UserID:  c.UserID,
-// 			Lamport: c.Lamport,
-// 			Visible: c.Visible,
-// 		}
-
-// 		if c.Lamport > doc.lamportClock {
-// 			doc.lamportClock = c.Lamport
-// 		}
-// 	}
-// }
-
 func (doc *CRDTDocument) findInsertIndex(pos int) int {
-	// doc.mu.RLock()
-	// defer doc.mu.RUnlock()
 	visibleCount := 0
 
 	for i, c := range doc.characters {

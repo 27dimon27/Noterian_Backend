@@ -12,9 +12,9 @@ import (
 func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface) *Hub {
 	return &Hub{
 		rooms:          make(map[string]*NoteRoom),
-		register:       make(chan *ClientInfo),
-		unregister:     make(chan *ClientInfo),
-		broadcast:      make(chan *BroadcastMessage, 256),
+		register:       make(chan ClientInfo),
+		unregister:     make(chan ClientInfo),
+		broadcast:      make(chan BroadcastMessage, 256),
 		noteUsecase:    noteUsecase,
 		profileUsecase: profileUsecase,
 	}
@@ -35,17 +35,16 @@ func (h *Hub) Run() {
 	}
 }
 
-func (h *Hub) handleRegister(client *ClientInfo) {
+func (h *Hub) handleRegister(client ClientInfo) {
 	h.mu.Lock()
 	room, exists := h.rooms[client.NoteID]
 	h.mu.Unlock()
 
 	if !exists {
 		room = &NoteRoom{
-			NoteID:         client.NoteID,
-			Clients:        make(map[string]*ClientInfo),
-			CRDTDocuments:  make(map[string]*CRDTDocument),
-			OperationQueue: make([]Operation, 0),
+			NoteID:        client.NoteID,
+			Clients:       make(map[string]ClientInfo),
+			CRDTDocuments: make(map[string]*CRDTDocument),
 		}
 		h.rooms[client.NoteID] = room
 	}
@@ -54,8 +53,13 @@ func (h *Hub) handleRegister(client *ClientInfo) {
 	if room.IsDeleted {
 		room.mu.Unlock()
 		client.Send <- WebSocketMessage{
-			Type: MsgNoteDeleted,
-			Data: map[string]string{"message": "Note has been deleted"},
+			Type:     MsgDeleteNote,
+			UserID:   client.UserID,
+			UserName: client.UserName,
+			NoteID:   client.NoteID,
+			Msg: ErrMessage{
+				Error: "Note has been deleted",
+			},
 		}
 		return
 	}
@@ -72,7 +76,7 @@ func (h *Hub) handleRegister(client *ClientInfo) {
 	}, client.UserID)
 }
 
-func (h *Hub) handleUnregister(client *ClientInfo) {
+func (h *Hub) handleUnregister(client ClientInfo) {
 	h.mu.Lock()
 	room, exists := h.rooms[client.NoteID]
 	h.mu.Unlock()
@@ -102,7 +106,7 @@ func (h *Hub) handleUnregister(client *ClientInfo) {
 	}
 }
 
-func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
+func (h *Hub) handleBroadcast(msg BroadcastMessage) {
 	h.mu.RLock()
 	room, exists := h.rooms[msg.NoteID]
 	h.mu.RUnlock()
@@ -117,7 +121,7 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 			select {
 			case client.Send <- msg.Message:
 			default:
-				go func(c *ClientInfo) {
+				go func(c ClientInfo) {
 					h.unregister <- c
 				}(client)
 			}
@@ -128,22 +132,27 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 
 func (h *Hub) broadcastToRoom(noteID string, message WebSocketMessage, excludeUserID string) {
 	excludeUserID = "" // убрать после тестов
-	h.broadcast <- &BroadcastMessage{
+	h.broadcast <- BroadcastMessage{
 		NoteID:  noteID,
 		Message: message,
 		Exclude: excludeUserID,
 	}
 }
 
-func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
+func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 	noteID, _ := uuid.Parse(client.NoteID)
 	userID, _ := uuid.Parse(client.UserID)
 
 	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
 	if err != nil {
 		client.Send <- WebSocketMessage{
-			Type: MsgError,
-			Data: map[string]string{"error": err.Error()},
+			Type:     MsgError,
+			UserID:   client.UserID,
+			UserName: client.UserName,
+			NoteID:   client.NoteID,
+			Msg: ErrMessage{
+				Error: err.Error(),
+			},
 		}
 		return
 	}
@@ -151,8 +160,13 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 	blocks, err := h.noteUsecase.GetBlocks(context.Background(), noteID)
 	if err != nil {
 		client.Send <- WebSocketMessage{
-			Type: MsgError,
-			Data: map[string]string{"error": err.Error()},
+			Type:     MsgError,
+			UserID:   client.UserID,
+			UserName: client.UserName,
+			NoteID:   client.NoteID,
+			Msg: ErrMessage{
+				Error: err.Error(),
+			},
 		}
 		return
 	}
@@ -163,7 +177,7 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 			crdt, exists := room.CRDTDocuments[block.ID.String()]
 			if !exists {
 				crdt = NewCRDTDocument()
-				h.loadTextToCRDT(crdt, block.Content, block.ID.String())
+				h.loadTextToCRDT(crdt, client.UserID, block.Content, block.ID.String())
 				room.CRDTDocuments[block.ID.String()] = crdt
 			}
 		}
@@ -179,26 +193,30 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 	room.mu.RUnlock()
 
 	client.Send <- WebSocketMessage{
-		Type: MsgSyncState,
-		Data: map[string]interface{}{
-			"note":        note,
-			"blocks":      blocks,
-			"crdt_states": crdtStates,
+		Type:     MsgSyncState,
+		UserID:   client.UserID,
+		UserName: client.UserName,
+		NoteID:   client.NoteID,
+		Msg: InfoMessage{
+			Info: map[string]interface{}{
+				"note":        note,
+				"blocks":      blocks,
+				"crdt_states": crdtStates,
+			},
 		},
 	}
 }
 
-func (h *Hub) loadTextToCRDT(crdt *CRDTDocument, text string, blockID string) {
+func (h *Hub) loadTextToCRDT(crdt *CRDTDocument, userID string, text string, blockID string) {
 	for i, ch := range text {
 		op := InsertCharOperation{
 			BlockID:  blockID,
 			Position: i,
 			Char:     string(ch),
-			UserID:   "system",
 			Lamport:  int64(i),
 			UniqueID: fmt.Sprintf("%s:%d", blockID, i),
 		}
-		crdt.ApplyInsert(op)
+		crdt.ApplyInsert(op, userID)
 	}
 }
 
@@ -214,47 +232,47 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 	switch msg.Type {
 	case MsgCursorMove:
 		var cursor CursorPosition
-		if err := mapToStruct(msg.Data, &cursor); err == nil {
+		if err := mapToStruct(msg.Msg, &cursor); err == nil {
 			h.handleCursorMove(room, userID, cursor)
 		}
 	case MsgInsertChar:
 		var op InsertCharOperation
-		if err := mapToStruct(msg.Data, &op); err == nil {
-			h.handleInsertChar(room, userID, op)
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleInsertChar(room, userID, op, msg.IsLocal)
 		}
 	case MsgDeleteChar:
 		var op DeleteCharOperation
-		if err := mapToStruct(msg.Data, &op); err == nil {
-			h.handleDeleteChar(room, userID, op)
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleDeleteChar(room, userID, op, msg.IsLocal)
 		}
 	case MsgApplyFormatting:
 		var op FormattingOperation
-		if err := mapToStruct(msg.Data, &op); err == nil {
+		if err := mapToStruct(msg.Msg, &op); err == nil {
 			h.handleApplyFormatting(room, userID, op)
 		}
 	case MsgCreateBlock:
 		var blockData map[string]interface{}
-		if err := mapToStruct(msg.Data, &blockData); err == nil {
+		if err := mapToStruct(msg.Msg, &blockData); err == nil {
 			h.handleCreateBlock(room, userID, blockData)
 		}
 	case MsgDeleteBlock:
 		var blockID string
-		if err := mapToStruct(msg.Data, &blockID); err == nil {
+		if err := mapToStruct(msg.Msg, &blockID); err == nil {
 			h.handleDeleteBlock(room, userID, blockID)
 		}
 	case MsgMoveBlock:
 		var moveData map[string]interface{}
-		if err := mapToStruct(msg.Data, &moveData); err == nil {
+		if err := mapToStruct(msg.Msg, &moveData); err == nil {
 			h.handleMoveBlock(room, userID, moveData)
 		}
 	case MsgUpdateNoteTitle:
 		var title string
-		if err := mapToStruct(msg.Data, &title); err == nil {
+		if err := mapToStruct(msg.Msg, &title); err == nil {
 			h.handleUpdateNoteTitle(room, userID, title)
 		}
 	case MsgUpdateNotePublic:
 		var isPublic bool
-		if err := mapToStruct(msg.Data, &isPublic); err == nil {
+		if err := mapToStruct(msg.Msg, &isPublic); err == nil {
 			h.handleUpdateNotePublic(room, userID, isPublic)
 		}
 	case MsgDeleteNote:
@@ -271,34 +289,33 @@ func mapToStruct(data interface{}, target interface{}) error {
 }
 
 func (h *Hub) handleCursorMove(room *NoteRoom, userID string, cursor CursorPosition) {
-	// cursor, ok := msg.Data.(CursorPosition)
-	// if !ok {
-	// 	return
-	// }
-
 	room.mu.Lock()
-	if client, exists := room.Clients[userID]; exists {
-		client.LastCursor = &cursor
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
 	}
+
+	client.LastCursor = cursor
 	room.mu.Unlock()
 
 	cursors := room.getAllCursors()
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgCursorsUpdate,
-		Data: cursors,
+		Type:     MsgCursorMove,
+		UserID:   client.UserID,
+		UserName: client.UserName,
+		NoteID:   client.NoteID,
+		Msg:      cursors,
 	}, userID)
 }
 
-func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOperation) {
-	// fmt.Println(1)
-	// fmt.Println(msg.Data)
-	// op, ok := msg.Data.(InsertCharOperation)
-	// fmt.Println(op)
-	// if !ok {
-	// 	fmt.Println(2)
-	// 	return
-	// }
+func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOperation, isLocal bool) {
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	room.mu.Lock()
 	crdt, exists := room.CRDTDocuments[op.BlockID]
@@ -307,8 +324,6 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 		room.CRDTDocuments[op.BlockID] = crdt
 	}
 	room.mu.Unlock()
-
-	isLocal := userID == op.UserID
 
 	if isLocal {
 		result, err := crdt.Insert(op.Position, op.Char, userID, op.Lamport, op.UniqueID)
@@ -329,19 +344,25 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 		}
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
-			Type: MsgOperation,
-			Data: result,
+			Type:     MsgInsertChar,
+			IsLocal:  false,
+			UserID:   userID,
+			UserName: client.UserName,
+			NoteID:   room.NoteID,
+			Msg:      result,
 		}, userID)
 	} else {
-		crdt.ApplyInsert(op)
+		crdt.ApplyInsert(op, userID)
 	}
 }
 
-func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOperation) {
-	// op, ok := msg.Data.(DeleteCharOperation)
-	// if !ok {
-	// 	return
-	// }
+func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOperation, isLocal bool) {
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	room.mu.RLock()
 	crdt, exists := room.CRDTDocuments[op.BlockID]
@@ -350,8 +371,6 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 	if !exists {
 		return
 	}
-
-	isLocal := userID == op.UserID
 
 	if isLocal {
 		result, err := crdt.Delete(op.Position, userID, op.Lamport)
@@ -372,8 +391,12 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 		}
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
-			Type: MsgOperation,
-			Data: result,
+			Type:     MsgDeleteChar,
+			IsLocal:  false,
+			UserID:   userID,
+			UserName: client.UserName,
+			NoteID:   room.NoteID,
+			Msg:      result,
 		}, userID)
 	} else {
 		crdt.ApplyDelete(op)
@@ -381,23 +404,16 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 }
 
 func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op FormattingOperation) {
-	// op, ok := msg.Data.(FormattingOperation)
-	// if !ok {
-	// 	return
-	// }
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	room.mu.Lock()
 	op.SequenceID = room.SequenceID
 	room.SequenceID++
-	room.OperationQueue = append(room.OperationQueue, Operation{ // а где юзается OperationQueue?
-		ID:   uuid.New().String(),
-		Type: OpApplyFormatting,
-		Data: map[string]interface{}{
-			"formatting": op,
-		},
-		SequenceID: op.SequenceID,
-		UserID:     userID,
-	})
 	room.mu.Unlock()
 
 	blockID, _ := uuid.Parse(op.BlockID)
@@ -419,20 +435,21 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op Formatting
 	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgOperation,
-		Data: op,
+		Type:     MsgApplyFormatting,
+		UserID:   userID,
+		UserName: client.UserName,
+		NoteID:   room.NoteID,
+		Msg:      op,
 	}, userID)
 }
 
 func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, blockData map[string]interface{}) {
-	// if !h.isNoteOwner(room.NoteID, userID) {
-	// 	return
-	// }
-
-	// blockData, ok := msg.Data.(map[string]interface{})
-	// if !ok {
-	// 	return
-	// }
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
@@ -454,23 +471,21 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, blockData map[str
 	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgOperation,
-		Data: map[string]interface{}{
-			"type":  "create_block",
-			"block": createdBlock,
-		},
+		Type:     MsgCreateBlock,
+		UserID:   userID,
+		UserName: client.UserName,
+		NoteID:   room.NoteID,
+		Msg:      createdBlock,
 	}, userID)
 }
 
 func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, blockID string) {
-	// if !h.isNoteOwner(room.NoteID, userID) {
-	// 	return
-	// }
-
-	// blockID, ok := msg.Data.(string)
-	// if !ok {
-	// 	return
-	// }
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
@@ -486,23 +501,21 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, blockID string) {
 	room.mu.Unlock()
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgOperation,
-		Data: map[string]string{
-			"type":    "delete_block",
-			"blockId": blockID,
-		},
+		Type:     MsgDeleteBlock,
+		UserID:   userID,
+		UserName: client.UserName,
+		NoteID:   room.NoteID,
+		Msg:      blockID,
 	}, userID)
 }
 
 func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, moveData map[string]interface{}) {
-	// if !h.isNoteOwner(room.NoteID, userID) {
-	// 	return
-	// }
-
-	// moveData, ok := msg.Data.(map[string]interface{})
-	// if !ok {
-	// 	return
-	// }
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
@@ -515,8 +528,11 @@ func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, moveData map[string
 	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgOperation,
-		Data: moveData,
+		Type:     MsgMoveBlock,
+		UserID:   userID,
+		UserName: client.UserName,
+		NoteID:   room.NoteID,
+		Msg:      moveData,
 	}, userID)
 }
 
@@ -525,10 +541,12 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 		return
 	}
 
-	// newTitle, ok := msg.Data.(string)
-	// if !ok {
-	// 	return
-	// }
+	room.mu.Lock()
+	client, exists := room.Clients[userID]
+	if !exists {
+		return
+	}
+	room.mu.Unlock()
 
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
@@ -546,11 +564,11 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgOperation,
-		Data: map[string]string{
-			"type":  "update_title",
-			"title": newTitle,
-		},
+		Type:     MsgUpdateNoteTitle,
+		UserID:   userID,
+		UserName: client.UserName,
+		NoteID:   room.NoteID,
+		Msg:      newTitle,
 	}, userID)
 }
 
@@ -558,11 +576,6 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 	if !h.isNoteOwner(room.NoteID, userID) {
 		return
 	}
-
-	// isPublic, ok := msg.Data.(bool)
-	// if !ok {
-	// 	return
-	// }
 
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
@@ -581,22 +594,23 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 
 	if !isPublic {
 		room.mu.Lock()
-		clients := make([]*ClientInfo, 0, len(room.Clients))
+		clients := make([]ClientInfo, 0, len(room.Clients))
 		for _, client := range room.Clients {
 			clients = append(clients, client)
 		}
 
 		for _, client := range clients {
 			client.Send <- WebSocketMessage{
-				Type: MsgNotePrivate,
-				Data: map[string]string{
-					"message": "Note is now private. WebSocket connection closed.",
-				},
+				Type:     MsgNotePrivate,
+				UserID:   userID,
+				UserName: client.UserName,
+				NoteID:   room.NoteID,
+				Msg:      "Note is now private. WebSocket connection closed.",
 			}
 			close(client.Send)
 		}
 
-		room.Clients = make(map[string]*ClientInfo)
+		room.Clients = make(map[string]ClientInfo)
 
 		room.IsDeleted = true
 
@@ -606,14 +620,6 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 		delete(h.rooms, room.NoteID)
 		h.mu.Unlock()
 	}
-
-	// h.broadcastToRoom(room.NoteID, WebSocketMessage{
-	// 	Type: MsgOperation,
-	// 	Data: map[string]interface{}{
-	// 		"type":      "update_public",
-	// 		"is_public": isPublic,
-	// 	},
-	// }, userID)
 }
 
 func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
@@ -631,22 +637,23 @@ func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
 
 	room.mu.Lock()
 
-	clients := make([]*ClientInfo, 0, len(room.Clients))
+	clients := make([]ClientInfo, 0, len(room.Clients))
 	for _, client := range room.Clients {
 		clients = append(clients, client)
 	}
 
 	for _, client := range clients {
 		client.Send <- WebSocketMessage{
-			Type: MsgNoteDeleted,
-			Data: map[string]string{
-				"message": "Note is now deleted. WebSocket connection closed.",
-			},
+			Type:     MsgNoteDeleted,
+			UserID:   userID,
+			UserName: client.UserName,
+			NoteID:   room.NoteID,
+			Msg:      "Note is now deleted. WebSocket connection closed.",
 		}
 		close(client.Send)
 	}
 
-	room.Clients = make(map[string]*ClientInfo)
+	room.Clients = make(map[string]ClientInfo)
 
 	room.IsDeleted = true
 
@@ -673,9 +680,7 @@ func (r *NoteRoom) getAllCursors() []CursorPosition {
 	r.mu.RLock()
 	cursors := make([]CursorPosition, 0, len(r.Clients))
 	for _, client := range r.Clients {
-		if client.LastCursor != nil {
-			cursors = append(cursors, *client.LastCursor)
-		}
+		cursors = append(cursors, client.LastCursor)
 	}
 	r.mu.RUnlock()
 

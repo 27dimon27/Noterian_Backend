@@ -79,11 +79,12 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &ClientInfo{
-		UserID:   userID.String(),
-		UserName: profile.Username,
-		NoteID:   noteID.String(),
-		Send:     make(chan WebSocketMessage, 256),
+	client := ClientInfo{
+		UserID:     userID.String(),
+		UserName:   profile.Username,
+		NoteID:     noteID.String(),
+		LastCursor: CursorPosition{},
+		Send:       make(chan WebSocketMessage, 256),
 	}
 
 	h.hub.register <- client
@@ -92,7 +93,7 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	go h.readPump(client, conn)
 }
 
-func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
+func (h *WebSocketHandler) writePump(client ClientInfo, conn *websocket.Conn) {
 	defer func() {
 		conn.Close()
 	}()
@@ -105,7 +106,7 @@ func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
 	}
 }
 
-func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
+func (h *WebSocketHandler) readPump(client ClientInfo, conn *websocket.Conn) {
 	defer func() {
 		h.hub.unregister <- client
 		conn.Close()
@@ -113,16 +114,16 @@ func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 
 	for {
 		var msg WebSocketMessage
-		err := conn.ReadJSON(&msg)
-		if err != nil {
+		if err := conn.ReadJSON(&msg); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("WebSocket error: %v", err)
 			}
 			break
 		}
 
-		msg.Timestamp = time.Now().Unix()
-		msg.UserID = client.UserID
+		if msg.IsLocal {
+			msg.UserID = client.UserID
+		}
 
 		h.hub.HandleOperation(client.NoteID, client.UserID, msg)
 	}
