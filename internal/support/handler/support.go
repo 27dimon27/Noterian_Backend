@@ -34,6 +34,7 @@ type SupportUsecase interface {
 	GetRatingByTicketID(ctx context.Context, ticketID uuid.UUID) (*models.SupportRating, error)
 
 	GetStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
+	GetUserRole(ctx context.Context, userID uuid.UUID) (string, error)
 	// GetUserStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
 }
 
@@ -370,4 +371,20 @@ func (h *SupportHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *SupportHandler) GetUserRole(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, support.ErrInvalidUserID)
+		return
+	}
+
+	role, err := h.usecase.GetUserRole(r.Context(), userID)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	write.JSONResponse(w, http.StatusOK, role)
 }

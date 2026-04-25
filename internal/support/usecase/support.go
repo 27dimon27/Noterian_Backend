@@ -198,3 +198,7 @@ func (u *SupportUsecase) GetStats(ctx context.Context, userID uuid.UUID) (*map[s
 
 	return u.repo.GetStats(ctx)
 }
+
+func (u *SupportUsecase) GetUserRole(ctx context.Context, userID uuid.UUID) (string, error) {
+	return u.repo.GetRoleByUserID(ctx, userID)
+}

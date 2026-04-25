@@ -131,6 +131,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("GET /support/tickets/{ticket_id}/messages", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetTicketMessages)))
 	r.Handle("POST /support/tickets/{ticket_id}/rating", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.CreateRating))))
 	r.Handle("GET /support/stats", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetStats)))
+	r.Handle("GET /support/role", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetUserRole)))
 	// r.Handle("GET /support/user-stats", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetUserStats)))
 
 	return middleware.Logger(r), nil
