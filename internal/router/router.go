@@ -21,6 +21,10 @@ import (
 	profilesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 
+	supportHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/support/handler"
+	supportRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/support/repository"
+	supportUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/support/usecase"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/csrf"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -55,6 +59,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+
+	supportRepository := supportRepo.NewSupportRepository(db)
+	supportUsecase := supportUsecase.NewSupportUsecase(supportRepository)
+	supportHandlerInstance := supportHandler.NewSupportHandler(supportUsecase)
 
 	csrfHandler := csrf.NewHandler(cfg.CSRF)
 
@@ -111,6 +119,19 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("POST /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
 	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))
+
+	r.Handle("GET /support/categories", http.HandlerFunc(supportHandlerInstance.GetCategories))
+	r.Handle("GET /support/statuses", http.HandlerFunc(supportHandlerInstance.GetStatuses))
+	r.Handle("POST /support/tickets", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.CreateTicket))))
+	r.Handle("GET /support/tickets", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetUserTickets)))
+	r.Handle("GET /support/tickets/{id}", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetTicket)))
+	r.Handle("PATCH /support/tickets/{id}", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.UpdateTicket))))
+	r.Handle("POST /support/tickets/{id}/close", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.CloseTicket))))
+	r.Handle("POST /support/tickets/{ticket_id}/messages", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.CreateMessage))))
+	r.Handle("GET /support/tickets/{ticket_id}/messages", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetTicketMessages)))
+	r.Handle("POST /support/tickets/{ticket_id}/rating", authMiddleware(securityMiddleware(http.HandlerFunc(supportHandlerInstance.CreateRating))))
+	r.Handle("GET /support/stats", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetStats)))
+	r.Handle("GET /support/user-stats", authMiddleware(http.HandlerFunc(supportHandlerInstance.GetUserStats)))
 
 	return middleware.Logger(r), nil
 }
