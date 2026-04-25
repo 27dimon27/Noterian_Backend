@@ -21,7 +21,8 @@ type UpdateTicketRequest struct {
 }
 
 type CreateMessageRequest struct {
-	Message string `json:"message" validate:"required,min=1"`
+	Message    string `json:"message" validate:"required,min=1"`
+	IsInternal bool   `json:"is_internal"`
 }
 
 type CreateRatingRequest struct {

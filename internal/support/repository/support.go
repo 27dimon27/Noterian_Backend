@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/support"
@@ -91,7 +92,7 @@ func (r *SupportRepository) GetUserTickets(ctx context.Context, userID uuid.UUID
 		SELECT id, user_id, category_id, status_id, assigned_to, title, description, priority, created_at, updated_at, resolved_at
 		FROM support_tickets
 		WHERE user_id = $1
-		ORDER BY created_at DESC
+		ORDER BY priority ASC, created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
@@ -138,7 +139,7 @@ func (r *SupportRepository) GetAllTickets(ctx context.Context, limit, offset int
 	query := `
 		SELECT id, user_id, category_id, status_id, assigned_to, title, description, priority, created_at, updated_at, resolved_at
 		FROM support_tickets
-		ORDER BY created_at DESC
+		ORDER BY priority ASC, created_at DESC
 		LIMIT $1 OFFSET $2
 	`
 
@@ -183,12 +184,12 @@ func (r *SupportRepository) UpdateTicket(ctx context.Context, ticketID uuid.UUID
 		if argCount > 1 {
 			query += ", "
 		}
-		query += key + " = $" + string(rune(argCount))
+		query += key + " = $" + strconv.Itoa(argCount)
 		args = append(args, value)
 		argCount++
 	}
 
-	query += ", updated_at = NOW() WHERE id = $" + string(rune(argCount)) + " RETURNING id, user_id, category_id, status_id, assigned_to, title, description, priority, created_at, updated_at, resolved_at"
+	query += ", updated_at = NOW() WHERE id = $" + strconv.Itoa(argCount) + " RETURNING id, user_id, category_id, status_id, assigned_to, title, description, priority, created_at, updated_at, resolved_at"
 	args = append(args, ticketID)
 
 	ticket := &models.SupportTicket{}

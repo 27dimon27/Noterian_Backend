@@ -241,7 +241,7 @@ func (h *SupportHandler) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message, err := h.usecase.CreateMessage(r.Context(), ticketID, userID, req.Message, false)
+	message, err := h.usecase.CreateMessage(r.Context(), ticketID, userID, req.Message, req.IsInternal)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
