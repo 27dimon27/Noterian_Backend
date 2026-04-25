@@ -33,6 +33,7 @@ type SupportRepository interface {
 
 	GetStats(ctx context.Context) (*map[string]interface{}, error)
 	GetUserStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
+	GetRoleByUserID(ctx context.Context, userID uuid.UUID) (string, error)
 }
 
 type SupportUsecase struct {
@@ -185,10 +186,15 @@ func (u *SupportUsecase) GetRatingByTicketID(ctx context.Context, ticketID uuid.
 	return u.repo.GetRatingByTicketID(ctx, ticketID)
 }
 
-func (u *SupportUsecase) GetStats(ctx context.Context) (*map[string]interface{}, error) {
-	return u.repo.GetStats(ctx)
-}
+func (u *SupportUsecase) GetStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error) {
+	role_name, err := u.repo.GetRoleByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
-func (u *SupportUsecase) GetUserStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error) {
-	return u.repo.GetUserStats(ctx, userID)
+	if role_name == "user" {
+		return u.repo.GetUserStats(ctx, userID)
+	}
+
+	return u.repo.GetStats(ctx)
 }

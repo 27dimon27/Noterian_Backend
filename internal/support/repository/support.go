@@ -522,3 +522,18 @@ func (r *SupportRepository) GetUserStats(ctx context.Context, userID uuid.UUID) 
 
 	return &stats, nil
 }
+
+func (r *SupportRepository) GetRoleByUserID(ctx context.Context, userID uuid.UUID) (string, error) {
+	query := `
+		SELECT name FROM user_roles
+		WHERE id = (SELECT role_id FROM profiles WHERE id = $1)
+	`
+
+	var role_name string
+
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&role_name)
+	if err != nil {
+		return "", err
+	}
+	return role_name, nil
+}

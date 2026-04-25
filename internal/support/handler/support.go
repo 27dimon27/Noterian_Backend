@@ -33,8 +33,8 @@ type SupportUsecase interface {
 	CreateRating(ctx context.Context, ticketID uuid.UUID, userID uuid.UUID, rating int, comment *string) (*models.SupportRating, error)
 	GetRatingByTicketID(ctx context.Context, ticketID uuid.UUID) (*models.SupportRating, error)
 
-	GetStats(ctx context.Context) (*map[string]interface{}, error)
-	GetUserStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
+	GetStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
+	// GetUserStats(ctx context.Context, userID uuid.UUID) (*map[string]interface{}, error)
 }
 
 type SupportHandler struct {
@@ -345,7 +345,13 @@ func (h *SupportHandler) CreateRating(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SupportHandler) GetStats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.usecase.GetStats(r.Context())
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, support.ErrInvalidUserID)
+		return
+	}
+
+	stats, err := h.usecase.GetStats(r.Context(), userID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
@@ -361,33 +367,6 @@ func (h *SupportHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		SuggestionCount: (*stats)["suggestion_count"].(int),
 		ComplaintCount:  (*stats)["complaint_count"].(int),
 		AverageRating:   (*stats)["average_rating"].(*float64),
-	}
-
-	write.JSONResponse(w, http.StatusOK, response)
-}
-
-func (h *SupportHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, support.ErrInvalidUserID)
-		return
-	}
-
-	stats, err := h.usecase.GetUserStats(r.Context(), userID)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	response := dto.TicketStatsResponse{
-		Total:           (*stats)["total"].(int),
-		Open:            (*stats)["open"].(int),
-		InProgress:      (*stats)["in_progress"].(int),
-		WaitingUser:     (*stats)["waiting_user"].(int),
-		Closed:          (*stats)["closed"].(int),
-		BugCount:        (*stats)["bug_count"].(int),
-		SuggestionCount: (*stats)["suggestion_count"].(int),
-		ComplaintCount:  (*stats)["complaint_count"].(int),
 	}
 
 	write.JSONResponse(w, http.StatusOK, response)
