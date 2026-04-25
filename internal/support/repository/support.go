@@ -323,7 +323,7 @@ func (r *SupportRepository) DeleteMessage(ctx context.Context, messageID uuid.UU
 }
 
 func (r *SupportRepository) GetCategories(ctx context.Context) ([]models.SupportCategory, error) {
-	query := `SELECT id, name, description, created_at FROM support_categories ORDER BY name ASC`
+	query := `SELECT id, name, description, created_at FROM support_categories ORDER BY id ASC`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -358,7 +358,7 @@ func (r *SupportRepository) GetCategoryName(ctx context.Context, categoryID int)
 }
 
 func (r *SupportRepository) GetStatuses(ctx context.Context) ([]models.SupportStatus, error) {
-	query := `SELECT id, name, description, created_at FROM support_statuses ORDER BY name ASC`
+	query := `SELECT id, name, description, created_at FROM support_statuses ORDER BY id ASC`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {

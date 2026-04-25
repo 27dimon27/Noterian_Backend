@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 INSERT INTO profiles (id, username, password, token_version, created_at, updated_at) VALUES
 (
     '11111111-1111-1111-1111-111111111111',
-    'testuser',
+    'testuser1',
     crypt('Password123', gen_salt('bf'))::bytea,
     1,
     NOW() - INTERVAL '1 month',
@@ -12,6 +12,14 @@ INSERT INTO profiles (id, username, password, token_version, created_at, updated
 (
     '22222222-2222-2222-2222-222222222222',
     'testuser2',
+    crypt('Password123', gen_salt('bf'))::bytea,
+    1,
+    NOW() - INTERVAL '1 month',
+    NOW()
+),
+(
+    '33333333-3333-3333-3333-333333333333',
+    'testuser3',
     crypt('Password123', gen_salt('bf'))::bytea,
     1,
     NOW() - INTERVAL '1 month',

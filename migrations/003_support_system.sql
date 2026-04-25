@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     assigned_to UUID REFERENCES profiles(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
-    priority INTEGER DEFAULT 2,
+    priority INTEGER DEFAULT 2, -- 1 - самый высокий, 5 - самый низкий
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     resolved_at TIMESTAMP WITH TIME ZONE
