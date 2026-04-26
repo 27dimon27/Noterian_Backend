@@ -52,20 +52,24 @@ type ErrMessage struct {
 type CursorPosition struct {
 	BlockID  string `json:"blockId"`
 	Position int    `json:"position"`
+	UserID   string `json:"userId"`
+	UserName string `json:"userName"`
 }
 
 type InsertCharOperation struct {
-	BlockID  string `json:"blockId"`
-	Position int    `json:"position"`
-	Char     string `json:"char"`
-	Lamport  int64  `json:"lamport"`
-	UniqueID string `json:"uniqueId"`
+	BlockID   string `json:"blockId"`
+	Position  int    `json:"position"`
+	Char      string `json:"char"`
+	Lamport   int64  `json:"lamport"`
+	UniqueID  string `json:"uniqueId"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type DeleteCharOperation struct {
-	BlockID  string `json:"blockId"`
-	Position int    `json:"position"`
-	Lamport  int64  `json:"lamport"`
+	BlockID   string `json:"blockId"`
+	Position  int    `json:"position"`
+	Lamport   int64  `json:"lamport"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type FormattingOperation struct {
@@ -77,6 +81,15 @@ type FormattingOperation struct {
 	Underline  *bool  `json:"underline,omitempty"`
 	TextAlign  *int   `json:"textAlign,omitempty"`
 	SequenceID int64  `json:"sequenceId"`
+	Timestamp  int64  `json:"timestamp"`
+}
+
+type PendingOperation struct {
+	ID        string      `json:"id"`        // Уникальный ID операции
+	UserID    string      `json:"userId"`    // Автор операции
+	Type      MessageType `json:"type"`      // Тип операции
+	Operation any         `json:"operation"` // Сама операция
+	Timestamp int64       `json:"timestamp"` // Временная метка
 }
 
 type ClientInfo struct {
@@ -87,17 +100,12 @@ type ClientInfo struct {
 	Send       chan WebSocketMessage
 }
 
-// type SyncState struct {
-// 	Note          map[string]interface{}   `json:"note"`
-// 	Blocks        []map[string]interface{} `json:"blocks"`
-// 	ActiveUsers   []map[string]interface{} `json:"activeUsers"`
-// 	Cursors       []CursorPosition         `json:"cursors"`
-// 	OwnerID       string                   `json:"ownerId"`
-// 	IsPublic      bool                     `json:"isPublic"`
-// 	NoteTitle     string                   `json:"noteTitle"`
-// 	SyncTimestamp int64                    `json:"syncTimestamp"`
-// 	SequenceID    int64                    `json:"sequenceId"`
-// }
+// Тип для курсора вместе с пользователем
+type UserCursor struct {
+	UserID   string         `json:"userId"`
+	UserName string         `json:"userName"`
+	Cursor   CursorPosition `json:"cursor"`
+}
 
 type CRDTDocument struct {
 	mu           sync.RWMutex
@@ -124,12 +132,13 @@ type Hub struct {
 }
 
 type NoteRoom struct {
-	mu            sync.RWMutex
-	NoteID        string
-	Clients       map[string]ClientInfo    // userID -> client
-	CRDTDocuments map[string]*CRDTDocument // blockID -> CRDT document
-	SequenceID    int64                    // текущий sequence ID для OT (зачем нужен?)
-	IsDeleted     bool
+	mu                sync.RWMutex
+	NoteID            string
+	Clients           map[string]ClientInfo    // userID -> client
+	CRDTDocuments     map[string]*CRDTDocument // blockID -> CRDT document
+	PendingOperations []PendingOperation       // Очередь операций для обновления курсоров
+	SequenceID        int64                    // текущий sequence ID для OT
+	IsDeleted         bool
 }
 
 type BroadcastMessage struct {

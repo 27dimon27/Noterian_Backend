@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
@@ -42,9 +43,10 @@ func (h *Hub) handleRegister(client ClientInfo) {
 
 	if !exists {
 		room = &NoteRoom{
-			NoteID:        client.NoteID,
-			Clients:       make(map[string]ClientInfo),
-			CRDTDocuments: make(map[string]*CRDTDocument),
+			NoteID:            client.NoteID,
+			Clients:           make(map[string]ClientInfo),
+			CRDTDocuments:     make(map[string]*CRDTDocument),
+			PendingOperations: make([]PendingOperation, 0),
 		}
 		h.rooms[client.NoteID] = room
 	}
@@ -139,6 +141,15 @@ func (h *Hub) broadcastToRoom(noteID string, message WebSocketMessage, excludeUs
 	}
 }
 
+func (h *Hub) broadcastUpdatedCursors(room *NoteRoom) {
+	cursors := room.getAllCursors()
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  cursors,
+	}, "")
+}
+
 func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 	noteID, _ := uuid.Parse(client.NoteID)
 	userID, _ := uuid.Parse(client.UserID)
@@ -192,17 +203,22 @@ func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 	}
 	room.mu.RUnlock()
 
+	cursors := room.getAllCursors()
+
 	client.Send <- WebSocketMessage{
 		Type:     MsgSyncState,
 		UserID:   client.UserID,
 		UserName: client.UserName,
 		NoteID:   client.NoteID,
-		Msg: InfoMessage{
-			Info: map[string]interface{}{
-				"note":        note,
-				"blocks":      blocks,
-				"crdt_states": crdtStates,
-			},
+		Msg: map[string]any{
+			"note":           note,
+			"blocks":         blocks,
+			"crdt_states":    crdtStates,
+			"cursors":        cursors,
+			"owner_id":       note.UserID.String(),
+			"is_public":      note.IsPublic,
+			"note_title":     note.Title,
+			"sync_timestamp": time.Now().Unix(),
 		},
 	}
 }
@@ -210,11 +226,12 @@ func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 func (h *Hub) loadTextToCRDT(crdt *CRDTDocument, userID string, text string, blockID string) {
 	for i, ch := range text {
 		op := InsertCharOperation{
-			BlockID:  blockID,
-			Position: i,
-			Char:     string(ch),
-			Lamport:  int64(i),
-			UniqueID: fmt.Sprintf("%s:%d", blockID, i),
+			BlockID:   blockID,
+			Position:  i,
+			Char:      string(ch),
+			Lamport:   int64(i),
+			UniqueID:  fmt.Sprintf("%s:%d", blockID, i),
+			Timestamp: time.Now().UnixNano(),
 		}
 		crdt.ApplyInsert(op, userID)
 	}
@@ -238,20 +255,23 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 	case MsgInsertChar:
 		var op InsertCharOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
+			op.Timestamp = time.Now().UnixNano()
 			h.handleInsertChar(room, userID, op, msg.IsLocal)
 		}
 	case MsgDeleteChar:
 		var op DeleteCharOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
+			op.Timestamp = time.Now().UnixNano()
 			h.handleDeleteChar(room, userID, op, msg.IsLocal)
 		}
 	case MsgApplyFormatting:
 		var op FormattingOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
+			op.Timestamp = time.Now().UnixNano()
 			h.handleApplyFormatting(room, userID, op)
 		}
 	case MsgCreateBlock:
-		var blockData map[string]interface{}
+		var blockData map[string]any
 		if err := mapToStruct(msg.Msg, &blockData); err == nil {
 			h.handleCreateBlock(room, userID, blockData)
 		}
@@ -261,7 +281,7 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 			h.handleDeleteBlock(room, userID, blockID)
 		}
 	case MsgMoveBlock:
-		var moveData map[string]interface{}
+		var moveData map[string]any
 		if err := mapToStruct(msg.Msg, &moveData); err == nil {
 			h.handleMoveBlock(room, userID, moveData)
 		}
@@ -280,39 +300,26 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 	}
 }
 
-func mapToStruct(data interface{}, target interface{}) error {
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(jsonBytes, target)
-}
-
 func (h *Hub) handleCursorMove(room *NoteRoom, userID string, cursor CursorPosition) {
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 
 	client.LastCursor = cursor
+	room.Clients[userID] = client
 	room.mu.Unlock()
 
-	cursors := room.getAllCursors()
-
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type:     MsgCursorMove,
-		UserID:   client.UserID,
-		UserName: client.UserName,
-		NoteID:   client.NoteID,
-		Msg:      cursors,
-	}, userID)
+	h.broadcastUpdatedCursors(room)
 }
 
 func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOperation, isLocal bool) {
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -325,6 +332,8 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 	}
 	room.mu.Unlock()
 
+	operationID := fmt.Sprintf("%s:%d:%d", userID, op.Timestamp, op.Position)
+
 	if isLocal {
 		result, err := crdt.Insert(op.Position, op.Char, userID, op.Lamport, op.UniqueID)
 		if err != nil {
@@ -332,6 +341,7 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 		}
 
 		result.BlockID = op.BlockID
+		result.Timestamp = op.Timestamp
 
 		blockID, _ := uuid.Parse(op.BlockID)
 		noteID, _ := uuid.Parse(room.NoteID)
@@ -343,6 +353,16 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 			return
 		}
 
+		pendingOp := PendingOperation{
+			ID:        operationID,
+			UserID:    userID,
+			Type:      MsgInsertChar,
+			Operation: result,
+			Timestamp: op.Timestamp,
+		}
+
+		h.addPendingOperationAndUpdateCursors(room, pendingOp)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type:     MsgInsertChar,
 			IsLocal:  false,
@@ -351,8 +371,32 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 			NoteID:   room.NoteID,
 			Msg:      result,
 		}, userID)
+
+		h.broadcastUpdatedCursors(room)
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			h.clearPendingOperations(room, operationID)
+		}()
 	} else {
 		crdt.ApplyInsert(op, userID)
+
+		pendingOp := PendingOperation{
+			ID:        operationID,
+			UserID:    userID,
+			Type:      MsgInsertChar,
+			Operation: op,
+			Timestamp: op.Timestamp,
+		}
+
+		h.addPendingOperationAndUpdateCursors(room, pendingOp)
+
+		h.broadcastUpdatedCursors(room)
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			h.clearPendingOperations(room, operationID)
+		}()
 	}
 }
 
@@ -360,6 +404,7 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -372,6 +417,8 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 		return
 	}
 
+	operationID := fmt.Sprintf("%s:%d:%d", userID, op.Timestamp, op.Position)
+
 	if isLocal {
 		result, err := crdt.Delete(op.Position, userID, op.Lamport)
 		if err != nil {
@@ -379,6 +426,7 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 		}
 
 		result.BlockID = op.BlockID
+		result.Timestamp = op.Timestamp
 
 		blockID, _ := uuid.Parse(op.BlockID)
 		noteID, _ := uuid.Parse(room.NoteID)
@@ -390,6 +438,16 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 			return
 		}
 
+		pendingOp := PendingOperation{
+			ID:        operationID,
+			UserID:    userID,
+			Type:      MsgDeleteChar,
+			Operation: result,
+			Timestamp: op.Timestamp,
+		}
+
+		h.addPendingOperationAndUpdateCursors(room, pendingOp)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type:     MsgDeleteChar,
 			IsLocal:  false,
@@ -398,8 +456,32 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 			NoteID:   room.NoteID,
 			Msg:      result,
 		}, userID)
+
+		h.broadcastUpdatedCursors(room)
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			h.clearPendingOperations(room, operationID)
+		}()
 	} else {
 		crdt.ApplyDelete(op)
+
+		pendingOp := PendingOperation{
+			ID:        operationID,
+			UserID:    userID,
+			Type:      MsgDeleteChar,
+			Operation: op,
+			Timestamp: op.Timestamp,
+		}
+
+		h.addPendingOperationAndUpdateCursors(room, pendingOp)
+
+		h.broadcastUpdatedCursors(room)
+
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			h.clearPendingOperations(room, operationID)
+		}()
 	}
 }
 
@@ -407,6 +489,7 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op Formatting
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -443,10 +526,11 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op Formatting
 	}, userID)
 }
 
-func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, blockData map[string]interface{}) {
+func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, blockData map[string]any) {
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -483,6 +567,7 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, blockID string) {
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -509,10 +594,11 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, blockID string) {
 	}, userID)
 }
 
-func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, moveData map[string]interface{}) {
+func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, moveData map[string]any) {
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -544,6 +630,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 	room.mu.Lock()
 	client, exists := room.Clients[userID]
 	if !exists {
+		room.mu.Unlock()
 		return
 	}
 	room.mu.Unlock()
@@ -676,13 +763,82 @@ func (h *Hub) isNoteOwner(noteID string, userID string) bool {
 	return note.UserID == userUUID
 }
 
-func (r *NoteRoom) getAllCursors() []CursorPosition {
+func (r *NoteRoom) getAllCursors() []UserCursor {
 	r.mu.RLock()
-	cursors := make([]CursorPosition, 0, len(r.Clients))
-	for _, client := range r.Clients {
-		cursors = append(cursors, client.LastCursor)
-	}
-	r.mu.RUnlock()
+	defer r.mu.RUnlock()
 
+	cursors := make([]UserCursor, 0, len(r.Clients))
+	for _, client := range r.Clients {
+		cursors = append(cursors, UserCursor{
+			UserID:   client.UserID,
+			UserName: client.UserName,
+			Cursor:   client.LastCursor,
+		})
+	}
 	return cursors
+}
+
+func (h *Hub) addPendingOperationAndUpdateCursors(room *NoteRoom, op PendingOperation) {
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	room.PendingOperations = append(room.PendingOperations, op)
+
+	h.updateCursorsPositions(room)
+}
+
+func (h *Hub) clearPendingOperations(room *NoteRoom, operationID string) {
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	for i, op := range room.PendingOperations {
+		if op.ID == operationID {
+			room.PendingOperations = append(room.PendingOperations[:i], room.PendingOperations[i+1:]...)
+			break
+		}
+	}
+}
+
+func (h *Hub) updateCursorsPositions(room *NoteRoom) {
+	allOps := room.PendingOperations
+
+	for userID, client := range room.Clients {
+		tempCursor := client.LastCursor
+
+		fmt.Println(tempCursor)
+
+		for _, op := range allOps {
+			switch op.Type {
+			case MsgInsertChar:
+				if insertOp, ok := op.Operation.(*InsertCharOperation); ok {
+					if insertOp.BlockID == tempCursor.BlockID {
+						if insertOp.Position < tempCursor.Position {
+							tempCursor.Position++
+						}
+					}
+				}
+			case MsgDeleteChar:
+				if deleteOp, ok := op.Operation.(*DeleteCharOperation); ok {
+					if deleteOp.BlockID == tempCursor.BlockID {
+						if deleteOp.Position < tempCursor.Position {
+							tempCursor.Position--
+						}
+					}
+				}
+			}
+		}
+
+		fmt.Println(tempCursor)
+
+		client.LastCursor = tempCursor
+		room.Clients[userID] = client
+	}
+}
+
+func mapToStruct(data any, target any) error {
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(jsonBytes, target)
 }

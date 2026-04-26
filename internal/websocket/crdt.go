@@ -1,8 +1,8 @@
 package websocket
 
 import (
-	"fmt"
 	"sort"
+	"strings"
 )
 
 func NewCRDTDocument() *CRDTDocument {
@@ -15,14 +15,14 @@ func (doc *CRDTDocument) GetText() string {
 	doc.mu.RLock()
 	defer doc.mu.RUnlock()
 
-	var result string
+	var result strings.Builder
 	for _, char := range doc.characters {
 		if char.Visible {
-			result += char.Char
+			result.WriteString(char.Char)
 		}
 	}
 
-	return result
+	return result.String()
 }
 
 func (doc *CRDTDocument) Insert(pos int, char string, userID string, lamport int64, uniqueID string) (*InsertCharOperation, error) {
@@ -32,8 +32,6 @@ func (doc *CRDTDocument) Insert(pos int, char string, userID string, lamport int
 	doc.lamportClock = max(doc.lamportClock, lamport) + 1
 
 	insertIndex := doc.findInsertIndex(pos)
-
-	fmt.Println(insertIndex)
 
 	newChar := CRDTChar{
 		ID:      uniqueID,
