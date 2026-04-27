@@ -239,7 +239,7 @@ func TestCreateBlock_Success(t *testing.T) {
 		GetBlocks(gomock.Any(), noteID).
 		Return(existingBlocks, nil)
 	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 0, 1, gomock.Any()).
+		ShiftBlockPositions(gomock.Any(), noteID, 0, 1).
 		Return(nil)
 	mockRepo.EXPECT().
 		CreateBlock(gomock.Any(), gomock.Any()).
@@ -289,7 +289,7 @@ func TestCreateBlock_WithExistingBlocks(t *testing.T) {
 		GetBlocks(gomock.Any(), noteID).
 		Return(existingBlocks, nil)
 	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 2, 1, gomock.Any()).
+		ShiftBlockPositions(gomock.Any(), noteID, 2, 1).
 		Return(nil)
 	mockRepo.EXPECT().
 		CreateBlock(gomock.Any(), gomock.Any()).
@@ -397,7 +397,7 @@ func TestMoveBlock_Success(t *testing.T) {
 		GetBlocks(gomock.Any(), noteID).
 		Return(blocks, nil)
 	mockRepo.EXPECT().
-		MoveBlock(gomock.Any(), noteID, blockID, 0, 2, gomock.Any()).
+		MoveBlock(gomock.Any(), noteID, blockID, 0, 2).
 		Return(movedBlock, nil)
 
 	result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, 2)
@@ -501,7 +501,7 @@ func TestDeleteBlock_Success(t *testing.T) {
 		DeleteBlock(gomock.Any(), blockID).
 		Return(&blockNoteID, nil)
 	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 1, -1, gomock.Any()).
+		ShiftBlockPositions(gomock.Any(), noteID, 1, -1).
 		Return(nil)
 
 	err := usecase.DeleteBlock(context.Background(), blockID, noteID, userID)
@@ -939,7 +939,7 @@ func TestCreateBlock_ShiftPositionsError(t *testing.T) {
 		GetBlocks(gomock.Any(), noteID).
 		Return(existingBlocks, nil)
 	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 0, 1, gomock.Any()).
+		ShiftBlockPositions(gomock.Any(), noteID, 0, 1).
 		Return(errors.New("shift error"))
 
 	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)

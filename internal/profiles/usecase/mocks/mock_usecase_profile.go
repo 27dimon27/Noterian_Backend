@@ -132,6 +132,21 @@ func (mr *MockProfileRepositoryMockRecorder) GetProfile(ctx, userID any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProfile", reflect.TypeOf((*MockProfileRepository)(nil).GetProfile), ctx, userID)
 }
 
+// GetProfileByUsername mocks base method.
+func (m *MockProfileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProfileByUsername", ctx, username)
+	ret0, _ := ret[0].(*models.Profile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProfileByUsername indicates an expected call of GetProfileByUsername.
+func (mr *MockProfileRepositoryMockRecorder) GetProfileByUsername(ctx, username any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProfileByUsername", reflect.TypeOf((*MockProfileRepository)(nil).GetProfileByUsername), ctx, username)
+}
+
 // UpdateAvatarURL mocks base method.
 func (m *MockProfileRepository) UpdateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
 	m.ctrl.T.Helper()
