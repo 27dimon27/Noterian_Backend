@@ -113,8 +113,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))
 
-	r.HandleFunc("GET /ws/notes/{noteId}", wsHandler.ServeWS)
+	r.Handle("GET /ws/notes/{noteId}", authMiddleware(http.HandlerFunc(wsHandler.ServeWS)))
 
-	// return middleware.Logger(r), nil
-	return r, nil
+	return middleware.Logger(r), nil
 }

@@ -152,6 +152,7 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.jwtConfig.CookieTime.Seconds()),
 		Path:     "/",
+		Domain:   "",
 	})
 
 	write.JSONResponse(w, http.StatusOK, dto.UserResponse{

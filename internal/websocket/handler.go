@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -36,19 +37,10 @@ func NewWebSocketHandler(
 }
 
 func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
-	// userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	// if !ok {
-	// 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	// 	return
-	// }
-
-	var userID uuid.UUID
-
-	user := r.URL.Query().Get("user")
-	if user == "1" {
-		userID, _ = uuid.Parse("11111111-1111-1111-1111-111111111111")
-	} else {
-		userID, _ = uuid.Parse("22222222-2222-2222-2222-222222222222")
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	noteIDStr := r.PathValue("noteId")

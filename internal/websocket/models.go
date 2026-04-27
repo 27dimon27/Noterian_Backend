@@ -57,18 +57,22 @@ type CursorPosition struct {
 }
 
 type InsertCharOperation struct {
+	ID        string `json:"id"`
 	BlockID   string `json:"blockId"`
 	Position  int    `json:"position"`
 	Char      string `json:"char"`
 	Lamport   int64  `json:"lamport"`
 	UniqueID  string `json:"uniqueId"`
+	UserID    string `json:"userId"`
 	Timestamp int64  `json:"timestamp"`
 }
 
 type DeleteCharOperation struct {
+	ID        string `json:"id"`
 	BlockID   string `json:"blockId"`
 	Position  int    `json:"position"`
 	Lamport   int64  `json:"lamport"`
+	UserID    string `json:"userId"`
 	Timestamp int64  `json:"timestamp"`
 }
 
@@ -84,14 +88,6 @@ type FormattingOperation struct {
 	Timestamp  int64  `json:"timestamp"`
 }
 
-type PendingOperation struct {
-	ID        string      `json:"id"`        // Уникальный ID операции
-	UserID    string      `json:"userId"`    // Автор операции
-	Type      MessageType `json:"type"`      // Тип операции
-	Operation any         `json:"operation"` // Сама операция
-	Timestamp int64       `json:"timestamp"` // Временная метка
-}
-
 type ClientInfo struct {
 	UserID     string
 	UserName   string
@@ -100,7 +96,6 @@ type ClientInfo struct {
 	Send       chan WebSocketMessage
 }
 
-// Тип для курсора вместе с пользователем
 type UserCursor struct {
 	UserID   string         `json:"userId"`
 	UserName string         `json:"userName"`
@@ -114,7 +109,7 @@ type CRDTDocument struct {
 }
 
 type CRDTChar struct {
-	ID      string // уникальный ID символа (userID:lamport)
+	ID      string
 	Char    string
 	UserID  string
 	Lamport int64
@@ -123,7 +118,7 @@ type CRDTChar struct {
 
 type Hub struct {
 	mu             sync.RWMutex
-	rooms          map[string]*NoteRoom // noteID -> room
+	rooms          map[string]*NoteRoom
 	register       chan ClientInfo
 	unregister     chan ClientInfo
 	broadcast      chan BroadcastMessage
@@ -132,13 +127,12 @@ type Hub struct {
 }
 
 type NoteRoom struct {
-	mu                sync.RWMutex
-	NoteID            string
-	Clients           map[string]ClientInfo    // userID -> client
-	CRDTDocuments     map[string]*CRDTDocument // blockID -> CRDT document
-	PendingOperations []PendingOperation       // Очередь операций для обновления курсоров
-	SequenceID        int64                    // текущий sequence ID для OT
-	IsDeleted         bool
+	mu            sync.RWMutex
+	NoteID        string
+	Clients       map[string]ClientInfo
+	CRDTDocuments map[string]*CRDTDocument
+	SequenceID    int64
+	IsDeleted     bool
 }
 
 type BroadcastMessage struct {

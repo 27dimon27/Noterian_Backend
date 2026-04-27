@@ -43,10 +43,9 @@ func (h *Hub) handleRegister(client ClientInfo) {
 
 	if !exists {
 		room = &NoteRoom{
-			NoteID:            client.NoteID,
-			Clients:           make(map[string]ClientInfo),
-			CRDTDocuments:     make(map[string]*CRDTDocument),
-			PendingOperations: make([]PendingOperation, 0),
+			NoteID:        client.NoteID,
+			Clients:       make(map[string]ClientInfo),
+			CRDTDocuments: make(map[string]*CRDTDocument),
 		}
 		h.rooms[client.NoteID] = room
 	}
@@ -133,21 +132,11 @@ func (h *Hub) handleBroadcast(msg BroadcastMessage) {
 }
 
 func (h *Hub) broadcastToRoom(noteID string, message WebSocketMessage, excludeUserID string) {
-	excludeUserID = "" // убрать после тестов
 	h.broadcast <- BroadcastMessage{
 		NoteID:  noteID,
 		Message: message,
 		Exclude: excludeUserID,
 	}
-}
-
-func (h *Hub) broadcastUpdatedCursors(room *NoteRoom) {
-	cursors := room.getAllCursors()
-
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgCursorMove,
-		Msg:  cursors,
-	}, "")
 }
 
 func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
@@ -181,6 +170,15 @@ func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 		}
 		return
 	}
+
+	currentClient := room.Clients[client.UserID]
+	currentClient.LastCursor = CursorPosition{
+		BlockID:  blocks[0].ID.String(),
+		Position: 0,
+		UserID:   client.UserID,
+		UserName: client.UserName,
+	}
+	room.Clients[client.UserID] = currentClient
 
 	room.mu.Lock()
 	for _, block := range blocks {
@@ -226,11 +224,13 @@ func (h *Hub) sendSyncState(client ClientInfo, room *NoteRoom) {
 func (h *Hub) loadTextToCRDT(crdt *CRDTDocument, userID string, text string, blockID string) {
 	for i, ch := range text {
 		op := InsertCharOperation{
+			ID:        fmt.Sprintf("%s:%d:%s", userID, int64(i), MsgInsertChar),
 			BlockID:   blockID,
 			Position:  i,
 			Char:      string(ch),
 			Lamport:   int64(i),
 			UniqueID:  fmt.Sprintf("%s:%d", blockID, i),
+			UserID:    userID,
 			Timestamp: time.Now().UnixNano(),
 		}
 		crdt.ApplyInsert(op, userID)
@@ -255,14 +255,40 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 	case MsgInsertChar:
 		var op InsertCharOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
-			op.Timestamp = time.Now().UnixNano()
-			h.handleInsertChar(room, userID, op, msg.IsLocal)
+			cursorPos := h.getUserCursorPosition(room, userID)
+
+			insertOp := InsertCharOperation{
+				ID:        fmt.Sprintf("%s:%d:%s", userID, time.Now().UnixNano(), MsgInsertChar),
+				BlockID:   op.BlockID,
+				Position:  cursorPos,
+				Char:      op.Char,
+				Lamport:   time.Now().UnixNano(),
+				UniqueID:  fmt.Sprintf("%s:%d:%s", userID, time.Now().UnixNano(), op.BlockID),
+				UserID:    userID,
+				Timestamp: time.Now().UnixNano(),
+			}
+
+			h.handleInsertChar(room, userID, insertOp, msg.IsLocal)
 		}
 	case MsgDeleteChar:
 		var op DeleteCharOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
-			op.Timestamp = time.Now().UnixNano()
-			h.handleDeleteChar(room, userID, op, msg.IsLocal)
+			cursorPos := h.getUserCursorPosition(room, userID)
+
+			deletePos := cursorPos - 1
+			if deletePos < 0 {
+				return
+			}
+
+			deleteOp := DeleteCharOperation{
+				ID:        fmt.Sprintf("%s:%d:%s", userID, time.Now().UnixNano(), MsgDeleteChar),
+				BlockID:   op.BlockID,
+				Position:  deletePos,
+				Lamport:   time.Now().UnixNano(),
+				UserID:    userID,
+				Timestamp: time.Now().UnixNano(),
+			}
+			h.handleDeleteChar(room, userID, deleteOp, msg.IsLocal)
 		}
 	case MsgApplyFormatting:
 		var op FormattingOperation
@@ -308,11 +334,37 @@ func (h *Hub) handleCursorMove(room *NoteRoom, userID string, cursor CursorPosit
 		return
 	}
 
+	cursor.UserID = client.UserID
+	cursor.UserName = client.UserName
+
 	client.LastCursor = cursor
 	room.Clients[userID] = client
 	room.mu.Unlock()
 
 	h.broadcastUpdatedCursors(room)
+}
+
+func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, operationType MessageType, operation interface{}, blockID string) {
+	room.mu.Lock()
+	defer room.mu.Unlock()
+
+	for userID, client := range room.Clients {
+		transformedPos := TransformCursorPosition(client.LastCursor.Position, operationType, operation, blockID, client.UserID)
+
+		if transformedPos != client.LastCursor.Position {
+			client.LastCursor.Position = transformedPos
+			room.Clients[userID] = client
+		}
+	}
+}
+
+func (h *Hub) broadcastUpdatedCursors(room *NoteRoom) {
+	cursors := room.getAllCursors()
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  cursors,
+	}, "")
 }
 
 func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOperation, isLocal bool) {
@@ -332,16 +384,11 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 	}
 	room.mu.Unlock()
 
-	operationID := fmt.Sprintf("%s:%d:%d", userID, op.Timestamp, op.Position)
-
 	if isLocal {
-		result, err := crdt.Insert(op.Position, op.Char, userID, op.Lamport, op.UniqueID)
+		_, err := crdt.Insert(op.Position, op.Char, userID, op.Lamport, op.UniqueID)
 		if err != nil {
 			return
 		}
-
-		result.BlockID = op.BlockID
-		result.Timestamp = op.Timestamp
 
 		blockID, _ := uuid.Parse(op.BlockID)
 		noteID, _ := uuid.Parse(room.NoteID)
@@ -353,50 +400,19 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, op InsertCharOpera
 			return
 		}
 
-		pendingOp := PendingOperation{
-			ID:        operationID,
-			UserID:    userID,
-			Type:      MsgInsertChar,
-			Operation: result,
-			Timestamp: op.Timestamp,
-		}
-
-		h.addPendingOperationAndUpdateCursors(room, pendingOp)
-
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type:     MsgInsertChar,
 			IsLocal:  false,
 			UserID:   userID,
 			UserName: client.UserName,
 			NoteID:   room.NoteID,
-			Msg:      result,
+			Msg:      &op,
 		}, userID)
 
+		h.updateCursorsAfterOperation(room, MsgInsertChar, &op, op.BlockID)
 		h.broadcastUpdatedCursors(room)
-
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			h.clearPendingOperations(room, operationID)
-		}()
 	} else {
 		crdt.ApplyInsert(op, userID)
-
-		pendingOp := PendingOperation{
-			ID:        operationID,
-			UserID:    userID,
-			Type:      MsgInsertChar,
-			Operation: op,
-			Timestamp: op.Timestamp,
-		}
-
-		h.addPendingOperationAndUpdateCursors(room, pendingOp)
-
-		h.broadcastUpdatedCursors(room)
-
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			h.clearPendingOperations(room, operationID)
-		}()
 	}
 }
 
@@ -417,16 +433,11 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 		return
 	}
 
-	operationID := fmt.Sprintf("%s:%d:%d", userID, op.Timestamp, op.Position)
-
 	if isLocal {
-		result, err := crdt.Delete(op.Position, userID, op.Lamport)
+		_, err := crdt.Delete(op.Position, userID, op.Lamport)
 		if err != nil {
 			return
 		}
-
-		result.BlockID = op.BlockID
-		result.Timestamp = op.Timestamp
 
 		blockID, _ := uuid.Parse(op.BlockID)
 		noteID, _ := uuid.Parse(room.NoteID)
@@ -438,50 +449,19 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, op DeleteCharOpera
 			return
 		}
 
-		pendingOp := PendingOperation{
-			ID:        operationID,
-			UserID:    userID,
-			Type:      MsgDeleteChar,
-			Operation: result,
-			Timestamp: op.Timestamp,
-		}
-
-		h.addPendingOperationAndUpdateCursors(room, pendingOp)
-
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type:     MsgDeleteChar,
 			IsLocal:  false,
 			UserID:   userID,
 			UserName: client.UserName,
 			NoteID:   room.NoteID,
-			Msg:      result,
+			Msg:      &op,
 		}, userID)
 
+		h.updateCursorsAfterOperation(room, MsgDeleteChar, &op, op.BlockID)
 		h.broadcastUpdatedCursors(room)
-
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			h.clearPendingOperations(room, operationID)
-		}()
 	} else {
 		crdt.ApplyDelete(op)
-
-		pendingOp := PendingOperation{
-			ID:        operationID,
-			UserID:    userID,
-			Type:      MsgDeleteChar,
-			Operation: op,
-			Timestamp: op.Timestamp,
-		}
-
-		h.addPendingOperationAndUpdateCursors(room, pendingOp)
-
-		h.broadcastUpdatedCursors(room)
-
-		go func() {
-			time.Sleep(100 * time.Millisecond)
-			h.clearPendingOperations(room, operationID)
-		}()
 	}
 }
 
@@ -778,61 +758,16 @@ func (r *NoteRoom) getAllCursors() []UserCursor {
 	return cursors
 }
 
-func (h *Hub) addPendingOperationAndUpdateCursors(room *NoteRoom, op PendingOperation) {
-	room.mu.Lock()
-	defer room.mu.Unlock()
+func (h *Hub) getUserCursorPosition(room *NoteRoom, userID string) int {
+	room.mu.RLock()
+	defer room.mu.RUnlock()
 
-	room.PendingOperations = append(room.PendingOperations, op)
-
-	h.updateCursorsPositions(room)
-}
-
-func (h *Hub) clearPendingOperations(room *NoteRoom, operationID string) {
-	room.mu.Lock()
-	defer room.mu.Unlock()
-
-	for i, op := range room.PendingOperations {
-		if op.ID == operationID {
-			room.PendingOperations = append(room.PendingOperations[:i], room.PendingOperations[i+1:]...)
-			break
-		}
+	client, exists := room.Clients[userID]
+	if !exists {
+		return 0
 	}
-}
 
-func (h *Hub) updateCursorsPositions(room *NoteRoom) {
-	allOps := room.PendingOperations
-
-	for userID, client := range room.Clients {
-		tempCursor := client.LastCursor
-
-		fmt.Println(tempCursor)
-
-		for _, op := range allOps {
-			switch op.Type {
-			case MsgInsertChar:
-				if insertOp, ok := op.Operation.(*InsertCharOperation); ok {
-					if insertOp.BlockID == tempCursor.BlockID {
-						if insertOp.Position < tempCursor.Position {
-							tempCursor.Position++
-						}
-					}
-				}
-			case MsgDeleteChar:
-				if deleteOp, ok := op.Operation.(*DeleteCharOperation); ok {
-					if deleteOp.BlockID == tempCursor.BlockID {
-						if deleteOp.Position < tempCursor.Position {
-							tempCursor.Position--
-						}
-					}
-				}
-			}
-		}
-
-		fmt.Println(tempCursor)
-
-		client.LastCursor = tempCursor
-		room.Clients[userID] = client
-	}
+	return client.LastCursor.Position
 }
 
 func mapToStruct(data any, target any) error {
