@@ -18,7 +18,7 @@ import (
 func setupTestUsecase(t *testing.T) (*profileUsecase, *mocks.MockProfileRepository, *gomock.Controller) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mocks.NewMockProfileRepository(ctrl)
-	usecase := NewProfileUsecase(mockRepo)
+	usecase, _ := NewProfileUsecase(mockRepo)
 	return usecase, mockRepo, ctrl
 }
 

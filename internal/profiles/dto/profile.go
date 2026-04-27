@@ -14,15 +14,15 @@ type Profile struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func ToProfileDTO(profile *models.Profile) Profile {
+func ToProfileDTO(profile models.Profile) Profile {
 	return Profile{
 		ID:       profile.ID,
 		Username: profile.Username,
 	}
 }
 
-func FromProfileDTO(profile Profile) *models.Profile {
-	return &models.Profile{
+func FromProfileDTO(profile Profile) models.Profile {
+	return models.Profile{
 		ID:       profile.ID,
 		Username: profile.Username,
 	}

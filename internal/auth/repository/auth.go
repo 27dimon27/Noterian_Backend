@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -42,11 +41,9 @@ func (r *userRepository) CreateUser(ctx context.Context, username, password stri
 		Username:     username,
 		Password:     hashPassword,
 		TokenVersion: 1,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
 	}
 
-	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion, user.CreatedAt, user.UpdatedAt)
+	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion)
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,7 @@ func (r *AttachmentRepository) UpdateAttachmentURL(ctx context.Context, attachme
 	var returnedExpiresAt time.Time
 	var returnedUpdatedAt time.Time
 
-	err := r.db.QueryRowContext(ctx, UPDATE_ATTACHMENT_URL, url, expiresAt, time.Now(), attachmentID).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_ATTACHMENT_URL, attachmentID, url, expiresAt).Scan(
 		&returnedURL,
 		&returnedExpiresAt,
 		&returnedUpdatedAt,
@@ -140,8 +140,6 @@ func (r *AttachmentRepository) UploadAttachment(
 		attachment.MinioKey,
 		attachment.AttachURL,
 		attachment.URLExpiresAt,
-		attachment.CreatedAt,
-		attachment.UpdatedAt,
 	).Scan(
 		&attachment.ID,
 		&attachment.BlockID,

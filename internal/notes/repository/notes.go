@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"sort"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -131,9 +130,7 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 		}
 	}
 
-	err := r.db.QueryRowContext(ctx, CREATE_NOTE,
-		note.UserID, note.Title, parentID, note.CreatedAt, note.UpdatedAt,
-	).Scan(
+	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID).Scan(
 		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
@@ -154,7 +151,7 @@ func (r *noteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note 
 
 	updatedNote := &models.Note{}
 
-	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.UpdatedAt).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID).Scan(
 		&updatedNote.ID,
 		&updatedNote.UserID,
 		&updatedNote.Title,
@@ -187,9 +184,7 @@ func (r *noteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error
 }
 
 func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
-	err := r.db.QueryRowContext(ctx, CREATE_BLOCK,
-		block.NoteID, block.BlockTypeID, block.Position, block.Content, block.CreatedAt, block.UpdatedAt,
-	).Scan(
+	err := r.db.QueryRowContext(ctx, CREATE_BLOCK, block.NoteID, block.BlockTypeID, block.Position, block.Content).Scan(
 		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
 		&block.CreatedAt, &block.UpdatedAt,
 	)
@@ -217,10 +212,10 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 	return &block, nil
 }
 
-func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string, updatedAt time.Time) (*models.Block, error) {
+func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string) (*models.Block, error) {
 	var block models.Block
 
-	err := r.db.QueryRowContext(ctx, UPDATE_BLOCK_CONTENT, blockID, content, updatedAt).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_BLOCK_CONTENT, blockID, content).Scan(
 		&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content,
 		&block.CreatedAt, &block.UpdatedAt,
 	)
@@ -234,7 +229,7 @@ func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UU
 	return &block, nil
 }
 
-func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int, updatedAt time.Time) (*models.Block, error) {
+func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int) (*models.Block, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -248,12 +243,12 @@ func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockI
 	}()
 
 	if oldPosition < newPosition {
-		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_DOWN, noteID, oldPosition, newPosition, updatedAt)
+		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_DOWN, noteID, oldPosition, newPosition)
 		if err != nil {
 			return nil, err
 		}
 	} else if oldPosition > newPosition {
-		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_UP, noteID, oldPosition, newPosition, updatedAt)
+		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_UP, noteID, oldPosition, newPosition)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +256,7 @@ func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockI
 
 	var updatedBlock models.Block
 
-	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition, updatedAt).Scan(
+	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition).Scan(
 		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content,
 		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
 	)
@@ -291,12 +286,12 @@ func (r *noteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*u
 	return &noteID, nil
 }
 
-func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int, updatedAt time.Time) error {
+func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error {
 	if direction > 0 {
-		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition, updatedAt)
+		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition)
 		return err
 	} else if direction < 0 {
-		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition, updatedAt)
+		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition)
 		return err
 	}
 	return nil
@@ -471,6 +466,33 @@ func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.
 	return r.GetBlockFormatting(ctx, blockID)
 }
 
+func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
+	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subnotes []models.Note
+
+	for rows.Next() {
+		var subnote models.Note
+
+		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.CreatedAt, &subnote.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		subnotes = append(subnotes, subnote)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subnotes, nil
+}
+
 func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx, blockID uuid.UUID) ([]models.FormattingRange, error) {
 	rows, err := tx.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
 	if err != nil {
@@ -479,6 +501,7 @@ func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx
 	defer rows.Close()
 
 	var ranges []models.FormattingRange
+
 	for rows.Next() {
 		var rng models.FormattingRange
 		var bold, italic, underline *bool

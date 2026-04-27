@@ -297,7 +297,7 @@ func TestUpdateBlockContent_Success(t *testing.T) {
 		WithArgs(blockID, newContent, updatedAt).
 		WillReturnRows(rows)
 
-	updatedBlock, err := repo.UpdateBlockContent(context.Background(), blockID, newContent, updatedAt)
+	updatedBlock, err := repo.UpdateBlockContent(context.Background(), blockID, newContent)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, updatedBlock)
@@ -327,7 +327,7 @@ func TestMoveBlock_Success(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, movedBlock)
@@ -512,7 +512,7 @@ func TestShiftBlockPositions_Up(t *testing.T) {
 		WithArgs(noteID, 2, updatedAt).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 
-	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 1, updatedAt)
+	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 1)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -529,7 +529,7 @@ func TestShiftBlockPositions_Down(t *testing.T) {
 		WithArgs(noteID, 2, updatedAt).
 		WillReturnResult(sqlmock.NewResult(0, 3))
 
-	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, -1, updatedAt)
+	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, -1)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -540,9 +540,8 @@ func TestShiftBlockPositions_ZeroDirection(t *testing.T) {
 	defer db.Close()
 
 	noteID := uuid.New()
-	updatedAt := time.Now()
 
-	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 0, updatedAt)
+	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 0)
 
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -867,7 +866,7 @@ func TestUpdateBlockContent_NotFound(t *testing.T) {
 		WithArgs(blockID, "content", updatedAt).
 		WillReturnError(sql.ErrNoRows)
 
-	updatedBlock, err := repo.UpdateBlockContent(context.Background(), blockID, "content", updatedAt)
+	updatedBlock, err := repo.UpdateBlockContent(context.Background(), blockID, "content")
 
 	assert.Error(t, err)
 	assert.Equal(t, notes.ErrBlockNotFound, err)
@@ -897,7 +896,7 @@ func TestMoveBlock_MoveUp(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 5, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 5, 2)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 2, movedBlock.Position)
@@ -910,11 +909,10 @@ func TestMoveBlock_BeginTxError(t *testing.T) {
 
 	noteID := uuid.New()
 	blockID := uuid.New()
-	updatedAt := time.Now()
 
 	mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2)
 
 	assert.Error(t, err)
 	assert.Nil(t, movedBlock)
@@ -935,7 +933,7 @@ func TestMoveBlock_UpdatePositionsError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 	mock.ExpectRollback()
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2)
 
 	assert.Error(t, err)
 	assert.Nil(t, movedBlock)
@@ -959,7 +957,7 @@ func TestMoveBlock_UpdateBlockError(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 	mock.ExpectRollback()
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2)
 
 	assert.Error(t, err)
 	assert.Nil(t, movedBlock)
@@ -987,7 +985,7 @@ func TestMoveBlock_CommitError(t *testing.T) {
 		WillReturnRows(rows)
 	mock.ExpectCommit().WillReturnError(sql.ErrConnDone)
 
-	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2, updatedAt)
+	movedBlock, err := repo.MoveBlock(context.Background(), noteID, blockID, 0, 2)
 
 	assert.Error(t, err)
 	assert.Nil(t, movedBlock)
@@ -1269,7 +1267,7 @@ func TestShiftBlockPositions_UpError(t *testing.T) {
 		WithArgs(noteID, 2, updatedAt).
 		WillReturnError(sql.ErrConnDone)
 
-	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 1, updatedAt)
+	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, 1)
 
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -1286,7 +1284,7 @@ func TestShiftBlockPositions_DownError(t *testing.T) {
 		WithArgs(noteID, 2, updatedAt).
 		WillReturnError(sql.ErrConnDone)
 
-	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, -1, updatedAt)
+	err := repo.ShiftBlockPositions(context.Background(), noteID, 2, -1)
 
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())

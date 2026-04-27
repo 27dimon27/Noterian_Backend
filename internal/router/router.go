@@ -44,7 +44,12 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
 	profileRepo := profilesRepo.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
-	profileUsecase := profilesUsecase.NewProfileUsecase(profileRepo)
+
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepo)
+	if err != nil {
+		return nil, err
+	}
+
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
@@ -86,6 +91,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("POST /notes", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateNote))))
 	r.Handle("PUT /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateNote))))
 	r.Handle("DELETE /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteNote))))
+
+	r.Handle("GET /notes/{noteId}/subnote", authMiddleware(http.HandlerFunc(noteHandler.GetSubnotes)))
+	r.Handle("POST /notes/{noteId}/subnote", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateSubnote))))
+	r.Handle("DELETE /notes/{noteId}/subnote/{subnoteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteSubnote))))
 
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}", authMiddleware(http.HandlerFunc(noteHandler.GetBlock)))
 	r.Handle("POST /notes/{noteId}/blocks", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateBlock))))
