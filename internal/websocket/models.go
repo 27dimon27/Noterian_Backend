@@ -38,7 +38,7 @@ type WebSocketMessage struct {
 	UserName  string      `json:"userName,omitempty"`
 	NoteID    string      `json:"noteId,omitempty"`
 	BlockID   string      `json:"blockId,omitempty"`
-	Msg       interface{} `json:"msg"`
+	Msg       any         `json:"msg"`
 	Timestamp int64       `json:"timestamp"`
 }
 

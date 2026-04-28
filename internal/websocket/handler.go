@@ -103,9 +103,16 @@ func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
 	for {
 		select {
 		case message, ok := <-client.Send:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Printf("Failed to set write deadline: %v", err)
+				return
+			}
 			if !ok {
-				conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err := conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					log.Printf("Failed to write close message: %v", err)
+				}
 				return
 			}
 
@@ -115,8 +122,13 @@ func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
 			}
 
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err := conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Printf("Failed to set write deadline: %v", err)
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("Failed to write ping message: %v", err)
 				return
 			}
 		}
@@ -130,9 +142,17 @@ func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 	}()
 
 	conn.SetReadLimit(4096)
-	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	err := conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err != nil {
+		log.Printf("Failed to set read deadline: %v", err)
+		return
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if err != nil {
+			log.Printf("Failed to set read deadline for pong: %v", err)
+			return err
+		}
 		client.LastPing = time.Now().Unix()
 		return nil
 	})

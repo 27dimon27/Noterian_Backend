@@ -202,17 +202,14 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		return
 	}
 
-	crdtStates := make(map[string][]CRDTChar)
-
 	for _, block := range blocks {
 		if block.BlockTypeID == 1 {
-			doc, exists := room.GetCRDTDocument(block.ID.String())
+			_, exists := room.GetCRDTDocument(block.ID.String())
 			if !exists {
-				doc = NewCRDTDocument(client.UserID)
+				doc := NewCRDTDocument(client.UserID)
 				doc.LoadText(block.Content, client.UserID)
 				room.SetCRDTDocument(block.ID.String(), doc)
 			}
-			crdtStates[block.ID.String()] = doc.GetCRDTState()
 		}
 	}
 
@@ -227,14 +224,10 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		Type:   MsgSyncState,
 		UserID: client.UserID,
 		NoteID: client.NoteID,
-		Msg: map[string]interface{}{
+		Msg: map[string]any{
 			"note":           note,
 			"blocks":         blocks,
-			"crdt_states":    crdtStates,
 			"cursors":        room.GetAllCursors(),
-			"owner_id":       note.UserID.String(),
-			"is_public":      note.IsPublic,
-			"note_title":     note.Title,
 			"sync_timestamp": time.Now().Unix(),
 		},
 	}
@@ -465,7 +458,10 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 			TextAlign: op.TextAlign,
 		}
 
-		h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
+		_, err := h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
+		if err != nil {
+			client.Send <- h.errorMessage(err.Error(), client)
+		}
 	}()
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
@@ -675,7 +671,7 @@ func (h *Hub) handleHeartbeat(room *NoteRoom, userID string) {
 	}
 }
 
-func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op interface{}, blockID string) {
+func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op any, blockID string) {
 	room.mu.RLock()
 	defer room.mu.RUnlock()
 

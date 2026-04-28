@@ -23,7 +23,6 @@ type BatchStorage struct {
 	mu          sync.RWMutex
 	batchTicker *time.Ticker
 	saveQueue   chan *BlockContentUpdate
-	stopCh      chan struct{}
 }
 
 func NewBatchStorage(hub *Hub) *BatchStorage {
