@@ -2,10 +2,8 @@ package websocket
 
 import (
 	"context"
-	"sync"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-
 	"github.com/google/uuid"
 )
 
@@ -16,6 +14,7 @@ const (
 	MsgUserLeft   MessageType = "user_left"
 	MsgError      MessageType = "error"
 	MsgSyncState  MessageType = "sync_state"
+	MsgHeartbeat  MessageType = "heartbeat"
 
 	MsgCursorMove       MessageType = "cursor_move"
 	MsgInsertChar       MessageType = "insert_char"
@@ -33,27 +32,28 @@ const (
 )
 
 type WebSocketMessage struct {
-	Type     MessageType `json:"type"`
-	IsLocal  bool        `json:"is_local"`
-	UserID   string      `json:"userId,omitempty"`
-	UserName string      `json:"userName,omitempty"`
-	NoteID   string      `json:"noteId,omitempty"`
-	Msg      any         `json:"msg"`
-}
-
-type InfoMessage struct {
-	Info any
-}
-
-type ErrMessage struct {
-	Error any
+	Type      MessageType `json:"type"`
+	IsLocal   bool        `json:"is_local,omitempty"`
+	UserID    string      `json:"userId,omitempty"`
+	UserName  string      `json:"userName,omitempty"`
+	NoteID    string      `json:"noteId,omitempty"`
+	BlockID   string      `json:"blockId,omitempty"`
+	Msg       interface{} `json:"msg"`
+	Timestamp int64       `json:"timestamp"`
 }
 
 type CursorPosition struct {
-	BlockID  string `json:"blockId"`
-	Position int    `json:"position"`
-	UserID   string `json:"userId"`
-	UserName string `json:"userName"`
+	BlockID   string `json:"blockId"`
+	Position  int    `json:"position"`
+	UserID    string `json:"userId"`
+	UserName  string `json:"userName"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+type UserCursor struct {
+	UserID   string         `json:"userId"`
+	UserName string         `json:"userName"`
+	Cursor   CursorPosition `json:"cursor"`
 }
 
 type InsertCharOperation struct {
@@ -63,6 +63,7 @@ type InsertCharOperation struct {
 	Char      string `json:"char"`
 	Lamport   int64  `json:"lamport"`
 	UniqueID  string `json:"uniqueId"`
+	PrevID    string `json:"prevId"`
 	UserID    string `json:"userId"`
 	Timestamp int64  `json:"timestamp"`
 }
@@ -71,12 +72,14 @@ type DeleteCharOperation struct {
 	ID        string `json:"id"`
 	BlockID   string `json:"blockId"`
 	Position  int    `json:"position"`
+	UniqueID  string `json:"uniqueId"`
 	Lamport   int64  `json:"lamport"`
 	UserID    string `json:"userId"`
 	Timestamp int64  `json:"timestamp"`
 }
 
 type FormattingOperation struct {
+	ID         string `json:"id"`
 	BlockID    string `json:"blockId"`
 	StartPos   int    `json:"startPos"`
 	EndPos     int    `json:"endPos"`
@@ -85,54 +88,34 @@ type FormattingOperation struct {
 	Underline  *bool  `json:"underline,omitempty"`
 	TextAlign  *int   `json:"textAlign,omitempty"`
 	SequenceID int64  `json:"sequenceId"`
+	Lamport    int64  `json:"lamport"`
+	UserID     string `json:"userId"`
 	Timestamp  int64  `json:"timestamp"`
 }
 
-type ClientInfo struct {
-	UserID     string
-	UserName   string
-	NoteID     string
-	LastCursor CursorPosition
-	Send       chan WebSocketMessage
+type CreateBlockOperation struct {
+	ID          string `json:"id"`
+	BlockID     string `json:"blockId"`
+	BlockTypeID int    `json:"blockTypeId"`
+	Position    int    `json:"position"`
+	Content     string `json:"content"`
+	UserID      string `json:"userId"`
+	Timestamp   int64  `json:"timestamp"`
 }
 
-type UserCursor struct {
-	UserID   string         `json:"userId"`
-	UserName string         `json:"userName"`
-	Cursor   CursorPosition `json:"cursor"`
+type DeleteBlockOperation struct {
+	ID        string `json:"id"`
+	BlockID   string `json:"blockId"`
+	UserID    string `json:"userId"`
+	Timestamp int64  `json:"timestamp"`
 }
 
-type CRDTDocument struct {
-	mu           sync.RWMutex
-	characters   []CRDTChar
-	lamportClock int64
-}
-
-type CRDTChar struct {
-	ID      string
-	Char    string
-	UserID  string
-	Lamport int64
-	Visible bool
-}
-
-type Hub struct {
-	mu             sync.RWMutex
-	rooms          map[string]*NoteRoom
-	register       chan ClientInfo
-	unregister     chan ClientInfo
-	broadcast      chan BroadcastMessage
-	noteUsecase    NoteUsecaseInterface
-	profileUsecase ProfileUsecaseInterface
-}
-
-type NoteRoom struct {
-	mu            sync.RWMutex
-	NoteID        string
-	Clients       map[string]ClientInfo
-	CRDTDocuments map[string]*CRDTDocument
-	SequenceID    int64
-	IsDeleted     bool
+type MoveBlockOperation struct {
+	ID          string `json:"id"`
+	BlockID     string `json:"blockId"`
+	NewPosition int    `json:"newPosition"`
+	UserID      string `json:"userId"`
+	Timestamp   int64  `json:"timestamp"`
 }
 
 type BroadcastMessage struct {

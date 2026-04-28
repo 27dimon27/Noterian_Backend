@@ -7,19 +7,24 @@ func TransformCursorPosition(cursorPos int, operationType MessageType, operation
 	case MsgInsertChar:
 		if insertOp, ok := operation.(*InsertCharOperation); ok {
 			if insertOp.BlockID == blockID {
-				if insertOp.UserID == userID || insertOp.Position < cursorPos {
+				if insertOp.Position <= cursorPos {
 					transformedPos++
 				}
 			}
 		}
+
 	case MsgDeleteChar:
 		if deleteOp, ok := operation.(*DeleteCharOperation); ok {
 			if deleteOp.BlockID == blockID {
-				if deleteOp.UserID == userID || deleteOp.Position < cursorPos {
+				if deleteOp.Position < cursorPos {
 					transformedPos--
 				}
 			}
 		}
+	}
+
+	if transformedPos < 0 {
+		return 0
 	}
 
 	return transformedPos

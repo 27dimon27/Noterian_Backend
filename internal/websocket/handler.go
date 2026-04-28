@@ -78,12 +78,13 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := ClientInfo{
+	client := &ClientInfo{
 		UserID:     userID.String(),
 		UserName:   profile.Username,
 		NoteID:     noteID.String(),
 		LastCursor: CursorPosition{},
 		Send:       make(chan WebSocketMessage, 256),
+		LastPing:   time.Now().Unix(),
 	}
 
 	h.hub.register <- client
@@ -92,24 +93,49 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	go h.readPump(client, conn)
 }
 
-func (h *WebSocketHandler) writePump(client ClientInfo, conn *websocket.Conn) {
+func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
+	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
+		ticker.Stop()
 		conn.Close()
 	}()
 
-	for message := range client.Send {
-		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		if err := conn.WriteJSON(message); err != nil {
-			return
+	for {
+		select {
+		case message, ok := <-client.Send:
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if !ok {
+				conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if err := conn.WriteJSON(message); err != nil {
+				log.Printf("Failed to write JSON: %v", err)
+				return
+			}
+
+		case <-ticker.C:
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
 		}
 	}
 }
 
-func (h *WebSocketHandler) readPump(client ClientInfo, conn *websocket.Conn) {
+func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 	defer func() {
 		h.hub.unregister <- client
 		conn.Close()
 	}()
+
+	conn.SetReadLimit(4096)
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		client.LastPing = time.Now().Unix()
+		return nil
+	})
 
 	for {
 		var msg WebSocketMessage
@@ -120,8 +146,12 @@ func (h *WebSocketHandler) readPump(client ClientInfo, conn *websocket.Conn) {
 			break
 		}
 
+		msg.Timestamp = time.Now().UnixNano()
+		msg.NoteID = client.NoteID
+
 		if msg.IsLocal {
 			msg.UserID = client.UserID
+			msg.UserName = client.UserName
 		}
 
 		h.hub.HandleOperation(client.NoteID, client.UserID, msg)

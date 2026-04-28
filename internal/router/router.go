@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 
@@ -58,7 +59,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
-	go wsHub.Run()
+	go wsHub.Run(context.Background())
 
 	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)
 
