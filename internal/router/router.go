@@ -8,8 +8,6 @@ import (
 	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
 	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 
 	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
 	attachmentsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
@@ -23,12 +21,14 @@ import (
 	profilesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/csrf"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/csrf"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/metrics"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/middleware"
-
-	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
@@ -87,6 +87,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 		httpSwagger.URL("doc.json"),
 	))
 
+	r.Handle("GET /metrics", metrics.MetricsHandler())
+
 	r.HandleFunc("GET /csrf-token", csrfHandler.GetToken)
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
@@ -125,5 +127,5 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 
 	r.Handle("GET /ws/notes/{noteId}", authMiddleware(http.HandlerFunc(wsHandler.ServeWS)))
 
-	return middleware.Logger(r), nil
+	return metrics.MetricsMiddleware(middleware.Logger(r)), nil
 }
