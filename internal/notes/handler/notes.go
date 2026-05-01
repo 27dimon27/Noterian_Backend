@@ -17,7 +17,7 @@ import (
 //go:generate mockgen -source=notes.go -destination=mocks/mock_handler_notes.go -package=mocks
 
 type NoteUsecase interface {
-	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
+	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
 	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
@@ -64,13 +64,13 @@ func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notes, err := h.noteUsecase.GetNotes(r.Context(), userID)
+	notes, subnotes, err := h.noteUsecase.GetNotes(r.Context(), userID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := dto.ToNotesResponse(notes)
+	response := dto.ToNotesResponse(notes, subnotes)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }

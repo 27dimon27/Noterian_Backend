@@ -206,12 +206,13 @@ func (mr *MockNoteUsecaseMockRecorder) GetNote(ctx, noteID, userID any) *gomock.
 }
 
 // GetNotes mocks base method.
-func (m *MockNoteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+func (m *MockNoteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotes", ctx, userID)
 	ret0, _ := ret[0].([]models.Note)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(map[string][]models.Note)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetNotes indicates an expected call of GetNotes.
