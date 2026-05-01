@@ -17,37 +17,22 @@ import (
 
 //go:generate mockgen -source=attachments.go -destination=mocks/mock_handler_attachments.go -package=mocks
 
-type AttachmentUsecase interface {
-	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
-	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
+type AttachmentClient interface {
+	GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, error)
+	UploadAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Attachment, error)
+	DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) error
 }
 
 type AttachmentHandler struct {
-	attachmentUsecase AttachmentUsecase
+	attachmentClient AttachmentClient
 }
 
-func NewAttachmentHandler(attachmentUsecase AttachmentUsecase) *AttachmentHandler {
+func NewAttachmentHandler(attachmentClient AttachmentClient) *AttachmentHandler {
 	return &AttachmentHandler{
-		attachmentUsecase: attachmentUsecase,
+		attachmentClient: attachmentClient,
 	}
 }
 
-// GetAttachment godoc
-// @Summary Получение вложения
-// @Tags attachments
-// @Accept json
-// @Produce json
-// @Param noteId path string true "ID заметки"
-// @Param blockId path string true "ID блока"
-// @Success 200 {object} dto.Attachment "Информация о вложении"
-// @Failure 400 {object} map[string]string "Невалидный NoteID или BlockID"
-// @Failure 401 {object} map[string]string "Невалидный UserID"
-// @Failure 403 {object} map[string]string "Доступ запрещен"
-// @Failure 404 {object} map[string]string "Заметка, блок или вложение не найдены"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Security ApiKeyAuth
-// @Router /notes/{noteId}/blocks/{blockId}/attachments [get]
 func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -79,12 +64,12 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	attachment, err := h.attachmentUsecase.GetAttachment(r.Context(), noteID, blockID, userID)
+	attachment, err := h.attachmentClient.GetAttachment(r.Context(), noteID, blockID, userID)
 	if err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -93,28 +78,9 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	}
 
 	response := dto.ToAttachmentDTO(*attachment)
-
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
-// UploadAttachment godoc
-// @Summary Загрузка вложения
-// @Tags attachments
-// @Accept mpfd
-// @Produce json
-// @Param noteId path string true "ID заметки"
-// @Param blockId path string true "ID блока"
-// @Param file formData file true "Файл для загрузки (JPEG, PNG, WEBP, макс. 100MB)"
-// @Success 201 {object} dto.Attachment "Информация о загруженном вложении"
-// @Failure 400 {object} map[string]string "Невалидный NoteID/BlockID или неподдерживаемый MIME-тип"
-// @Failure 401 {object} map[string]string "Невалидный UserID"
-// @Failure 403 {object} map[string]string "Доступ запрещен"
-// @Failure 404 {object} map[string]string "Заметка или блок не найдены"
-// @Failure 409 {object} map[string]string "Блок уже содержит вложение"
-// @Failure 413 {object} map[string]string "Файл слишком большой"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Security ApiKeyAuth
-// @Router /notes/{noteId}/blocks/{blockId}/attachments [post]
 func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -181,23 +147,23 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	attachment, err := h.attachmentUsecase.UploadAttachment(
+	attachment, err := h.attachmentClient.UploadAttachment(
 		r.Context(),
 		noteID,
 		blockID,
 		userID,
+		fileToUpload,
 		fileHeader.Filename,
 		fileHeader.Size,
 		mimeType,
-		fileToUpload,
 	)
 	if err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case attachments.ErrBlockAlreadyHasAttach:
+		case errors.Is(err, attachments.ErrBlockAlreadyHasAttach):
 			write.JSONErrorResponse(w, http.StatusConflict, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -205,31 +171,10 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if attachment == nil {
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
-		return
-	}
-
 	response := dto.ToAttachmentDTO(*attachment)
-
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
-// DeleteAttachment godoc
-// @Summary Удаление вложения
-// @Tags attachments
-// @Accept json
-// @Produce json
-// @Param noteId path string true "ID заметки"
-// @Param blockId path string true "ID блока"
-// @Success 204 "Вложение успешно удалено"
-// @Failure 400 {object} map[string]string "Невалидный NoteID или BlockID"
-// @Failure 401 {object} map[string]string "Невалидный UserID"
-// @Failure 403 {object} map[string]string "Доступ запрещен"
-// @Failure 404 {object} map[string]string "Заметка, блок или вложение не найдены"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Security ApiKeyAuth
-// @Router /notes/{noteId}/blocks/{blockId}/attachments [delete]
 func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
@@ -261,11 +206,11 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := h.attachmentUsecase.DeleteAttachment(r.Context(), noteID, blockID, userID); err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+	if err := h.attachmentClient.DeleteAttachment(r.Context(), noteID, blockID, userID); err != nil {
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)

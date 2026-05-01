@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package profiles;
+
+option go_package = "./internal/profiles/grpc/gen/;";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service ProfileService {
+    rpc GetProfile(GetProfileRequest) returns (Profile);
+    rpc UpdateProfile(UpdateProfileRequest) returns (Profile);
+    rpc DeleteProfile(DeleteProfileRequest) returns (google.protobuf.Empty);
+    rpc GetAvatar(GetAvatarRequest) returns (Avatar);
+    rpc UploadAvatar(stream UploadAvatarRequest) returns (Avatar);
+    rpc DeleteAvatar(DeleteAvatarRequest) returns (google.protobuf.Empty);
+    rpc ChangePassword(ChangePasswordRequest) returns (Profile);
+}
+
+message GetProfileRequest {
+    // UserID из metadata
+}
+
+message UpdateProfileRequest {
+    string username = 1;
+    // UserID из metadata
+}
+
+message DeleteProfileRequest {
+    // UserID из metadata
+}
+
+message Profile {
+    string id = 1;
+    string username = 2;
+    google.protobuf.Timestamp created_at = 3;
+    google.protobuf.Timestamp updated_at = 4;
+}
+
+message GetAvatarRequest {
+    // UserID из metadata
+}
+
+message Avatar {
+    string id = 1;
+    string profile_id = 2;
+    string minio_key = 3;
+    string avatar_url = 4;
+    google.protobuf.Timestamp url_expires_at = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+// Client-side streaming для загрузки файла аватара
+message UploadAvatarRequest {
+    oneof data {
+        FileMetadata metadata = 1;
+        bytes chunk = 2;
+    }
+}
+
+message FileMetadata {
+    string file_name = 1;
+    int64 file_size = 2;
+    string mime_type = 3;
+}
+
+message DeleteAvatarRequest {
+    // UserID из metadata
+}
+
+message ChangePasswordRequest {
+    string old_password = 1;
+    string new_password = 2;
+    // UserID из metadata
+}

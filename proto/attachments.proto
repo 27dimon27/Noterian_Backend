@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package attachments;
+
+option go_package = "./internal/attachments/grpc/gen/;";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service AttachmentService {
+    rpc GetAttachment(GetAttachmentRequest) returns (Attachment);
+    rpc UploadAttachment(stream UploadAttachmentRequest) returns (Attachment);
+    rpc DeleteAttachment(DeleteAttachmentRequest) returns (google.protobuf.Empty);
+}
+
+message GetAttachmentRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}
+
+message Attachment {
+    string id = 1;
+    string block_id = 2;
+    string minio_key = 3;
+    string attach_url = 4;
+    google.protobuf.Timestamp url_expires_at = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+// Client-side streaming для загрузки файла вложения
+message UploadAttachmentRequest {
+    oneof data {
+        FileMetadata metadata = 1;
+        bytes chunk = 2;
+    }
+}
+
+message FileMetadata {
+    string note_id = 1;
+    string block_id = 2;
+    string file_name = 3;
+    int64 file_size = 4;
+    string mime_type = 5;
+}
+
+message DeleteAttachmentRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}

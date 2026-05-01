@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "./internal/auth/grpc/gen/;";
+
+service AuthService {
+    rpc SignupUser(SignupRequest) returns (UserResponse);
+    rpc SigninUser(SigninRequest) returns (UserResponse);
+    rpc LogoutUser(LogoutRequest) returns (LogoutResponse);
+}
+
+message SignupRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message SigninRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LogoutRequest {
+    // UserID будет в metadata
+}
+
+message LogoutResponse {}
+
+message UserResponse {
+    string id = 1;
+    string username = 2;
+}
