@@ -8,42 +8,38 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	attachmentsGrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// AttachmentGrpcServer реализует gRPC сервер для вложений
 type AttachmentGrpcServer struct {
 	attachmentsGrpc.UnimplementedAttachmentServiceServer
 	attachmentUsecase AttachmentUsecase
 }
 
-// AttachmentUsecase интерфейс бизнес-логики
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
 	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
 }
 
-// NewAttachmentGrpcServer создает новый gRPC сервер
 func NewAttachmentGrpcServer(attachmentUsecase AttachmentUsecase) *AttachmentGrpcServer {
 	return &AttachmentGrpcServer{
 		attachmentUsecase: attachmentUsecase,
 	}
 }
 
-// getUserIDFromContext извлекает userID из контекста gRPC
 func getUserIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	userID, ok := ctx.Value("user_id").(uuid.UUID)
+	userID, ok := ctx.Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		return uuid.Nil, status.Error(codes.Unauthenticated, attachments.ErrInvalidUserID.Error())
 	}
 	return userID, nil
 }
 
-// GetAttachment получение вложения
 func (s *AttachmentGrpcServer) GetAttachment(ctx context.Context, req *attachmentsGrpc.GetAttachmentRequest) (*attachmentsGrpc.Attachment, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -75,7 +71,6 @@ func (s *AttachmentGrpcServer) GetAttachment(ctx context.Context, req *attachmen
 	return ToProtoAttachment(attachment), nil
 }
 
-// UploadAttachment загрузка вложения (streaming)
 func (s *AttachmentGrpcServer) UploadAttachment(stream attachmentsGrpc.AttachmentService_UploadAttachmentServer) error {
 	ctx := stream.Context()
 
@@ -140,7 +135,6 @@ func (s *AttachmentGrpcServer) UploadAttachment(stream attachmentsGrpc.Attachmen
 	return stream.SendAndClose(ToProtoAttachment(attachment))
 }
 
-// DeleteAttachment удаление вложения
 func (s *AttachmentGrpcServer) DeleteAttachment(ctx context.Context, req *attachmentsGrpc.DeleteAttachmentRequest) (*emptypb.Empty, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {

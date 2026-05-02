@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	profilesGrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,13 +15,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ProfileGrpcClient клиент для gRPC сервера профилей
 type ProfileGrpcClient struct {
 	client profilesGrpc.ProfileServiceClient
 	conn   *grpc.ClientConn
 }
 
-// NewProfileGrpcClient создает новый gRPC клиент
 func NewProfileGrpcClient(addr string, opts ...grpc.DialOption) (*ProfileGrpcClient, error) {
 	if opts == nil {
 		opts = []grpc.DialOption{grpc.WithInsecure()}
@@ -37,20 +36,21 @@ func NewProfileGrpcClient(addr string, opts ...grpc.DialOption) (*ProfileGrpcCli
 	}, nil
 }
 
-// Close закрывает соединение
-func (c *ProfileGrpcClient) Close() error {
-	return c.conn.Close()
-}
+// func (c *ProfileGrpcClient) Close() error {
+// 	return c.conn.Close()
+// }
 
-// addUserIDToContext добавляет userID в метаданные gRPC
 func (c *ProfileGrpcClient) addUserIDToContext(ctx context.Context, userID uuid.UUID) context.Context {
 	md := metadata.Pairs("user-id", userID.String())
+	if token, ok := ctx.Value(types.JWTTokenKey).(string); ok && token != "" {
+		md = metadata.Join(md, metadata.Pairs("authorization", "Bearer "+token, "token", token))
+	}
+	if existing, ok := metadata.FromOutgoingContext(ctx); ok {
+		md = metadata.Join(existing, md)
+	}
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// ========== PROFILE METHODS ==========
-
-// GetProfile получение профиля
 func (c *ProfileGrpcClient) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -62,7 +62,6 @@ func (c *ProfileGrpcClient) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	return FromProtoProfile(resp), nil
 }
 
-// UpdateProfile обновление профиля
 func (c *ProfileGrpcClient) UpdateProfile(ctx context.Context, userID uuid.UUID, username string) (*models.Profile, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -76,7 +75,6 @@ func (c *ProfileGrpcClient) UpdateProfile(ctx context.Context, userID uuid.UUID,
 	return FromProtoProfile(resp), nil
 }
 
-// DeleteProfile удаление профиля
 func (c *ProfileGrpcClient) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -84,7 +82,6 @@ func (c *ProfileGrpcClient) DeleteProfile(ctx context.Context, userID uuid.UUID)
 	return c.handleError(err)
 }
 
-// ChangePassword смена пароля
 func (c *ProfileGrpcClient) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -99,9 +96,6 @@ func (c *ProfileGrpcClient) ChangePassword(ctx context.Context, userID uuid.UUID
 	return FromProtoProfile(resp), nil
 }
 
-// ========== AVATAR METHODS ==========
-
-// GetAvatar получение аватара
 func (c *ProfileGrpcClient) GetAvatar(ctx context.Context, userID uuid.UUID) (*models.Avatar, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -113,7 +107,6 @@ func (c *ProfileGrpcClient) GetAvatar(ctx context.Context, userID uuid.UUID) (*m
 	return FromProtoAvatar(resp), nil
 }
 
-// UploadAvatar загрузка аватара (streaming)
 func (c *ProfileGrpcClient) UploadAvatar(ctx context.Context, userID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Avatar, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -122,7 +115,6 @@ func (c *ProfileGrpcClient) UploadAvatar(ctx context.Context, userID uuid.UUID, 
 		return nil, err
 	}
 
-	// Отправляем метаданные
 	err = stream.Send(&profilesGrpc.UploadAvatarRequest{
 		Data: &profilesGrpc.UploadAvatarRequest_Metadata{
 			Metadata: &profilesGrpc.FileMetadata{
@@ -136,7 +128,6 @@ func (c *ProfileGrpcClient) UploadAvatar(ctx context.Context, userID uuid.UUID, 
 		return nil, err
 	}
 
-	// Отправляем файл чанками по 64KB
 	buf := make([]byte, 64*1024)
 	for {
 		n, err := fileReader.Read(buf)
@@ -165,7 +156,6 @@ func (c *ProfileGrpcClient) UploadAvatar(ctx context.Context, userID uuid.UUID, 
 	return FromProtoAvatar(resp), nil
 }
 
-// DeleteAvatar удаление аватара
 func (c *ProfileGrpcClient) DeleteAvatar(ctx context.Context, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -173,7 +163,6 @@ func (c *ProfileGrpcClient) DeleteAvatar(ctx context.Context, userID uuid.UUID) 
 	return c.handleError(err)
 }
 
-// handleError обрабатывает gRPC ошибки
 func (c *ProfileGrpcClient) handleError(err error) error {
 	if err == nil {
 		return nil

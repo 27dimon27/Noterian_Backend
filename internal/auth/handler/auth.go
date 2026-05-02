@@ -20,7 +20,6 @@ import (
 type AuthClient interface {
 	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
 	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
-	// LogoutUser(ctx context.Context, userID uuid.UUID) error
 }
 
 type AuthHandler struct {
@@ -100,10 +99,6 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
-	// userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	// if ok {
-	// 	_ = h.authClient.LogoutUser(r.Context(), userID)
-	// }
 	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
 	w.WriteHeader(http.StatusNoContent)
 }

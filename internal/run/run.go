@@ -46,7 +46,7 @@ func Run() error {
 	log.Info("Connected to MinIO successfully")
 
 	addr := ":" + cfg.Server.Port
-	srvRouter, err := router.New(cfg, database, minioService)
+	srvRouter, err := router.New(cfg)
 	if err != nil {
 		log.Error("Failed to init router", "error", err)
 		return err

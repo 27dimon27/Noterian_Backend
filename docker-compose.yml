@@ -143,19 +143,26 @@ services:
     env_file: ".env"
     environment:
       SERVER_PORT: 8000
-      DB_HOST: postgres
       JWT_SECRET: ${JWT_SECRET}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      AUTH_SERVICE_HOST: auth
+      AUTH_SERVICE_PORT: 50051
+      NOTES_SERVICE_HOST: notes
+      NOTES_SERVICE_PORT: 50052
+      PROFILES_SERVICE_HOST: profiles
+      PROFILES_SERVICE_PORT: 50053
+      ATTACHMENTS_SERVICE_HOST: attachments
+      ATTACHMENTS_SERVICE_PORT: 50054
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      auth:
+        condition: service_started
+      notes:
+        condition: service_started
+      profiles:
+        condition: service_started
+      attachments:
+        condition: service_started
     networks:
       - noterian_network
 

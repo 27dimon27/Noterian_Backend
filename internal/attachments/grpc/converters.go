@@ -7,9 +7,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ========== ATTACHMENT CONVERTERS ==========
-
-// ToProtoAttachment конвертирует models.Attachment в protobuf Attachment
 func ToProtoAttachment(attachment *models.Attachment) *attachmentsGrpc.Attachment {
 	if attachment == nil {
 		return nil
@@ -26,7 +23,6 @@ func ToProtoAttachment(attachment *models.Attachment) *attachmentsGrpc.Attachmen
 	}
 }
 
-// FromProtoAttachment конвертирует protobuf Attachment в models.Attachment
 func FromProtoAttachment(proto *attachmentsGrpc.Attachment) *models.Attachment {
 	if proto == nil {
 		return nil
@@ -43,9 +39,6 @@ func FromProtoAttachment(proto *attachmentsGrpc.Attachment) *models.Attachment {
 	}
 }
 
-// ========== FILE METADATA CONVERTERS ==========
-
-// AttachmentFileMetadata структура для метаданных файла вложения
 type AttachmentFileMetadata struct {
 	NoteID   uuid.UUID
 	BlockID  uuid.UUID
@@ -54,7 +47,6 @@ type AttachmentFileMetadata struct {
 	MimeType string
 }
 
-// ToProtoAttachmentFileMetadata конвертирует AttachmentFileMetadata в protobuf FileMetadata
 func ToProtoAttachmentFileMetadata(metadata *AttachmentFileMetadata) *attachmentsGrpc.FileMetadata {
 	if metadata == nil {
 		return nil
@@ -69,7 +61,6 @@ func ToProtoAttachmentFileMetadata(metadata *AttachmentFileMetadata) *attachment
 	}
 }
 
-// FromProtoAttachmentFileMetadata конвертирует protobuf FileMetadata в AttachmentFileMetadata
 func FromProtoAttachmentFileMetadata(proto *attachmentsGrpc.FileMetadata) *AttachmentFileMetadata {
 	if proto == nil {
 		return nil

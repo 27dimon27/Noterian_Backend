@@ -9,19 +9,18 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	profilesGrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// ProfileGrpcServer реализует gRPC сервер для профилей
 type ProfileGrpcServer struct {
 	profilesGrpc.UnimplementedProfileServiceServer
 	profileUsecase ProfileUsecase
 }
 
-// ProfileUsecase интерфейс бизнес-логики
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, username string) (*models.Profile, error)
@@ -32,25 +31,20 @@ type ProfileUsecase interface {
 	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error)
 }
 
-// NewProfileGrpcServer создает новый gRPC сервер
 func NewProfileGrpcServer(profileUsecase ProfileUsecase) *ProfileGrpcServer {
 	return &ProfileGrpcServer{
 		profileUsecase: profileUsecase,
 	}
 }
 
-// getUserIDFromContext извлекает userID из контекста gRPC
 func getUserIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	userID, ok := ctx.Value("user_id").(uuid.UUID)
+	userID, ok := ctx.Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		return uuid.Nil, status.Error(codes.Unauthenticated, profiles.ErrInvalidUserID.Error())
 	}
 	return userID, nil
 }
 
-// ========== PROFILE METHODS ==========
-
-// GetProfile получение профиля
 func (s *ProfileGrpcServer) GetProfile(ctx context.Context, req *profilesGrpc.GetProfileRequest) (*profilesGrpc.Profile, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -65,7 +59,6 @@ func (s *ProfileGrpcServer) GetProfile(ctx context.Context, req *profilesGrpc.Ge
 	return ToProtoProfile(profile), nil
 }
 
-// UpdateProfile обновление профиля
 func (s *ProfileGrpcServer) UpdateProfile(ctx context.Context, req *profilesGrpc.UpdateProfileRequest) (*profilesGrpc.Profile, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -83,7 +76,6 @@ func (s *ProfileGrpcServer) UpdateProfile(ctx context.Context, req *profilesGrpc
 	return ToProtoProfile(updatedProfile), nil
 }
 
-// DeleteProfile удаление профиля
 func (s *ProfileGrpcServer) DeleteProfile(ctx context.Context, req *profilesGrpc.DeleteProfileRequest) (*emptypb.Empty, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -98,7 +90,6 @@ func (s *ProfileGrpcServer) DeleteProfile(ctx context.Context, req *profilesGrpc
 	return &emptypb.Empty{}, nil
 }
 
-// ChangePassword смена пароля
 func (s *ProfileGrpcServer) ChangePassword(ctx context.Context, req *profilesGrpc.ChangePasswordRequest) (*profilesGrpc.Profile, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -116,9 +107,6 @@ func (s *ProfileGrpcServer) ChangePassword(ctx context.Context, req *profilesGrp
 	return ToProtoProfile(updatedProfile), nil
 }
 
-// ========== AVATAR METHODS ==========
-
-// GetAvatar получение аватара
 func (s *ProfileGrpcServer) GetAvatar(ctx context.Context, req *profilesGrpc.GetAvatarRequest) (*profilesGrpc.Avatar, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {
@@ -136,7 +124,6 @@ func (s *ProfileGrpcServer) GetAvatar(ctx context.Context, req *profilesGrpc.Get
 	return ToProtoAvatar(avatar), nil
 }
 
-// UploadAvatar загрузка аватара (streaming)
 func (s *ProfileGrpcServer) UploadAvatar(stream profilesGrpc.ProfileService_UploadAvatarServer) error {
 	ctx := stream.Context()
 
@@ -192,7 +179,6 @@ func (s *ProfileGrpcServer) UploadAvatar(stream profilesGrpc.ProfileService_Uplo
 	return stream.SendAndClose(ToProtoAvatar(avatar))
 }
 
-// DeleteAvatar удаление аватара
 func (s *ProfileGrpcServer) DeleteAvatar(ctx context.Context, req *profilesGrpc.DeleteAvatarRequest) (*emptypb.Empty, error) {
 	userID, err := getUserIDFromContext(ctx)
 	if err != nil {

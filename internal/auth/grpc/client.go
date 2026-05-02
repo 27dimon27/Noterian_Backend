@@ -13,13 +13,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthGrpcClient клиент для gRPC сервера auth
 type AuthGrpcClient struct {
 	client authGrpc.AuthServiceClient
 	conn   *grpc.ClientConn
 }
 
-// NewAuthGrpcClient создает новый gRPC клиент
 func NewAuthGrpcClient(addr string, opts ...grpc.DialOption) (*AuthGrpcClient, error) {
 	if opts == nil {
 		opts = []grpc.DialOption{grpc.WithInsecure()}
@@ -36,19 +34,15 @@ func NewAuthGrpcClient(addr string, opts ...grpc.DialOption) (*AuthGrpcClient, e
 	}, nil
 }
 
-// Close закрывает соединение
-func (c *AuthGrpcClient) Close() error {
-	return c.conn.Close()
-}
+// func (c *AuthGrpcClient) Close() error {
+// 	return c.conn.Close()
+// }
 
-// AddUserIDToContext добавляет userID в метаданные gRPC
-// (для методов, где нужна авторизация)
 func (c *AuthGrpcClient) addUserIDToContext(ctx context.Context, userID uuid.UUID) context.Context {
 	md := metadata.Pairs("user-id", userID.String())
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// SignupUser регистрация пользователя
 func (c *AuthGrpcClient) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	req := &authGrpc.SignupRequest{
 		Username: username,
@@ -57,7 +51,6 @@ func (c *AuthGrpcClient) SignupUser(ctx context.Context, username, password stri
 
 	resp, err := c.client.SignupUser(ctx, req)
 	if err != nil {
-		// Конвертация gRPC ошибок в бизнес-ошибки
 		st, ok := status.FromError(err)
 		if ok {
 			switch st.Code() {
@@ -81,7 +74,6 @@ func (c *AuthGrpcClient) SignupUser(ctx context.Context, username, password stri
 	return FromProtoUserResponse(resp), nil
 }
 
-// SigninUser вход пользователя
 func (c *AuthGrpcClient) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	req := &authGrpc.SigninRequest{
 		Username: username,
@@ -90,7 +82,6 @@ func (c *AuthGrpcClient) SigninUser(ctx context.Context, username, password stri
 
 	resp, err := c.client.SigninUser(ctx, req)
 	if err != nil {
-		// Конвертация gRPC ошибок в бизнес-ошибки
 		st, ok := status.FromError(err)
 		if ok {
 			switch st.Code() {
@@ -108,7 +99,6 @@ func (c *AuthGrpcClient) SigninUser(ctx context.Context, username, password stri
 	return FromProtoUserResponse(resp), nil
 }
 
-// LogoutUser выход пользователя
 func (c *AuthGrpcClient) LogoutUser(ctx context.Context, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 

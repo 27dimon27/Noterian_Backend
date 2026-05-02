@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	notesGrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,13 +15,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// NoteGrpcClient клиент для gRPC сервера заметок
 type NoteGrpcClient struct {
 	client notesGrpc.NoteServiceClient
 	conn   *grpc.ClientConn
 }
 
-// NewNoteGrpcClient создает новый gRPC клиент
 func NewNoteGrpcClient(addr string, opts ...grpc.DialOption) (*NoteGrpcClient, error) {
 	if opts == nil {
 		opts = []grpc.DialOption{grpc.WithInsecure()}
@@ -37,20 +36,21 @@ func NewNoteGrpcClient(addr string, opts ...grpc.DialOption) (*NoteGrpcClient, e
 	}, nil
 }
 
-// Close закрывает соединение
-func (c *NoteGrpcClient) Close() error {
-	return c.conn.Close()
-}
+// func (c *NoteGrpcClient) Close() error {
+// 	return c.conn.Close()
+// }
 
-// addUserIDToContext добавляет userID в метаданные gRPC
 func (c *NoteGrpcClient) addUserIDToContext(ctx context.Context, userID uuid.UUID) context.Context {
 	md := metadata.Pairs("user-id", userID.String())
+	if token, ok := ctx.Value(types.JWTTokenKey).(string); ok && token != "" {
+		md = metadata.Join(md, metadata.Pairs("authorization", "Bearer "+token, "token", token))
+	}
+	if existing, ok := metadata.FromOutgoingContext(ctx); ok {
+		md = metadata.Join(existing, md)
+	}
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// ========== NOTE METHODS ==========
-
-// GetNotes получение всех заметок пользователя
 func (c *NoteGrpcClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -62,7 +62,6 @@ func (c *NoteGrpcClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 	return FromProtoNotes(resp.GetNotes()), nil
 }
 
-// GetNote получение заметки по ID
 func (c *NoteGrpcClient) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -76,7 +75,6 @@ func (c *NoteGrpcClient) GetNote(ctx context.Context, noteID, userID uuid.UUID) 
 	return FromProtoNote(resp.GetNote()), nil
 }
 
-// CreateNote создание заметки
 func (c *NoteGrpcClient) CreateNote(ctx context.Context, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -97,7 +95,6 @@ func (c *NoteGrpcClient) CreateNote(ctx context.Context, userID uuid.UUID, title
 	return FromProtoNote(resp), nil
 }
 
-// UpdateNote обновление заметки
 func (c *NoteGrpcClient) UpdateNote(ctx context.Context, noteID, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -119,7 +116,6 @@ func (c *NoteGrpcClient) UpdateNote(ctx context.Context, noteID, userID uuid.UUI
 	return FromProtoNote(resp), nil
 }
 
-// DeleteNote удаление заметки
 func (c *NoteGrpcClient) DeleteNote(ctx context.Context, noteID, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -129,9 +125,6 @@ func (c *NoteGrpcClient) DeleteNote(ctx context.Context, noteID, userID uuid.UUI
 	return c.handleError(err)
 }
 
-// ========== BLOCK METHODS ==========
-
-// CreateBlock создание блока
 func (c *NoteGrpcClient) CreateBlock(ctx context.Context, noteID, userID uuid.UUID, blockTypeID, position int, content string) (*models.Block, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -148,7 +141,6 @@ func (c *NoteGrpcClient) CreateBlock(ctx context.Context, noteID, userID uuid.UU
 	return FromProtoBlock(resp), nil
 }
 
-// GetBlock получение блока
 func (c *NoteGrpcClient) GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.Block, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -163,7 +155,6 @@ func (c *NoteGrpcClient) GetBlock(ctx context.Context, blockID, noteID, userID u
 	return FromProtoBlock(resp), nil
 }
 
-// UpdateBlockContent обновление контента блока
 func (c *NoteGrpcClient) UpdateBlockContent(ctx context.Context, blockID, noteID, userID uuid.UUID, content string) (*models.Block, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -179,7 +170,6 @@ func (c *NoteGrpcClient) UpdateBlockContent(ctx context.Context, blockID, noteID
 	return FromProtoBlock(resp), nil
 }
 
-// MoveBlock перемещение блока
 func (c *NoteGrpcClient) MoveBlock(ctx context.Context, blockID, noteID, userID uuid.UUID, newPosition int) (*models.Block, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -195,7 +185,6 @@ func (c *NoteGrpcClient) MoveBlock(ctx context.Context, blockID, noteID, userID 
 	return FromProtoBlock(resp), nil
 }
 
-// DeleteBlock удаление блока
 func (c *NoteGrpcClient) DeleteBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -206,9 +195,6 @@ func (c *NoteGrpcClient) DeleteBlock(ctx context.Context, blockID, noteID, userI
 	return c.handleError(err)
 }
 
-// ========== FORMATTING METHODS ==========
-
-// UpdateBlockFormatting обновление форматирования блока
 func (c *NoteGrpcClient) UpdateBlockFormatting(ctx context.Context, blockID, noteID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -224,7 +210,6 @@ func (c *NoteGrpcClient) UpdateBlockFormatting(ctx context.Context, blockID, not
 	return FromProtoBlockFormatting(resp), nil
 }
 
-// ResetBlockFormatting сброс форматирования блока
 func (c *NoteGrpcClient) ResetBlockFormatting(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.BlockFormatting, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -239,7 +224,6 @@ func (c *NoteGrpcClient) ResetBlockFormatting(ctx context.Context, blockID, note
 	return FromProtoBlockFormatting(resp), nil
 }
 
-// GetBlockFormatting получение форматирования блока
 func (c *NoteGrpcClient) GetBlockFormatting(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.BlockFormatting, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -254,7 +238,25 @@ func (c *NoteGrpcClient) GetBlockFormatting(ctx context.Context, blockID, noteID
 	return FromProtoBlockFormatting(resp), nil
 }
 
-// GetBlocksWithFormatting получение всех блоков с форматированием
+func (c *NoteGrpcClient) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
+	resp, err := c.client.GetBlocksWithFormatting(ctx, &notesGrpc.GetBlocksWithFormattingRequest{
+		NoteId: noteID.String(),
+	})
+	if err != nil {
+		return nil, c.handleError(err)
+	}
+
+	blocks := make([]models.Block, 0, len(resp.GetBlocks()))
+	for _, protoBlockWF := range resp.GetBlocks() {
+		block, _ := FromProtoBlockWithFormatting(protoBlockWF)
+		if block != nil {
+			blocks = append(blocks, *block)
+		}
+	}
+
+	return blocks, nil
+}
+
 func (c *NoteGrpcClient) GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error) {
 	resp, err := c.client.GetBlocksWithFormatting(ctx, &notesGrpc.GetBlocksWithFormattingRequest{
 		NoteId: noteID.String(),
@@ -279,9 +281,6 @@ func (c *NoteGrpcClient) GetBlocksWithFormatting(ctx context.Context, noteID uui
 	return blocks, blockFormattings, nil
 }
 
-// ========== SUBNOTE METHODS ==========
-
-// GetSubnotes получение подзаметок
 func (c *NoteGrpcClient) GetSubnotes(ctx context.Context, noteID, userID uuid.UUID) ([]models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -295,7 +294,6 @@ func (c *NoteGrpcClient) GetSubnotes(ctx context.Context, noteID, userID uuid.UU
 	return FromProtoNotes(resp.GetSubnotes()), nil
 }
 
-// CreateSubnote создание подзаметки
 func (c *NoteGrpcClient) CreateSubnote(ctx context.Context, parentNoteID, userID uuid.UUID, title string) (*models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -310,7 +308,6 @@ func (c *NoteGrpcClient) CreateSubnote(ctx context.Context, parentNoteID, userID
 	return FromProtoNote(resp), nil
 }
 
-// DeleteSubnote удаление подзаметки
 func (c *NoteGrpcClient) DeleteSubnote(ctx context.Context, noteID, subnoteID, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -321,7 +318,6 @@ func (c *NoteGrpcClient) DeleteSubnote(ctx context.Context, noteID, subnoteID, u
 	return c.handleError(err)
 }
 
-// handleError обрабатывает gRPC ошибки
 func (c *NoteGrpcClient) handleError(err error) error {
 	if err == nil {
 		return nil

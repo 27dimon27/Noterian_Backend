@@ -33,6 +33,7 @@ func Auth(next http.Handler, jwtConfig config.JWTConfig) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), types.UserIDKey, userUUID)
+	ctx = context.WithValue(ctx, types.JWTTokenKey, cookieJWT.Value)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

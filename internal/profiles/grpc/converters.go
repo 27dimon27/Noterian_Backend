@@ -7,9 +7,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ========== PROFILE CONVERTERS ==========
-
-// ToProtoProfile конвертирует models.Profile в protobuf Profile
 func ToProtoProfile(profile *models.Profile) *profilesGrpc.Profile {
 	if profile == nil {
 		return nil
@@ -23,7 +20,6 @@ func ToProtoProfile(profile *models.Profile) *profilesGrpc.Profile {
 	}
 }
 
-// FromProtoProfile конвертирует protobuf Profile в models.Profile
 func FromProtoProfile(proto *profilesGrpc.Profile) *models.Profile {
 	if proto == nil {
 		return nil
@@ -37,9 +33,6 @@ func FromProtoProfile(proto *profilesGrpc.Profile) *models.Profile {
 	}
 }
 
-// ========== AVATAR CONVERTERS ==========
-
-// ToProtoAvatar конвертирует models.Avatar в protobuf Avatar
 func ToProtoAvatar(avatar *models.Avatar) *profilesGrpc.Avatar {
 	if avatar == nil {
 		return nil
@@ -56,7 +49,6 @@ func ToProtoAvatar(avatar *models.Avatar) *profilesGrpc.Avatar {
 	}
 }
 
-// FromProtoAvatar конвертирует protobuf Avatar в models.Avatar
 func FromProtoAvatar(proto *profilesGrpc.Avatar) *models.Avatar {
 	if proto == nil {
 		return nil
@@ -73,16 +65,12 @@ func FromProtoAvatar(proto *profilesGrpc.Avatar) *models.Avatar {
 	}
 }
 
-// ========== FILE METADATA CONVERTERS ==========
-
-// FileMetadata структура для метаданных файла
 type FileMetadata struct {
 	FileName string
 	FileSize int64
 	MimeType string
 }
 
-// ToProtoFileMetadata конвертирует FileMetadata в protobuf FileMetadata
 func ToProtoFileMetadata(metadata *FileMetadata) *profilesGrpc.FileMetadata {
 	if metadata == nil {
 		return nil
@@ -95,7 +83,6 @@ func ToProtoFileMetadata(metadata *FileMetadata) *profilesGrpc.FileMetadata {
 	}
 }
 
-// FromProtoFileMetadata конвертирует protobuf FileMetadata в FileMetadata
 func FromProtoFileMetadata(proto *profilesGrpc.FileMetadata) *FileMetadata {
 	if proto == nil {
 		return nil

@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	attachmentsGrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -14,13 +15,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AttachmentGrpcClient клиент для gRPC сервера вложений
 type AttachmentGrpcClient struct {
 	client attachmentsGrpc.AttachmentServiceClient
 	conn   *grpc.ClientConn
 }
 
-// NewAttachmentGrpcClient создает новый gRPC клиент
 func NewAttachmentGrpcClient(addr string, opts ...grpc.DialOption) (*AttachmentGrpcClient, error) {
 	if opts == nil {
 		opts = []grpc.DialOption{grpc.WithInsecure()}
@@ -37,18 +36,21 @@ func NewAttachmentGrpcClient(addr string, opts ...grpc.DialOption) (*AttachmentG
 	}, nil
 }
 
-// Close закрывает соединение
-func (c *AttachmentGrpcClient) Close() error {
-	return c.conn.Close()
-}
+// func (c *AttachmentGrpcClient) Close() error {
+// 	return c.conn.Close()
+// }
 
-// addUserIDToContext добавляет userID в метаданные gRPC
 func (c *AttachmentGrpcClient) addUserIDToContext(ctx context.Context, userID uuid.UUID) context.Context {
 	md := metadata.Pairs("user-id", userID.String())
+	if token, ok := ctx.Value(types.JWTTokenKey).(string); ok && token != "" {
+		md = metadata.Join(md, metadata.Pairs("authorization", "Bearer "+token, "token", token))
+	}
+	if existing, ok := metadata.FromOutgoingContext(ctx); ok {
+		md = metadata.Join(existing, md)
+	}
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// GetAttachment получение вложения
 func (c *AttachmentGrpcClient) GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -63,7 +65,6 @@ func (c *AttachmentGrpcClient) GetAttachment(ctx context.Context, noteID, blockI
 	return FromProtoAttachment(resp), nil
 }
 
-// UploadAttachment загрузка вложения (streaming)
 func (c *AttachmentGrpcClient) UploadAttachment(
 	ctx context.Context,
 	noteID, blockID, userID uuid.UUID,
@@ -79,7 +80,6 @@ func (c *AttachmentGrpcClient) UploadAttachment(
 		return nil, err
 	}
 
-	// Отправляем метаданные
 	err = stream.Send(&attachmentsGrpc.UploadAttachmentRequest{
 		Data: &attachmentsGrpc.UploadAttachmentRequest_Metadata{
 			Metadata: &attachmentsGrpc.FileMetadata{
@@ -95,7 +95,6 @@ func (c *AttachmentGrpcClient) UploadAttachment(
 		return nil, err
 	}
 
-	// Отправляем файл чанками по 64KB
 	buf := make([]byte, 64*1024)
 	for {
 		n, err := fileReader.Read(buf)
@@ -124,7 +123,6 @@ func (c *AttachmentGrpcClient) UploadAttachment(
 	return FromProtoAttachment(resp), nil
 }
 
-// DeleteAttachment удаление вложения
 func (c *AttachmentGrpcClient) DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) error {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
@@ -135,7 +133,6 @@ func (c *AttachmentGrpcClient) DeleteAttachment(ctx context.Context, noteID, blo
 	return c.handleError(err)
 }
 
-// handleError обрабатывает gRPC ошибки
 func (c *AttachmentGrpcClient) handleError(err error) error {
 	if err == nil {
 		return nil

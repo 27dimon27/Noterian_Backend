@@ -35,7 +35,7 @@ import (
 // @produce json
 
 func main() {
-	logg := logger.Init()
+	logg := logger.Init() // МОЖНО ВЫНЕСТИ ЭТО В RUN
 	cfg := config.Load()
 
 	database, err := db.NewPostgresConnection(cfg.DB)
@@ -65,7 +65,7 @@ func main() {
 
 	logg.Info("connected to S3 successfully")
 
-	srvRouter, err := router.New(cfg, database, minioService)
+	srvRouter, err := router.New(cfg)
 	if err != nil {
 		logg.Error("failed to init router", "error", err)
 		log.Fatalf("Error to run application: %v", err)

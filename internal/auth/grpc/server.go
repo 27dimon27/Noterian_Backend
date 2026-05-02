@@ -11,34 +11,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthGrpcServer реализует gRPC сервер для auth сервиса
 type AuthGrpcServer struct {
 	authGrpc.UnimplementedAuthServiceServer
 	authUsecase AuthUsecase
 }
 
-// AuthUsecase интерфейс бизнес-логики для gRPC сервера
 type AuthUsecase interface {
 	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
 	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
 }
 
-// Profile интерфейс для профиля (чтобы не зависеть от models)
 type Profile interface {
 	GetID() uuid.UUID
 	GetUsername() string
 }
 
-// NewAuthGrpcServer создает новый gRPC сервер
 func NewAuthGrpcServer(authUsecase AuthUsecase) *AuthGrpcServer {
 	return &AuthGrpcServer{
 		authUsecase: authUsecase,
 	}
 }
 
-// SignupUser регистрация нового пользователя
 func (s *AuthGrpcServer) SignupUser(ctx context.Context, req *authGrpc.SignupRequest) (*authGrpc.UserResponse, error) {
-	// Валидация входных данных
 	if req.GetUsername() == "" {
 		return nil, status.Error(codes.InvalidArgument, "username is required")
 	}
@@ -46,10 +40,8 @@ func (s *AuthGrpcServer) SignupUser(ctx context.Context, req *authGrpc.SignupReq
 		return nil, status.Error(codes.InvalidArgument, "password is required")
 	}
 
-	// Вызов usecase
 	profile, err := s.authUsecase.SignupUser(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
-		// Конвертация ошибок usecase в gRPC статусы
 		switch err {
 		case auth.ErrUserExist:
 			return nil, status.Error(codes.AlreadyExists, err.Error())
@@ -62,13 +54,10 @@ func (s *AuthGrpcServer) SignupUser(ctx context.Context, req *authGrpc.SignupReq
 		}
 	}
 
-	// Конвертация ответа
 	return ToProtoUserResponse(profile), nil
 }
 
-// SigninUser вход пользователя
 func (s *AuthGrpcServer) SigninUser(ctx context.Context, req *authGrpc.SigninRequest) (*authGrpc.UserResponse, error) {
-	// Валидация входных данных
 	if req.GetUsername() == "" {
 		return nil, status.Error(codes.InvalidArgument, "username is required")
 	}
@@ -76,10 +65,8 @@ func (s *AuthGrpcServer) SigninUser(ctx context.Context, req *authGrpc.SigninReq
 		return nil, status.Error(codes.InvalidArgument, "password is required")
 	}
 
-	// Вызов usecase
 	profile, err := s.authUsecase.SigninUser(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
-		// Конвертация ошибок usecase в gRPC статусы
 		switch err {
 		case auth.ErrBadCredentials, auth.ErrUserNotExist:
 			return nil, status.Error(codes.Unauthenticated, auth.ErrBadCredentials.Error())
@@ -88,13 +75,5 @@ func (s *AuthGrpcServer) SigninUser(ctx context.Context, req *authGrpc.SigninReq
 		}
 	}
 
-	// Конвертация ответа
 	return ToProtoUserResponse(profile), nil
-}
-
-// LogoutUser выход пользователя
-func (s *AuthGrpcServer) LogoutUser(ctx context.Context, req *authGrpc.LogoutRequest) (*authGrpc.LogoutResponse, error) {
-	// В auth нет бизнес-логики для logout, просто возвращаем успех
-	// Очисткой cookie занимается HTTP handler
-	return &authGrpc.LogoutResponse{}, nil
 }

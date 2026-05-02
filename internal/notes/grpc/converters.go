@@ -7,9 +7,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ========== NOTE CONVERTERS ==========
-
-// ToProtoNote конвертирует models.Note в protobuf Note
 func ToProtoNote(note *models.Note) *notesGrpc.Note {
 	if note == nil {
 		return nil
@@ -32,7 +29,6 @@ func ToProtoNote(note *models.Note) *notesGrpc.Note {
 	return proto
 }
 
-// FromProtoNote конвертирует protobuf Note в models.Note
 func FromProtoNote(proto *notesGrpc.Note) *models.Note {
 	if proto == nil {
 		return nil
@@ -55,7 +51,6 @@ func FromProtoNote(proto *notesGrpc.Note) *models.Note {
 	return note
 }
 
-// FromProtoNotes конвертирует список protobuf Note в список models.Note
 func FromProtoNotes(protos []*notesGrpc.Note) []models.Note {
 	notes := make([]models.Note, 0, len(protos))
 	for _, proto := range protos {
@@ -66,9 +61,6 @@ func FromProtoNotes(protos []*notesGrpc.Note) []models.Note {
 	return notes
 }
 
-// ========== BLOCK CONVERTERS ==========
-
-// ToProtoBlock конвертирует models.Block в protobuf Block
 func ToProtoBlock(block *models.Block) *notesGrpc.Block {
 	if block == nil {
 		return nil
@@ -85,7 +77,6 @@ func ToProtoBlock(block *models.Block) *notesGrpc.Block {
 	}
 }
 
-// FromProtoBlock конвертирует protobuf Block в models.Block
 func FromProtoBlock(proto *notesGrpc.Block) *models.Block {
 	if proto == nil {
 		return nil
@@ -102,7 +93,6 @@ func FromProtoBlock(proto *notesGrpc.Block) *models.Block {
 	}
 }
 
-// FromProtoBlocks конвертирует список protobuf Block в список models.Block
 func FromProtoBlocks(protos []*notesGrpc.Block) []models.Block {
 	blocks := make([]models.Block, 0, len(protos))
 	for _, proto := range protos {
@@ -113,9 +103,6 @@ func FromProtoBlocks(protos []*notesGrpc.Block) []models.Block {
 	return blocks
 }
 
-// ========== FORMATTING CONVERTERS ==========
-
-// ToProtoFormattingRange конвертирует models.FormattingRange в protobuf FormattingRange
 func ToProtoFormattingRange(rng *models.FormattingRange) *notesGrpc.FormattingRange {
 	if rng == nil {
 		return nil
@@ -143,7 +130,6 @@ func ToProtoFormattingRange(rng *models.FormattingRange) *notesGrpc.FormattingRa
 	return proto
 }
 
-// FromProtoFormattingRange конвертирует protobuf FormattingRange в models.FormattingRange
 func FromProtoFormattingRange(proto *notesGrpc.FormattingRange) *models.FormattingRange {
 	if proto == nil {
 		return nil
@@ -171,7 +157,6 @@ func FromProtoFormattingRange(proto *notesGrpc.FormattingRange) *models.Formatti
 	return rng
 }
 
-// ToProtoBlockFormatting конвертирует models.BlockFormatting в protobuf BlockFormatting
 func ToProtoBlockFormatting(formatting *models.BlockFormatting) *notesGrpc.BlockFormatting {
 	if formatting == nil {
 		return nil
@@ -188,7 +173,6 @@ func ToProtoBlockFormatting(formatting *models.BlockFormatting) *notesGrpc.Block
 	}
 }
 
-// FromProtoBlockFormatting конвертирует protobuf BlockFormatting в models.BlockFormatting
 func FromProtoBlockFormatting(proto *notesGrpc.BlockFormatting) *models.BlockFormatting {
 	if proto == nil {
 		return nil
@@ -207,7 +191,6 @@ func FromProtoBlockFormatting(proto *notesGrpc.BlockFormatting) *models.BlockFor
 	}
 }
 
-// ToProtoBlockWithFormatting конвертирует блок с форматированием в protobuf
 func ToProtoBlockWithFormatting(block *models.Block, formatting *models.BlockFormatting) *notesGrpc.BlockWithFormatting {
 	return &notesGrpc.BlockWithFormatting{
 		Block:      ToProtoBlock(block),
@@ -215,7 +198,6 @@ func ToProtoBlockWithFormatting(block *models.Block, formatting *models.BlockFor
 	}
 }
 
-// FromProtoBlockWithFormatting конвертирует protobuf BlockWithFormatting в модели
 func FromProtoBlockWithFormatting(proto *notesGrpc.BlockWithFormatting) (*models.Block, *models.BlockFormatting) {
 	if proto == nil {
 		return nil, nil
