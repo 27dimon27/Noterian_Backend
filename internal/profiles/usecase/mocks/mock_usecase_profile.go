@@ -13,7 +13,6 @@ import (
 	context "context"
 	io "io"
 	reflect "reflect"
-	time "time"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	uuid "github.com/google/uuid"
@@ -145,20 +144,6 @@ func (m *MockProfileRepository) GetProfileByUsername(ctx context.Context, userna
 func (mr *MockProfileRepositoryMockRecorder) GetProfileByUsername(ctx, username any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProfileByUsername", reflect.TypeOf((*MockProfileRepository)(nil).GetProfileByUsername), ctx, username)
-}
-
-// UpdateAvatarURL mocks base method.
-func (m *MockProfileRepository) UpdateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateAvatarURL", ctx, avatarID, url, expiresAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateAvatarURL indicates an expected call of UpdateAvatarURL.
-func (mr *MockProfileRepositoryMockRecorder) UpdateAvatarURL(ctx, avatarID, url, expiresAt any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAvatarURL", reflect.TypeOf((*MockProfileRepository)(nil).UpdateAvatarURL), ctx, avatarID, url, expiresAt)
 }
 
 // UpdateProfile mocks base method.

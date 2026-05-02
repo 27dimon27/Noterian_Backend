@@ -171,10 +171,10 @@ func TestAttachmentUsecase_UploadAttachment(t *testing.T) {
 				noteID,
 				blockID,
 				userID,
+				reader,
 				fileName,
 				fileSize,
 				mimeType,
-				reader,
 			)
 
 			if tt.wantErr != nil {

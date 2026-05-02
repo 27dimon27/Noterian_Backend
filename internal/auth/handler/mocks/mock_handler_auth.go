@@ -17,56 +17,56 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockAuthUsecase is a mock of AuthUsecase interface.
-type MockAuthUsecase struct {
+// MockAuthClient is a mock of AuthClient interface.
+type MockAuthClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockAuthUsecaseMockRecorder
+	recorder *MockAuthClientMockRecorder
 	isgomock struct{}
 }
 
-// MockAuthUsecaseMockRecorder is the mock recorder for MockAuthUsecase.
-type MockAuthUsecaseMockRecorder struct {
-	mock *MockAuthUsecase
+// MockAuthClientMockRecorder is the mock recorder for MockAuthClient.
+type MockAuthClientMockRecorder struct {
+	mock *MockAuthClient
 }
 
-// NewMockAuthUsecase creates a new mock instance.
-func NewMockAuthUsecase(ctrl *gomock.Controller) *MockAuthUsecase {
-	mock := &MockAuthUsecase{ctrl: ctrl}
-	mock.recorder = &MockAuthUsecaseMockRecorder{mock}
+// NewMockAuthClient creates a new mock instance.
+func NewMockAuthClient(ctrl *gomock.Controller) *MockAuthClient {
+	mock := &MockAuthClient{ctrl: ctrl}
+	mock.recorder = &MockAuthClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockAuthUsecase) EXPECT() *MockAuthUsecaseMockRecorder {
+func (m *MockAuthClient) EXPECT() *MockAuthClientMockRecorder {
 	return m.recorder
 }
 
-// CreateUser mocks base method.
-func (m *MockAuthUsecase) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+// SigninUser mocks base method.
+func (m *MockAuthClient) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, username, password)
+	ret := m.ctrl.Call(m, "SigninUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateUser indicates an expected call of CreateUser.
-func (mr *MockAuthUsecaseMockRecorder) CreateUser(ctx, username, password any) *gomock.Call {
+// SigninUser indicates an expected call of SigninUser.
+func (mr *MockAuthClientMockRecorder) SigninUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthUsecase)(nil).CreateUser), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigninUser", reflect.TypeOf((*MockAuthClient)(nil).SigninUser), ctx, username, password)
 }
 
-// ValidateUser mocks base method.
-func (m *MockAuthUsecase) ValidateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+// SignupUser mocks base method.
+func (m *MockAuthClient) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateUser", ctx, username, password)
+	ret := m.ctrl.Call(m, "SignupUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ValidateUser indicates an expected call of ValidateUser.
-func (mr *MockAuthUsecaseMockRecorder) ValidateUser(ctx, username, password any) *gomock.Call {
+// SignupUser indicates an expected call of SignupUser.
+func (mr *MockAuthClientMockRecorder) SignupUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateUser", reflect.TypeOf((*MockAuthUsecase)(nil).ValidateUser), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignupUser", reflect.TypeOf((*MockAuthClient)(nil).SignupUser), ctx, username, password)
 }

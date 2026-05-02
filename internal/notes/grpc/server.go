@@ -24,10 +24,10 @@ type NoteUsecase interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
 	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
-	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
-	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
+	CreateNote(ctx context.Context, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
+	UpdateNote(ctx context.Context, noteID, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
-	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
+	CreateBlock(ctx context.Context, noteID, userID uuid.UUID, blockTypeID, position int, content string) (*models.Block, error)
 	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
@@ -37,7 +37,7 @@ type NoteUsecase interface {
 	GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error)
 	GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
-	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
+	CreateSubnote(ctx context.Context, parentNoteID, userID uuid.UUID, title string) (*models.Note, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
 }
 
@@ -142,7 +142,7 @@ func (s *NoteGrpcServer) CreateNote(ctx context.Context, req *notesGrpc.CreateNo
 		note.ParentID = &parentID
 	}
 
-	createdNote, err := s.noteUsecase.CreateNote(ctx, note)
+	createdNote, err := s.noteUsecase.CreateNote(ctx, userID, note.Title, note.ParentID)
 	if err != nil {
 		if errors.Is(err, notes.ErrInvalidNoteData) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -177,7 +177,7 @@ func (s *NoteGrpcServer) UpdateNote(ctx context.Context, req *notesGrpc.UpdateNo
 		note.ParentID = &parentID
 	}
 
-	updatedNote, err := s.noteUsecase.UpdateNote(ctx, noteID, note, userID)
+	updatedNote, err := s.noteUsecase.UpdateNote(ctx, noteID, userID, note.Title, note.ParentID)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
@@ -240,7 +240,7 @@ func (s *NoteGrpcServer) CreateBlock(ctx context.Context, req *notesGrpc.CreateB
 		Content:     req.GetContent(),
 	}
 
-	createdBlock, err := s.noteUsecase.CreateBlock(ctx, noteID, userID, block)
+	createdBlock, err := s.noteUsecase.CreateBlock(ctx, noteID, userID, block.BlockTypeID, block.Position, block.Content)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())
@@ -562,7 +562,7 @@ func (s *NoteGrpcServer) CreateSubnote(ctx context.Context, req *notesGrpc.Creat
 		Title:  req.GetTitle(),
 	}
 
-	createdNote, err := s.noteUsecase.CreateSubnote(ctx, parentNoteID, userID, note)
+	createdNote, err := s.noteUsecase.CreateSubnote(ctx, parentNoteID, userID, note.Title)
 	if err != nil {
 		if errors.Is(err, notes.ErrNoteNotFound) {
 			return nil, status.Error(codes.NotFound, err.Error())

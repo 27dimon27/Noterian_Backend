@@ -19,8 +19,8 @@ type AuthGrpcServer struct {
 
 // AuthUsecase интерфейс бизнес-логики для gRPC сервера
 type AuthUsecase interface {
-	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)
-	ValidateUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
 }
 
 // Profile интерфейс для профиля (чтобы не зависеть от models)
@@ -47,7 +47,7 @@ func (s *AuthGrpcServer) SignupUser(ctx context.Context, req *authGrpc.SignupReq
 	}
 
 	// Вызов usecase
-	profile, err := s.authUsecase.CreateUser(ctx, req.GetUsername(), req.GetPassword())
+	profile, err := s.authUsecase.SignupUser(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
 		// Конвертация ошибок usecase в gRPC статусы
 		switch err {
@@ -77,7 +77,7 @@ func (s *AuthGrpcServer) SigninUser(ctx context.Context, req *authGrpc.SigninReq
 	}
 
 	// Вызов usecase
-	profile, err := s.authUsecase.ValidateUser(ctx, req.GetUsername(), req.GetPassword())
+	profile, err := s.authUsecase.SigninUser(ctx, req.GetUsername(), req.GetPassword())
 	if err != nil {
 		// Конвертация ошибок usecase в gRPC статусы
 		switch err {

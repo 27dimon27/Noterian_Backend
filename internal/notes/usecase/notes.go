@@ -58,7 +58,13 @@ func (u *noteUsecase) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models
 	return u.noteRepo.GetBlocks(ctx, noteID)
 }
 
-func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
+func (u *noteUsecase) CreateNote(ctx context.Context, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error) {
+	note := models.Note{
+		UserID:   userID,
+		Title:    title,
+		ParentID: parentID,
+	}
+
 	if note.Title == "" {
 		return nil, notes.ErrInvalidNoteData
 	}
@@ -66,7 +72,13 @@ func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models
 	return u.noteRepo.CreateNote(ctx, note)
 }
 
-func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error) {
+func (u *noteUsecase) UpdateNote(ctx context.Context, noteID, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error) {
+	note := models.Note{
+		UserID:   userID,
+		Title:    title,
+		ParentID: parentID,
+	}
+
 	if note.Title == "" {
 		return nil, notes.ErrInvalidNoteData
 	}
@@ -90,18 +102,22 @@ func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID u
 	return u.noteRepo.DeleteNote(ctx, noteID)
 }
 
-func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error) {
+func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, blockTypeID, position int, content string) (*models.Block, error) {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if block.BlockTypeID <= 0 {
+	if blockTypeID <= 0 {
 		return nil, notes.ErrInvalidBlockType
 	}
 
-	block.NoteID = noteID
-	block.Content = ""
+	block := models.Block{
+		NoteID:      noteID,
+		BlockTypeID: blockTypeID,
+		Position:    position,
+		Content:     content,
+	}
 
 	blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
 	if err != nil {
@@ -298,10 +314,16 @@ func (u *noteUsecase) GetSubnotes(ctx context.Context, noteID uuid.UUID, userID 
 	return subnotes, nil
 }
 
-func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error) {
+func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, title string) (*models.Note, error) {
 	_, err := u.checkNoteAccess(ctx, parentNoteID, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	note := models.Note{
+		UserID:   userID,
+		Title:    title,
+		ParentID: &parentNoteID,
 	}
 
 	createdNote, err := u.noteRepo.CreateNote(ctx, note)

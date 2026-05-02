@@ -486,7 +486,7 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		Position:    op.Position,
 	}
 
-	createdBlock, err := h.noteUsecase.CreateBlock(context.Background(), noteID, userUUID, block)
+	createdBlock, err := h.noteUsecase.CreateBlock(context.Background(), noteID, userUUID, block.BlockTypeID, block.Position, block.Content)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -576,7 +576,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 
 	note.Title = newTitle
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, newTitle, note.ParentID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -605,7 +605,7 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 
 	note.IsPublic = isPublic
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, note.Title, note.ParentID)
 	if err != nil {
 		return
 	}

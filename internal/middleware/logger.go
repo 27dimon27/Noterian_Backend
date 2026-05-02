@@ -18,6 +18,9 @@ type responseWriter struct {
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
+	if rw.statusCode == code {
+		return
+	}
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
@@ -29,9 +32,10 @@ type websocketResponseWriter struct {
 }
 
 func (rw *websocketResponseWriter) WriteHeader(code int) {
-	if rw.statusCode == 0 {
-		rw.statusCode = code
+	if rw.statusCode == code {
+		return
 	}
+	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
@@ -69,17 +73,25 @@ func Logger(next http.Handler) http.Handler {
 
 			next.ServeHTTP(wsRW, r)
 
-			if !wsRW.hijacked {
-				logger.Error(ctx, "websocket upgrade failed",
+			if !wsRW.hijacked && wsRW.statusCode >= 500 {
+				logger.Error(ctx, "request completed with server error",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"status", wsRW.statusCode,
+					"duration_ms", time.Since(start).Milliseconds(),
+				)
+			} else if wsRW.statusCode >= 400 {
+				logger.Warn(ctx, "request completed with client error",
 					"method", r.Method,
 					"path", r.URL.Path,
 					"status", wsRW.statusCode,
 					"duration_ms", time.Since(start).Milliseconds(),
 				)
 			} else {
-				logger.Info(ctx, "websocket connection established",
+				logger.Info(ctx, "request completed successfully",
 					"method", r.Method,
 					"path", r.URL.Path,
+					"status", wsRW.statusCode,
 					"duration_ms", time.Since(start).Milliseconds(),
 				)
 			}
@@ -94,14 +106,21 @@ func Logger(next http.Handler) http.Handler {
 		next.ServeHTTP(rw, r)
 
 		if rw.statusCode >= 500 {
-			logger.Error(ctx, "request completed with error",
+			logger.Error(ctx, "request completed with server error",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", rw.statusCode,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
+		} else if rw.statusCode >= 400 {
+			logger.Warn(ctx, "request completed with client error",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rw.statusCode,
 				"duration_ms", time.Since(start).Milliseconds(),
 			)
 		} else {
-			logger.Info(ctx, "request completed",
+			logger.Info(ctx, "request completed successfully",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rw.statusCode,

@@ -19,32 +19,32 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-// MockAttachmentUsecase is a mock of AttachmentUsecase interface.
-type MockAttachmentUsecase struct {
+// MockAttachmentClient is a mock of AttachmentClient interface.
+type MockAttachmentClient struct {
 	ctrl     *gomock.Controller
-	recorder *MockAttachmentUsecaseMockRecorder
+	recorder *MockAttachmentClientMockRecorder
 	isgomock struct{}
 }
 
-// MockAttachmentUsecaseMockRecorder is the mock recorder for MockAttachmentUsecase.
-type MockAttachmentUsecaseMockRecorder struct {
-	mock *MockAttachmentUsecase
+// MockAttachmentClientMockRecorder is the mock recorder for MockAttachmentClient.
+type MockAttachmentClientMockRecorder struct {
+	mock *MockAttachmentClient
 }
 
-// NewMockAttachmentUsecase creates a new mock instance.
-func NewMockAttachmentUsecase(ctrl *gomock.Controller) *MockAttachmentUsecase {
-	mock := &MockAttachmentUsecase{ctrl: ctrl}
-	mock.recorder = &MockAttachmentUsecaseMockRecorder{mock}
+// NewMockAttachmentClient creates a new mock instance.
+func NewMockAttachmentClient(ctrl *gomock.Controller) *MockAttachmentClient {
+	mock := &MockAttachmentClient{ctrl: ctrl}
+	mock.recorder = &MockAttachmentClientMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockAttachmentUsecase) EXPECT() *MockAttachmentUsecaseMockRecorder {
+func (m *MockAttachmentClient) EXPECT() *MockAttachmentClientMockRecorder {
 	return m.recorder
 }
 
 // DeleteAttachment mocks base method.
-func (m *MockAttachmentUsecase) DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) error {
+func (m *MockAttachmentClient) DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAttachment", ctx, noteID, blockID, userID)
 	ret0, _ := ret[0].(error)
@@ -52,13 +52,13 @@ func (m *MockAttachmentUsecase) DeleteAttachment(ctx context.Context, noteID, bl
 }
 
 // DeleteAttachment indicates an expected call of DeleteAttachment.
-func (mr *MockAttachmentUsecaseMockRecorder) DeleteAttachment(ctx, noteID, blockID, userID any) *gomock.Call {
+func (mr *MockAttachmentClientMockRecorder) DeleteAttachment(ctx, noteID, blockID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAttachment", reflect.TypeOf((*MockAttachmentUsecase)(nil).DeleteAttachment), ctx, noteID, blockID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAttachment", reflect.TypeOf((*MockAttachmentClient)(nil).DeleteAttachment), ctx, noteID, blockID, userID)
 }
 
 // GetAttachment mocks base method.
-func (m *MockAttachmentUsecase) GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, error) {
+func (m *MockAttachmentClient) GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAttachment", ctx, noteID, blockID, userID)
 	ret0, _ := ret[0].(*models.Attachment)
@@ -67,22 +67,22 @@ func (m *MockAttachmentUsecase) GetAttachment(ctx context.Context, noteID, block
 }
 
 // GetAttachment indicates an expected call of GetAttachment.
-func (mr *MockAttachmentUsecaseMockRecorder) GetAttachment(ctx, noteID, blockID, userID any) *gomock.Call {
+func (mr *MockAttachmentClientMockRecorder) GetAttachment(ctx, noteID, blockID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAttachment", reflect.TypeOf((*MockAttachmentUsecase)(nil).GetAttachment), ctx, noteID, blockID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAttachment", reflect.TypeOf((*MockAttachmentClient)(nil).GetAttachment), ctx, noteID, blockID, userID)
 }
 
 // UploadAttachment mocks base method.
-func (m *MockAttachmentUsecase) UploadAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error) {
+func (m *MockAttachmentClient) UploadAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Attachment, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UploadAttachment", ctx, noteID, blockID, userID, fileName, fileSize, mimeType, fileReader)
+	ret := m.ctrl.Call(m, "UploadAttachment", ctx, noteID, blockID, userID, fileReader, fileName, fileSize, mimeType)
 	ret0, _ := ret[0].(*models.Attachment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UploadAttachment indicates an expected call of UploadAttachment.
-func (mr *MockAttachmentUsecaseMockRecorder) UploadAttachment(ctx, noteID, blockID, userID, fileName, fileSize, mimeType, fileReader any) *gomock.Call {
+func (mr *MockAttachmentClientMockRecorder) UploadAttachment(ctx, noteID, blockID, userID, fileReader, fileName, fileSize, mimeType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadAttachment", reflect.TypeOf((*MockAttachmentUsecase)(nil).UploadAttachment), ctx, noteID, blockID, userID, fileName, fileSize, mimeType, fileReader)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadAttachment", reflect.TypeOf((*MockAttachmentClient)(nil).UploadAttachment), ctx, noteID, blockID, userID, fileReader, fileName, fileSize, mimeType)
 }

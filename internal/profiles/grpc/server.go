@@ -24,10 +24,10 @@ type ProfileGrpcServer struct {
 // ProfileUsecase интерфейс бизнес-логики
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
-	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, username string) (*models.Profile, error)
 	DeleteProfile(ctx context.Context, userID uuid.UUID) error
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
-	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
+	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
 	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error)
 }
@@ -72,11 +72,7 @@ func (s *ProfileGrpcServer) UpdateProfile(ctx context.Context, req *profilesGrpc
 		return nil, err
 	}
 
-	updateProfile := models.Profile{
-		Username: req.GetUsername(),
-	}
-
-	updatedProfile, err := s.profileUsecase.UpdateProfile(ctx, userID, updateProfile)
+	updatedProfile, err := s.profileUsecase.UpdateProfile(ctx, userID, req.GetUsername())
 	if err != nil {
 		if errors.Is(err, profiles.ErrInvalidProfileData) {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -178,10 +174,10 @@ func (s *ProfileGrpcServer) UploadAvatar(stream profilesGrpc.ProfileService_Uplo
 	avatar, err := s.profileUsecase.UploadAvatar(
 		ctx,
 		userID,
+		&buffer,
 		metadata.FileName,
 		metadata.FileSize,
 		metadata.MimeType,
-		&buffer,
 	)
 	if err != nil {
 		if errors.Is(err, profiles.ErrInvalidMimeType) {

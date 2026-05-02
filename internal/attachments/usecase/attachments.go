@@ -62,10 +62,10 @@ func (u *attachmentUsecase) UploadAttachment(
 	noteID uuid.UUID,
 	blockID uuid.UUID,
 	userID uuid.UUID,
+	fileReader io.Reader,
 	fileName string,
 	fileSize int64,
 	mimeType string,
-	fileReader io.Reader,
 ) (*models.Attachment, error) {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {

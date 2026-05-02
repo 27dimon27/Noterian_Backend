@@ -23,7 +23,7 @@ type AttachmentGrpcServer struct {
 // AttachmentUsecase интерфейс бизнес-логики
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileReader io.Reader, fileName string, fileSize int64, mimeType string) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
 }
 
@@ -115,10 +115,10 @@ func (s *AttachmentGrpcServer) UploadAttachment(stream attachmentsGrpc.Attachmen
 		metadata.NoteID,
 		metadata.BlockID,
 		userID,
+		&buffer,
 		metadata.FileName,
 		metadata.FileSize,
 		metadata.MimeType,
-		&buffer,
 	)
 	if err != nil {
 		switch err {

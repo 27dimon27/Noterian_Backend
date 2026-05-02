@@ -74,7 +74,7 @@ func TestProfileUsecase_UpdateProfile(t *testing.T) {
 			UpdateProfile(gomock.Any(), userID, validProfile).
 			Return(updatedProfile, nil)
 
-		profile, err := usecase.UpdateProfile(context.Background(), userID, validProfile)
+		profile, err := usecase.UpdateProfile(context.Background(), userID, validProfile.Username)
 
 		assert.NoError(t, err)
 		assert.Equal(t, updatedProfile, profile)
@@ -86,7 +86,7 @@ func TestProfileUsecase_UpdateProfile(t *testing.T) {
 			Username: "",
 		}
 
-		profile, err := usecase.UpdateProfile(context.Background(), userID, invalidProfile)
+		profile, err := usecase.UpdateProfile(context.Background(), userID, invalidProfile.Username)
 
 		assert.Error(t, err)
 		assert.Equal(t, profiles.ErrInvalidProfileData, err)
@@ -177,7 +177,7 @@ func TestProfileUsecase_UploadAvatar(t *testing.T) {
 			UploadAvatar(gomock.Any(), profileID, fileName, fileSize, mimeType, gomock.Any()).
 			Return(expectedAvatar, nil)
 
-		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
+		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileReader, fileName, fileSize, mimeType)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedAvatar, avatar)
@@ -188,7 +188,7 @@ func TestProfileUsecase_UploadAvatar(t *testing.T) {
 			UploadAvatar(gomock.Any(), profileID, fileName, fileSize, mimeType, gomock.Any()).
 			Return(nil, errors.New("upload failed"))
 
-		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
+		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileReader, fileName, fileSize, mimeType)
 
 		assert.Error(t, err)
 		assert.Nil(t, avatar)

@@ -47,14 +47,110 @@ services:
     networks:
       - noterian_network
 
-  backend:
+  auth:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/auth/Dockerfile
     restart: unless-stopped
     env_file: ".env"
-    expose:
-      - "${SERVER_PORT}"
+    environment:
+      SERVER_PORT: 50051
+      DB_HOST: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  notes:
+    build:
+      context: .
+      dockerfile: cmd/notes/Dockerfile
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      SERVER_PORT: 50052
+      DB_HOST: postgres
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "50052:50052"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  profiles:
+    build:
+      context: .
+      dockerfile: cmd/profiles/Dockerfile
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      SERVER_PORT: 50053
+      DB_HOST: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  attachments:
+    build:
+      context: .
+      dockerfile: cmd/attachments/Dockerfile
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      SERVER_PORT: 50054
+      DB_HOST: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "50054:50054"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  main:
+    build:
+      context: .
+      dockerfile: cmd/main/Dockerfile
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      SERVER_PORT: 8000
+      DB_HOST: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
