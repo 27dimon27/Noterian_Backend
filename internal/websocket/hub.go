@@ -502,7 +502,7 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		UserID:   userID,
 		UserName: client.UserName,
 		Msg:      createdBlock,
-	}, userID)
+	}, "")
 }
 
 func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOperation) {
