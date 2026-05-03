@@ -96,7 +96,7 @@ type FormattingOperation struct {
 type CreateBlockOperation struct {
 	ID          string `json:"id"`
 	BlockID     string `json:"blockId"`
-	BlockTypeID int    `json:"blockTypeId"`
+	BlockTypeID int    `json:"block_type_id"`
 	Position    int    `json:"position"`
 	Content     string `json:"content"`
 	UserID      string `json:"userId"`
