@@ -69,6 +69,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 		return middleware.Auth(handler, cfg.JWT)
 	}
 
+	wsAuthMiddleware := func(handler http.Handler) http.Handler {
+		return middleware.WebSocketAuth(cfg.JWT)(handler)
+	}
+
 	csrfMiddleware := func(handler http.Handler) http.Handler {
 		return middleware.CSRF(handler, cfg.CSRF)
 	}
@@ -125,7 +129,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))
 
-	r.Handle("GET /ws/notes/{noteId}", authMiddleware(http.HandlerFunc(wsHandler.ServeWS)))
+	r.Handle("GET /ws/notes/{noteId}", wsAuthMiddleware(http.HandlerFunc(wsHandler.ServeWS)))
 
 	return metrics.MetricsMiddleware(middleware.Logger(r)), nil
 }
