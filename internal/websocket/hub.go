@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
@@ -495,6 +496,13 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 	if createdBlock.BlockTypeID == 1 {
 		doc := NewCRDTDocument(userID)
 		room.SetCRDTDocument(createdBlock.ID.String(), doc)
+
+		h.updateCursorsAfterCreatedBlock(room, createdBlock.ID)
+
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
 	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
@@ -515,13 +523,29 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 	userUUID, _ := uuid.Parse(userID)
 	blockUUID, _ := uuid.Parse(op.BlockID)
 
-	err := h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
+	currentBlock, err := h.noteUsecase.GetBlock(context.Background(), blockUUID, noteID, userUUID)
+	if err != nil {
+		return
+	}
+
+	err = h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	room.DeleteCRDTDocument(op.BlockID)
+
+	err = h.updateCursorsAfterDeletedBlock(room, currentBlock.Position)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  room.GetAllCursors(),
+	}, "")
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
 		Type:     MsgDeleteBlock,
@@ -684,6 +708,49 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 			client.UpdateCursor(cursor)
 		}
 	}
+}
+
+func (h *Hub) updateCursorsAfterCreatedBlock(room *NoteRoom, blockId uuid.UUID) {
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+
+	for _, client := range room.Clients {
+		cursor := client.GetCursor()
+		cursor.BlockID = blockId.String()
+		cursor.Position = 0
+		client.UpdateCursor(cursor)
+	}
+}
+
+func (h *Hub) updateCursorsAfterDeletedBlock(room *NoteRoom, blockPos int) error {
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+
+	noteID, _ := uuid.Parse(room.NoteID)
+
+	blocks, err := h.noteUsecase.GetBlocks(context.Background(), noteID)
+	if err != nil {
+		return err
+	}
+
+	resultBlockId := ""
+	resultPosition := 0
+	for i := blockPos - 1; i >= 0; i-- {
+		if blocks[i].BlockTypeID == 1 {
+			resultBlockId = blocks[i].ID.String()
+			resultPosition = utf8.RuneCountInString(blocks[i].Content)
+			break
+		}
+	}
+
+	for _, client := range room.Clients {
+		cursor := client.GetCursor()
+		cursor.BlockID = resultBlockId
+		cursor.Position = resultPosition
+		client.UpdateCursor(cursor)
+	}
+
+	return nil
 }
 
 func (h *Hub) isNoteOwner(noteID string, userID string) bool {
