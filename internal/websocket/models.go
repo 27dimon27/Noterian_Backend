@@ -126,11 +126,11 @@ type BroadcastMessage struct {
 
 type NoteUsecaseInterface interface {
 	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
-	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
+	UpdateNote(ctx context.Context, noteID, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
 	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
-	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
+	CreateBlock(ctx context.Context, noteID, userID uuid.UUID, blockTypeID, position int, content string) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)

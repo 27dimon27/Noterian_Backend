@@ -25,7 +25,25 @@ const (
 	DEFAULT_MINIO_USE_SSL            = false
 	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
 	DEFAULT_MINIO_AVATARS_BUCKET     = "avatars"
+
+	DEFAULT_AUTH_SERVICE_HOST        = "auth"
+	DEFAULT_AUTH_SERVICE_PORT        = "50051"
+	DEFAULT_NOTES_SERVICE_HOST       = "notes"
+	DEFAULT_NOTES_SERVICE_PORT       = "50052"
+	DEFAULT_PROFILES_SERVICE_HOST    = "profiles"
+	DEFAULT_PROFILES_SERVICE_PORT    = "50053"
+	DEFAULT_ATTACHMENTS_SERVICE_HOST = "attachments"
+	DEFAULT_ATTACHMENTS_SERVICE_PORT = "50054"
 )
+
+type ServiceConfig struct {
+	Host string
+	Port string
+}
+
+func (cfg ServiceConfig) Address() string {
+	return cfg.Host + ":" + cfg.Port
+}
 
 type JWTConfig struct {
 	Secret     string
@@ -70,11 +88,15 @@ type MinIOConfig struct {
 }
 
 type Config struct {
-	JWT    JWTConfig
-	Server ServerConfig
-	DB     DBConfig
-	CSRF   CSRFConfig
-	MinIO  MinIOConfig
+	JWT              JWTConfig
+	Server           ServerConfig
+	DB               DBConfig
+	CSRF             CSRFConfig
+	MinIO            MinIOConfig
+	AuthService      ServiceConfig
+	NotesService     ServiceConfig
+	ProfilesService  ServiceConfig
+	AttachmentsService ServiceConfig
 }
 
 func Load() *Config {
@@ -175,6 +197,42 @@ func Load() *Config {
 		avatarsBucket = DEFAULT_MINIO_AVATARS_BUCKET
 	}
 
+	authServiceHost := os.Getenv("AUTH_SERVICE_HOST")
+	if authServiceHost == "" {
+		authServiceHost = DEFAULT_AUTH_SERVICE_HOST
+	}
+	authServicePort := os.Getenv("AUTH_SERVICE_PORT")
+	if authServicePort == "" {
+		authServicePort = DEFAULT_AUTH_SERVICE_PORT
+	}
+
+	notesServiceHost := os.Getenv("NOTES_SERVICE_HOST")
+	if notesServiceHost == "" {
+		notesServiceHost = DEFAULT_NOTES_SERVICE_HOST
+	}
+	notesServicePort := os.Getenv("NOTES_SERVICE_PORT")
+	if notesServicePort == "" {
+		notesServicePort = DEFAULT_NOTES_SERVICE_PORT
+	}
+
+	profilesServiceHost := os.Getenv("PROFILES_SERVICE_HOST")
+	if profilesServiceHost == "" {
+		profilesServiceHost = DEFAULT_PROFILES_SERVICE_HOST
+	}
+	profilesServicePort := os.Getenv("PROFILES_SERVICE_PORT")
+	if profilesServicePort == "" {
+		profilesServicePort = DEFAULT_PROFILES_SERVICE_PORT
+	}
+
+	attachmentsServiceHost := os.Getenv("ATTACHMENTS_SERVICE_HOST")
+	if attachmentsServiceHost == "" {
+		attachmentsServiceHost = DEFAULT_ATTACHMENTS_SERVICE_HOST
+	}
+	attachmentsServicePort := os.Getenv("ATTACHMENTS_SERVICE_PORT")
+	if attachmentsServicePort == "" {
+		attachmentsServicePort = DEFAULT_ATTACHMENTS_SERVICE_PORT
+	}
+
 	secure := os.Getenv("IS_SECURE") == "true"
 
 	return &Config{
@@ -214,6 +272,22 @@ func Load() *Config {
 			UseSSL:            useSSL,
 			AttachmentsBucket: attachmentsBucket,
 			AvatarsBucket:     avatarsBucket,
+		},
+		AuthService: ServiceConfig{
+			Host: authServiceHost,
+			Port: authServicePort,
+		},
+		NotesService: ServiceConfig{
+			Host: notesServiceHost,
+			Port: notesServicePort,
+		},
+		ProfilesService: ServiceConfig{
+			Host: profilesServiceHost,
+			Port: profilesServicePort,
+		},
+		AttachmentsService: ServiceConfig{
+			Host: attachmentsServiceHost,
+			Port: attachmentsServicePort,
 		},
 	}
 }

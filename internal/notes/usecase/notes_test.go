@@ -127,7 +127,7 @@ func TestCreateNote_Success(t *testing.T) {
 		CreateNote(gomock.Any(), gomock.Any()).
 		Return(createdNote, nil)
 
-	result, err := usecase.CreateNote(context.Background(), note)
+	result, err := usecase.CreateNote(context.Background(), note.UserID, note.Title, note.ParentID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, createdNote, result)
@@ -142,7 +142,7 @@ func TestCreateNote_EmptyTitle(t *testing.T) {
 		Title:  "",
 	}
 
-	result, err := usecase.CreateNote(context.Background(), note)
+	result, err := usecase.CreateNote(context.Background(), note.UserID, note.Title, note.ParentID)
 
 	assert.Error(t, err)
 	assert.Equal(t, notes.ErrInvalidNoteData, err)
@@ -177,7 +177,7 @@ func TestUpdateNote_Success(t *testing.T) {
 		UpdateNote(gomock.Any(), noteID, gomock.Any()).
 		Return(expectedNote, nil)
 
-	result, err := usecase.UpdateNote(context.Background(), noteID, updatedNote, userID)
+	result, err := usecase.UpdateNote(context.Background(), noteID, updatedNote.UserID, updatedNote.Title, updatedNote.ParentID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedNote.Title, result.Title)
@@ -245,7 +245,7 @@ func TestCreateBlock_Success(t *testing.T) {
 		CreateBlock(gomock.Any(), gomock.Any()).
 		Return(createdBlock, nil)
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block.BlockTypeID, block.Position, block.Content)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -295,7 +295,7 @@ func TestCreateBlock_WithExistingBlocks(t *testing.T) {
 		CreateBlock(gomock.Any(), gomock.Any()).
 		Return(createdBlock, nil)
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block.BlockTypeID, block.Position, block.Content)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -320,7 +320,7 @@ func TestCreateBlock_InvalidType(t *testing.T) {
 		GetNote(gomock.Any(), noteID).
 		Return(note, nil)
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block.BlockTypeID, block.Position, block.Content)
 
 	assert.Error(t, err)
 	assert.Equal(t, notes.ErrInvalidBlockType, err)
@@ -353,7 +353,7 @@ func TestCreateBlock_InvalidPosition(t *testing.T) {
 		GetBlocks(gomock.Any(), noteID).
 		Return(existingBlocks, nil)
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block.BlockTypeID, block.Position, block.Content)
 
 	assert.Error(t, err)
 	assert.Equal(t, notes.ErrInvalidPosition, err)
@@ -881,7 +881,7 @@ func TestUpdateNote_EmptyTitle(t *testing.T) {
 	noteID := uuid.New()
 	note := models.Note{Title: ""}
 
-	result, err := usecase.UpdateNote(context.Background(), noteID, note, userID)
+	result, err := usecase.UpdateNote(context.Background(), noteID, userID, note.Title, note.ParentID)
 
 	assert.Error(t, err)
 	assert.Equal(t, notes.ErrInvalidNoteData, err)
@@ -900,7 +900,7 @@ func TestUpdateNote_GetNoteError(t *testing.T) {
 		GetNote(gomock.Any(), noteID).
 		Return(nil, errors.New("database error"))
 
-	result, err := usecase.UpdateNote(context.Background(), noteID, note, userID)
+	result, err := usecase.UpdateNote(context.Background(), noteID, userID, note.Title, note.ParentID)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -942,7 +942,7 @@ func TestCreateBlock_ShiftPositionsError(t *testing.T) {
 		ShiftBlockPositions(gomock.Any(), noteID, 0, 1).
 		Return(errors.New("shift error"))
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block.BlockTypeID, block.Position, block.Content)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

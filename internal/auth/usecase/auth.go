@@ -37,7 +37,7 @@ func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (*authU
 	}, nil
 }
 
-func (u *authUsecase) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	if err := u.validate.Var(username, "required,username"); err != nil {
 		return nil, auth.ErrInvalidUsername
 	}
@@ -54,7 +54,7 @@ func (u *authUsecase) CreateUser(ctx context.Context, username, password string)
 	return user, nil
 }
 
-func (u *authUsecase) ValidateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	user, err := u.userRepo.GetUserByUsername(ctx, username)
 	if err != nil {
 		return nil, err

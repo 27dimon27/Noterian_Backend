@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package notes;
+
+option go_package = "./internal/notes/grpc/gen/;";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service NoteService {
+    // Note operations
+    rpc GetNotes(GetNotesRequest) returns (NotesResponse);
+    rpc GetNote(GetNoteRequest) returns (NoteResponse);
+    rpc CreateNote(CreateNoteRequest) returns (Note);
+    rpc UpdateNote(UpdateNoteRequest) returns (Note);
+    rpc DeleteNote(DeleteNoteRequest) returns (google.protobuf.Empty);
+    
+    // Block operations
+    rpc CreateBlock(CreateBlockRequest) returns (Block);
+    rpc GetBlock(GetBlockRequest) returns (Block);
+    rpc UpdateBlockContent(UpdateBlockContentRequest) returns (Block);
+    rpc MoveBlock(MoveBlockRequest) returns (Block);
+    rpc DeleteBlock(DeleteBlockRequest) returns (google.protobuf.Empty);
+    rpc UpdateBlockFormatting(UpdateFormattingRequest) returns (BlockFormatting);
+    rpc ResetBlockFormatting(ResetFormattingRequest) returns (BlockFormatting);
+    rpc GetBlockFormatting(GetBlockFormattingRequest) returns (BlockFormatting);
+    rpc GetBlocksWithFormatting(GetBlocksWithFormattingRequest) returns (BlocksWithFormattingResponse);
+    
+    // Subnote operations
+    rpc GetSubnotes(GetSubnotesRequest) returns (SubnotesResponse);
+    rpc CreateSubnote(CreateSubnoteRequest) returns (Note);
+    rpc DeleteSubnote(DeleteSubnoteRequest) returns (google.protobuf.Empty);
+}
+
+message GetNotesRequest {
+    // UserID из metadata
+}
+
+message NotesResponse {
+    repeated Note notes = 1;
+    map<string, Subnotes> subnotes = 2;
+    int32 total = 3;
+}
+
+message Subnotes {
+    repeated Note notes = 1;
+}
+
+message GetNoteRequest {
+    string note_id = 1;
+    // UserID из metadata
+}
+
+message NoteResponse {
+    Note note = 1;
+    repeated BlockWithFormatting blocks = 2;
+}
+
+message CreateNoteRequest {
+    string title = 1;
+    optional string parent_id = 2;
+    // UserID из metadata
+}
+
+message UpdateNoteRequest {
+    string note_id = 1;
+    string title = 2;
+    optional string parent_id = 3;
+    // UserID из metadata
+}
+
+message DeleteNoteRequest {
+    string note_id = 1;
+    // UserID из metadata
+}
+
+message Note {
+    string id = 1;
+    string user_id = 2;
+    string title = 3;
+    optional string parent_id = 4;
+    bool is_public = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+message CreateBlockRequest {
+    string note_id = 1;
+    int32 block_type_id = 2;
+    int32 position = 3;
+    string content = 4;
+    // UserID из metadata
+}
+
+message GetBlockRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}
+
+message UpdateBlockContentRequest {
+    string note_id = 1;
+    string block_id = 2;
+    string content = 3;
+    // UserID из metadata
+}
+
+message MoveBlockRequest {
+    string note_id = 1;
+    string block_id = 2;
+    int32 new_position = 3;
+    // UserID из metadata
+}
+
+message DeleteBlockRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}
+
+message Block {
+    string id = 1;
+    string note_id = 2;
+    int32 block_type_id = 3;
+    int32 position = 4;
+    string content = 5;
+    google.protobuf.Timestamp created_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+message BlockWithFormatting {
+    Block block = 1;
+    BlockFormatting formatting = 2;
+}
+
+message FormattingRange {
+    int32 start_pos = 1;
+    int32 end_pos = 2;
+    optional bool bold = 3;
+    optional bool italic = 4;
+    optional bool underline = 5;
+    optional int32 text_align = 6;
+}
+
+message BlockFormatting {
+    string block_id = 1;
+    repeated FormattingRange ranges = 2;
+}
+
+message UpdateFormattingRequest {
+    string note_id = 1;
+    string block_id = 2;
+    FormattingRange formatting = 3;
+    // UserID из metadata
+}
+
+message ResetFormattingRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}
+
+message GetBlockFormattingRequest {
+    string note_id = 1;
+    string block_id = 2;
+    // UserID из metadata
+}
+
+message GetBlocksWithFormattingRequest {
+    string note_id = 1;
+}
+
+message BlocksWithFormattingResponse {
+    repeated BlockWithFormatting blocks = 1;
+}
+
+message GetSubnotesRequest {
+    string note_id = 1;
+    // UserID из metadata
+}
+
+message SubnotesResponse {
+    repeated Note subnotes = 1;
+}
+
+message CreateSubnoteRequest {
+    string parent_note_id = 1;
+    string title = 2;
+    // UserID из metadata
+}
+
+message DeleteSubnoteRequest {
+    string note_id = 1;
+    string subnote_id = 2;
+    // UserID из metadata
+}

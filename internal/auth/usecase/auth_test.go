@@ -32,7 +32,7 @@ func setupTestUsecase(t *testing.T) (*authUsecase, *mocks.MockUserRepository, *g
 	return usecase, mockRepo, ctrl
 }
 
-func TestCreateUser_Success(t *testing.T) {
+func TestSignupUser_Success(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -49,7 +49,7 @@ func TestCreateUser_Success(t *testing.T) {
 		CreateUser(ctx, username, password).
 		Return(expectedUser, nil)
 
-	user, err := usecase.CreateUser(ctx, username, password)
+	user, err := usecase.SignupUser(ctx, username, password)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -61,7 +61,7 @@ func TestCreateUser_Success(t *testing.T) {
 	}
 }
 
-func TestCreateUser_InvalidUsername(t *testing.T) {
+func TestSignupUser_InvalidUsername(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -83,7 +83,7 @@ func TestCreateUser_InvalidUsername(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user, err := usecase.CreateUser(ctx, tc.username, tc.password)
+			user, err := usecase.SignupUser(ctx, tc.username, tc.password)
 
 			if err != auth.ErrInvalidUsername {
 				t.Errorf("Expected ErrInvalidUsername, got %v", err)
@@ -97,7 +97,7 @@ func TestCreateUser_InvalidUsername(t *testing.T) {
 	mockRepo.EXPECT().CreateUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
-func TestCreateUser_InvalidPassword(t *testing.T) {
+func TestSignupUser_InvalidPassword(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -119,7 +119,7 @@ func TestCreateUser_InvalidPassword(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user, err := usecase.CreateUser(ctx, tc.username, tc.password)
+			user, err := usecase.SignupUser(ctx, tc.username, tc.password)
 
 			if err != auth.ErrInvalidPassword {
 				t.Errorf("Expected ErrInvalidPassword, got %v", err)
@@ -133,7 +133,7 @@ func TestCreateUser_InvalidPassword(t *testing.T) {
 	mockRepo.EXPECT().CreateUser(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 }
 
-func TestCreateUser_UserAlreadyExists(t *testing.T) {
+func TestSignupUser_UserAlreadyExists(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -145,7 +145,7 @@ func TestCreateUser_UserAlreadyExists(t *testing.T) {
 		CreateUser(ctx, username, password).
 		Return(nil, auth.ErrUserExist)
 
-	user, err := usecase.CreateUser(ctx, username, password)
+	user, err := usecase.SignupUser(ctx, username, password)
 
 	if err != auth.ErrUserExist {
 		t.Errorf("Expected ErrUserExist, got %v", err)
@@ -155,7 +155,7 @@ func TestCreateUser_UserAlreadyExists(t *testing.T) {
 	}
 }
 
-func TestCreateUser_RepositoryError(t *testing.T) {
+func TestSignupUser_RepositoryError(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -168,7 +168,7 @@ func TestCreateUser_RepositoryError(t *testing.T) {
 		CreateUser(ctx, username, password).
 		Return(nil, expectedErr)
 
-	user, err := usecase.CreateUser(ctx, username, password)
+	user, err := usecase.SignupUser(ctx, username, password)
 
 	if err != expectedErr {
 		t.Errorf("Expected %v, got %v", expectedErr, err)
@@ -178,7 +178,7 @@ func TestCreateUser_RepositoryError(t *testing.T) {
 	}
 }
 
-func TestValidateUser_Success(t *testing.T) {
+func TestSigninUser_Success(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -198,7 +198,7 @@ func TestValidateUser_Success(t *testing.T) {
 		GetUserByUsername(ctx, username).
 		Return(expectedUser, nil)
 
-	user, err := usecase.ValidateUser(ctx, username, password)
+	user, err := usecase.SigninUser(ctx, username, password)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -210,7 +210,7 @@ func TestValidateUser_Success(t *testing.T) {
 	}
 }
 
-func TestValidateUser_WrongPassword(t *testing.T) {
+func TestSigninUser_WrongPassword(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -231,7 +231,7 @@ func TestValidateUser_WrongPassword(t *testing.T) {
 		GetUserByUsername(ctx, username).
 		Return(expectedUser, nil)
 
-	user, err := usecase.ValidateUser(ctx, username, wrongPassword)
+	user, err := usecase.SigninUser(ctx, username, wrongPassword)
 
 	if err != auth.ErrBadCredentials {
 		t.Errorf("Expected ErrBadCredentials, got %v", err)
@@ -241,7 +241,7 @@ func TestValidateUser_WrongPassword(t *testing.T) {
 	}
 }
 
-func TestValidateUser_UserNotFound(t *testing.T) {
+func TestSigninUser_UserNotFound(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -253,7 +253,7 @@ func TestValidateUser_UserNotFound(t *testing.T) {
 		GetUserByUsername(ctx, username).
 		Return(nil, auth.ErrUserNotExist)
 
-	user, err := usecase.ValidateUser(ctx, username, password)
+	user, err := usecase.SigninUser(ctx, username, password)
 
 	if err != auth.ErrUserNotExist {
 		t.Errorf("Expected ErrUserNotExist, got %v", err)
@@ -263,7 +263,7 @@ func TestValidateUser_UserNotFound(t *testing.T) {
 	}
 }
 
-func TestValidateUser_RepositoryError(t *testing.T) {
+func TestSigninUser_RepositoryError(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -277,7 +277,7 @@ func TestValidateUser_RepositoryError(t *testing.T) {
 		GetUserByUsername(ctx, username).
 		Return(nil, expectedErr)
 
-	user, err := usecase.ValidateUser(ctx, username, password)
+	user, err := usecase.SigninUser(ctx, username, password)
 
 	if err != expectedErr {
 		t.Errorf("Expected %v, got %v", expectedErr, err)
@@ -287,7 +287,7 @@ func TestValidateUser_RepositoryError(t *testing.T) {
 	}
 }
 
-func TestCreateUser_ValidPasswords(t *testing.T) {
+func TestSignupUser_ValidPasswords(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -315,7 +315,7 @@ func TestCreateUser_ValidPasswords(t *testing.T) {
 				CreateUser(ctx, tc.username, tc.password).
 				Return(expectedUser, nil)
 
-			user, err := usecase.CreateUser(ctx, tc.username, tc.password)
+			user, err := usecase.SignupUser(ctx, tc.username, tc.password)
 			if err != nil {
 				t.Errorf("Expected no error for password '%s', got %v", tc.password, err)
 			}

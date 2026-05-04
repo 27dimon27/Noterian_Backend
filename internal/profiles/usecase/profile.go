@@ -53,12 +53,12 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 	return profile, nil
 }
 
-func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
-	if err := u.validate.Var(profile.Username, "required,username"); err != nil {
+func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, username string) (*models.Profile, error) {
+	if err := u.validate.Var(username, "required,username"); err != nil {
 		return nil, profiles.ErrInvalidProfileData
 	}
 
-	_, err := u.profileRepo.GetProfileByUsername(ctx, profile.Username)
+	_, err := u.profileRepo.GetProfileByUsername(ctx, username)
 	if err == nil {
 		return nil, profiles.ErrUsernameExists
 	}
@@ -66,7 +66,7 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		return nil, err
 	}
 
-	updatedProfile, err := u.profileRepo.UpdateProfile(ctx, userID, profile)
+	updatedProfile, err := u.profileRepo.UpdateProfile(ctx, userID, models.Profile{Username: username})
 	if err != nil {
 		return nil, err
 	}
@@ -93,10 +93,10 @@ func (u *profileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*m
 
 func (u *profileUsecase) UploadAvatar(ctx context.Context,
 	profileID uuid.UUID,
+	fileReader io.Reader,
 	fileName string,
 	fileSize int64,
 	mimeType string,
-	fileReader io.Reader,
 ) (*models.Avatar, error) {
 	avatar, err := u.profileRepo.UploadAvatar(ctx, profileID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {

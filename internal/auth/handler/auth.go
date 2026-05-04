@@ -17,36 +17,23 @@ import (
 
 //go:generate mockgen -source=auth.go -destination=mocks/mock_handler_auth.go -package=mocks
 
-type AuthUsecase interface {
-	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)
-	ValidateUser(ctx context.Context, username, password string) (*models.Profile, error)
+type AuthClient interface {
+	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
 }
 
 type AuthHandler struct {
-	authUsecase AuthUsecase
-	jwtConfig   config.JWTConfig
+	authClient AuthClient
+	jwtConfig  config.JWTConfig
 }
 
-func NewAuthHandler(authUsecase AuthUsecase, jwtConfig config.JWTConfig) *AuthHandler {
+func NewAuthHandler(authClient AuthClient, jwtConfig config.JWTConfig) *AuthHandler {
 	return &AuthHandler{
-		authUsecase: authUsecase,
-		jwtConfig:   jwtConfig,
+		authClient: authClient,
+		jwtConfig:  jwtConfig,
 	}
 }
 
-// SignupUser godoc
-// @Summary Регистрация пользователя
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body dto.SignUpUser true "Данные для регистрации"
-// @Success 200 {object} dto.UserResponse "Успешная регистрация"
-// @Failure 400 {object} map[string]string "Невалидный ввод или невалидные username/password"
-// @Failure 401 {object} map[string]string "Неавторизован"
-// @Failure 405 {object} map[string]string "Неверный метод"
-// @Failure 409 {object} map[string]string "Пользователь уже существует"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Router /signup [post]
 func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
@@ -64,7 +51,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	user, err := h.authUsecase.CreateUser(r.Context(), signUpUser.Username, signUpUser.Password)
+	user, err := h.authClient.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
@@ -80,18 +67,6 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	h.saveUserCookie(w, user)
 }
 
-// SigninUser godoc
-// @Summary Вход пользователя
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param request body dto.SignInUser true "Данные для входа"
-// @Success 200 {object} dto.UserResponse "Успешный вход"
-// @Failure 400 {object} map[string]string "Невалидный ввод"
-// @Failure 401 {object} map[string]string "Неверный логин или пароль"
-// @Failure 405 {object} map[string]string "Неверный метод"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Router /signin [post]
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
@@ -109,10 +84,10 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	user, err := h.authUsecase.ValidateUser(r.Context(), signInUser.Username, signInUser.Password)
+	user, err := h.authClient.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
-		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
+		case errors.Is(err, auth.ErrBadCredentials):
 			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
@@ -123,15 +98,6 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	h.saveUserCookie(w, user)
 }
 
-// LogOutUser godoc
-// @Summary Выход пользователя
-// @Tags auth
-// @Produce json
-// @Success 204 "Успешный выход, тело ответа отсутствует"
-// @Failure 401 {object} map[string]string "Неавторизован"
-// @Failure 405 {object} map[string]string "Неверный метод"
-// @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
-// @Router /logout [post]
 func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
 	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
 	w.WriteHeader(http.StatusNoContent)

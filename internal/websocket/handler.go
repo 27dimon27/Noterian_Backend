@@ -74,7 +74,7 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade connection: %v", err)
+		http.Error(w, "Failed to upgrade connection", http.StatusInternalServerError)
 		return
 	}
 
