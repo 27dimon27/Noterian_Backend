@@ -35,7 +35,7 @@ func TestGetNotes_Success(t *testing.T) {
 		GetNotes(gomock.Any(), userID).
 		Return(expectedNotes, nil)
 
-	notes, err := usecase.GetNotes(context.Background(), userID)
+	notes, _, err := usecase.GetNotes(context.Background(), userID)
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedNotes, notes)

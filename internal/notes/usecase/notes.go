@@ -41,8 +41,22 @@ func NewNoteUsecase(noteRepo NoteRepository) *noteUsecase {
 	}
 }
 
-func (u *noteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
-	return u.noteRepo.GetNotes(ctx, userID)
+func (u *noteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error) {
+	notes, err := u.noteRepo.GetNotes(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	subnotesForNotes := make(map[string][]models.Note)
+	for _, note := range notes {
+		subnotes, err := u.noteRepo.GetSubnotes(ctx, note.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		subnotesForNotes[note.ID.String()] = subnotes
+	}
+
+	return notes, subnotesForNotes, nil
 }
 
 func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {

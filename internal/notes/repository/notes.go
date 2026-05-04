@@ -130,7 +130,7 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 		}
 	}
 
-	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID).Scan(
+	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID, note.IsPublic).Scan(
 		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
@@ -469,7 +469,7 @@ func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.
 
 func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 	defer rows.Close()

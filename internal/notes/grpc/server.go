@@ -20,7 +20,7 @@ type NoteGrpcServer struct {
 }
 
 type NoteUsecase interface {
-	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
+	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
 	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateNote(ctx context.Context, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
@@ -60,7 +60,7 @@ func (s *NoteGrpcServer) GetNotes(ctx context.Context, req *notesGrpc.GetNotesRe
 		return nil, err
 	}
 
-	notesList, err := s.noteUsecase.GetNotes(ctx, userID)
+	notesList, subnotesMap, err := s.noteUsecase.GetNotes(ctx, userID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -70,9 +70,19 @@ func (s *NoteGrpcServer) GetNotes(ctx context.Context, req *notesGrpc.GetNotesRe
 		protoNotes = append(protoNotes, ToProtoNote(&notesList[i]))
 	}
 
+	protoSubnotes := make(map[string]*notesGrpc.Subnotes)
+	for key, notes := range subnotesMap {
+		protoNotesGroup := make([]*notesGrpc.Note, 0, len(notes))
+		for i := range notes {
+			protoNotesGroup = append(protoNotesGroup, ToProtoNote(&notes[i]))
+		}
+		protoSubnotes[key] = &notesGrpc.Subnotes{Notes: protoNotesGroup}
+	}
+
 	return &notesGrpc.NotesResponse{
-		Notes: protoNotes,
-		Total: int32(len(protoNotes)),
+		Notes:    protoNotes,
+		Subnotes: protoSubnotes,
+		Total:    int32(len(protoNotes)),
 	}, nil
 }
 

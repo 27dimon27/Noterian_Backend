@@ -51,15 +51,22 @@ func (c *NoteGrpcClient) addUserIDToContext(ctx context.Context, userID uuid.UUI
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-func (c *NoteGrpcClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+func (c *NoteGrpcClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error) {
 	ctxWithUserID := c.addUserIDToContext(ctx, userID)
 
 	resp, err := c.client.GetNotes(ctxWithUserID, &notesGrpc.GetNotesRequest{})
 	if err != nil {
-		return nil, c.handleError(err)
+		return nil, nil, c.handleError(err)
 	}
 
-	return FromProtoNotes(resp.GetNotes()), nil
+	notes := FromProtoNotes(resp.GetNotes())
+
+	subnotes := make(map[string][]models.Note)
+	for parentID, protoSubnotes := range resp.GetSubnotes() {
+		subnotes[parentID] = FromProtoNotes(protoSubnotes.GetNotes())
+	}
+
+	return notes, subnotes, nil
 }
 
 func (c *NoteGrpcClient) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, error) {

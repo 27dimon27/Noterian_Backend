@@ -17,9 +17,10 @@ import (
 //go:generate mockgen -source=notes.go -destination=mocks/mock_handler_notes.go -package=mocks
 
 type NoteClient interface {
-	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
-	GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, error)
+	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error)
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
 	CreateNote(ctx context.Context, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
+	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	UpdateNote(ctx context.Context, noteID, userID uuid.UUID, title string, parentID *uuid.UUID) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID, userID uuid.UUID) error
 
@@ -56,13 +57,14 @@ func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notesList, err := h.noteClient.GetNotes(r.Context(), userID)
+	notes, subnotes, err := h.noteClient.GetNotes(r.Context(), userID)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	response := dto.ToNotesResponse(notesList)
+	response := dto.ToNotesResponse(notes, subnotes)
+
 	write.JSONResponse(w, http.StatusOK, response)
 }
 

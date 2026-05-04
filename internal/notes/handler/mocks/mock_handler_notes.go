@@ -159,6 +159,21 @@ func (mr *MockNoteClientMockRecorder) GetBlockFormatting(ctx, blockID, noteID, u
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockFormatting", reflect.TypeOf((*MockNoteClient)(nil).GetBlockFormatting), ctx, blockID, noteID, userID)
 }
 
+// GetBlocks mocks base method.
+func (m *MockNoteClient) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBlocks", ctx, noteID)
+	ret0, _ := ret[0].([]models.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBlocks indicates an expected call of GetBlocks.
+func (mr *MockNoteClientMockRecorder) GetBlocks(ctx, noteID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlocks", reflect.TypeOf((*MockNoteClient)(nil).GetBlocks), ctx, noteID)
+}
+
 // GetBlocksWithFormatting mocks base method.
 func (m *MockNoteClient) GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error) {
 	m.ctrl.T.Helper()
@@ -191,12 +206,13 @@ func (mr *MockNoteClientMockRecorder) GetNote(ctx, noteID, userID any) *gomock.C
 }
 
 // GetNotes mocks base method.
-func (m *MockNoteClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+func (m *MockNoteClient) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, map[string][]models.Note, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotes", ctx, userID)
 	ret0, _ := ret[0].([]models.Note)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(map[string][]models.Note)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetNotes indicates an expected call of GetNotes.

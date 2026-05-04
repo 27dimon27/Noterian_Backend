@@ -26,7 +26,10 @@ INSERT INTO block_types (name) VALUES
     ('text'),
     ('image'),
     ('code'),
-    ('quote')
+    ('quote'),
+    ('subnote'),
+    ('music'),
+    ('video')
 ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS notes (

@@ -101,7 +101,7 @@ func TestToNotesResponse(t *testing.T) {
 		{ID: uuid.New(), Title: "Note 2"},
 	}
 
-	result := ToNotesResponse(notes)
+	result := ToNotesResponse(notes, map[string][]models.Note{})
 
 	assert.Equal(t, 2, result.Total)
 	assert.Len(t, result.Notes, 2)

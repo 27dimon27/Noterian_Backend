@@ -38,7 +38,12 @@ message GetNotesRequest {
 
 message NotesResponse {
     repeated Note notes = 1;
-    int32 total = 2;
+    map<string, Subnotes> subnotes = 2;
+    int32 total = 3;
+}
+
+message Subnotes {
+    repeated Note notes = 1;
 }
 
 message GetNoteRequest {
