@@ -104,7 +104,7 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 // @Produce json
 // @Param noteId path string true "ID заметки"
 // @Param blockId path string true "ID блока"
-// @Param file formData file true "Файл для загрузки (JPEG, PNG, WEBP, макс. 100MB)"
+// @Param file formData file true "Файл для загрузки (JPEG, PNG, WEBP, GIF, MP4, WEBM, OGG, MOV, AVI, MPEG, MP3, M4A, WAV, FLAC, AAC - макс. 100MB для видео, 30MB для аудио, 15MB для GIF, 5MB для фото)"
 // @Success 201 {object} dto.Attachment "Информация о загруженном вложении"
 // @Failure 400 {object} map[string]string "Невалидный NoteID/BlockID или неподдерживаемый MIME-тип"
 // @Failure 401 {object} map[string]string "Невалидный UserID"
@@ -288,6 +288,9 @@ func getMaxSizeByMimeType(mimeType string) (int64, string, error) {
 	}
 	if attachments.AllowedMimeTypesForGIF[mimeType] {
 		return attachments.MAX_GIF_SIZE, "GIF", nil
+	}
+	if attachments.AllowedMimeTypesForAudio[mimeType] {
+		return attachments.MAX_AUDIO_SIZE, "AUDIO", nil
 	}
 	if attachments.AllowedMimeTypesForVideo[mimeType] {
 		return attachments.MAX_VIDEO_SIZE, "VIDEO", nil
