@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"bufio"
+	"net"
 	"net/http"
 	"regexp"
 	"time"
@@ -59,6 +61,13 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return hijacker.Hijack()
+	}
+	return nil, nil, http.ErrNotSupported
+}
+
 func normalizePath(path string) string {
 	patterns := map[string]string{
 		`/notes/\d+`:                        "/notes/{noteId}",
@@ -96,6 +105,11 @@ func getErrorType(statusCode int) string {
 
 func MetricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") == "websocket" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
