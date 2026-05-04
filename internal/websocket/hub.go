@@ -498,6 +498,13 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		room.SetCRDTDocument(createdBlock.ID.String(), doc)
 	}
 
+	h.updateCursorsAfterCreatedBlock(room, createdBlock.ID)
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  room.GetAllCursors(),
+	}, "")
+
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
 		Type:     MsgCreateBlock,
 		UserID:   userID,
@@ -700,6 +707,22 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 			cursor.Position = newPos
 			client.UpdateCursor(cursor)
 		}
+	}
+}
+
+func (h *Hub) updateCursorsAfterCreatedBlock(room *NoteRoom, blockId uuid.UUID) {
+	room.mu.RLock()
+	defer room.mu.Unlock()
+
+	for _, client := range room.Clients {
+		cursor := client.GetCursor()
+
+		newBlockId := blockId.String()
+		newPosition := 0
+
+		cursor.BlockID = newBlockId
+		cursor.Position = newPosition
+		client.UpdateCursor(cursor)
 	}
 }
 
