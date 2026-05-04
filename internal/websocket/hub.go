@@ -496,14 +496,13 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 	if createdBlock.BlockTypeID == 1 {
 		doc := NewCRDTDocument(userID)
 		room.SetCRDTDocument(createdBlock.ID.String(), doc)
+
+		h.updateCursorsAfterCreatedBlock(room, createdBlock.ID)
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
 	}
-
-	h.updateCursorsAfterCreatedBlock(room, createdBlock.ID)
-
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgCursorMove,
-		Msg:  room.GetAllCursors(),
-	}, "")
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
 		Type:     MsgCreateBlock,
