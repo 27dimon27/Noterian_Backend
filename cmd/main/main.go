@@ -35,7 +35,7 @@ import (
 // @produce json
 
 func main() {
-	logg := logger.Init() // МОЖНО ВЫНЕСТИ ЭТО В RUN
+	logg := logger.Init()
 	cfg := config.Load()
 
 	database, err := db.NewPostgresConnection(cfg.DB)
