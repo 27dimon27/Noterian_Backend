@@ -70,27 +70,26 @@ func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 func normalizePath(path string) string {
 	patterns := map[string]string{
-		`/notes/\d+`:                        "/notes/{noteId}",
-		`/notes/\d+/subnote`:                "/notes/{noteId}/subnote",
-		`/notes/\d+/subnote/\d+`:            "/notes/{noteId}/subnote/{subnoteId}",
-		`/notes/\d+/blocks/\d+`:             "/notes/{noteId}/blocks/{blockId}",
-		`/notes/\d+/blocks/\d+/content`:     "/notes/{noteId}/blocks/{blockId}/content",
-		`/notes/\d+/blocks/\d+/move`:        "/notes/{noteId}/blocks/{blockId}/move",
-		`/notes/\d+/blocks/\d+/formatting`:  "/notes/{noteId}/blocks/{blockId}/formatting",
-		`/notes/\d+/blocks/\d+/attachments`: "/notes/{noteId}/blocks/{blockId}/attachments",
-		`/ws/notes/\d+`:                     "/ws/notes/{noteId}",
+		`/notes/[0-9a-fA-F\-]+`:                                   "/notes/{noteId}",
+		`/notes/[0-9a-fA-F\-]+/subnote`:                           "/notes/{noteId}/subnote",
+		`/notes/[0-9a-fA-F\-]+/subnote/[0-9a-fA-F\-]+`:            "/notes/{noteId}/subnote/{subnoteId}",
+		`/notes/[0-9a-fA-F\-]+/blocks/[0-9a-fA-F\-]+`:             "/notes/{noteId}/blocks/{blockId}",
+		`/notes/[0-9a-fA-F\-]+/blocks/[0-9a-fA-F\-]+/content`:     "/notes/{noteId}/blocks/{blockId}/content",
+		`/notes/[0-9a-fA-F\-]+/blocks/[0-9a-fA-F\-]+/move`:        "/notes/{noteId}/blocks/{blockId}/move",
+		`/notes/[0-9a-fA-F\-]+/blocks/[0-9a-fA-F\-]+/formatting`:  "/notes/{noteId}/blocks/{blockId}/formatting",
+		`/notes/[0-9a-fA-F\-]+/blocks/[0-9a-fA-F\-]+/attachments`: "/notes/{noteId}/blocks/{blockId}/attachments",
+		`/ws/notes/[0-9a-fA-F\-]+`:                                "/ws/notes/{noteId}",
 	}
 
-	result := path
 	for pattern, replacement := range patterns {
-		matched, err := regexp.MatchString(pattern, result)
-		if err == nil && matched {
-			re := regexp.MustCompile(pattern)
-			result = re.ReplaceAllString(result, replacement)
+		re := regexp.MustCompile("^" + pattern + "$")
+		if re.MatchString(path) {
+			result := re.ReplaceAllString(path, replacement)
+			return result
 		}
 	}
 
-	return result
+	return path
 }
 
 func getErrorType(statusCode int) string {
