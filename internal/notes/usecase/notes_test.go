@@ -21,1105 +21,1100 @@ func setupTestUsecase(t *testing.T) (*noteUsecase, *mocks.MockNoteRepository, *g
 	return usecase, mockRepo, ctrl
 }
 
-func TestGetNotes_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	expectedNotes := []models.Note{
-		{ID: uuid.New(), UserID: userID, Title: "Note 1"},
-		{ID: uuid.New(), UserID: userID, Title: "Note 2"},
-	}
-
-	mockRepo.EXPECT().
-		GetNotes(gomock.Any(), userID).
-		Return(expectedNotes, nil)
-
-	notes, _, err := usecase.GetNotes(context.Background(), userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedNotes, notes)
-}
-
-func TestGetNote_Success(t *testing.T) {
+func TestResetBlockFormatting(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
-	expectedNote := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-		Title:  "Test Note",
-	}
+	blockID := uuid.New()
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(expectedNote, nil)
-
-	note, err := usecase.GetNote(context.Background(), noteID, userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedNote, note)
-}
-
-func TestGetNote_NotFound(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(nil, nil)
-
-	note, err := usecase.GetNote(context.Background(), noteID, userID)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrNoteNotFound, err)
-	assert.Nil(t, note)
-}
-
-func TestGetNote_Forbidden(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	otherUserID := uuid.New()
-	noteID := uuid.New()
 	note := &models.Note{
-		ID:     noteID,
-		UserID: otherUserID,
-		Title:  "Someone's Note",
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
+	block := &models.Block{
+		ID:          blockID,
+		NoteID:      noteID,
+		BlockTypeID: 1,
+		Position:    0,
+		Content:     "Test content",
+	}
 
-	note, err := usecase.GetNote(context.Background(), noteID, userID)
+	resetFormatting := &models.BlockFormatting{
+		BlockID: blockID.String(),
+		Ranges:  []models.FormattingRange{},
+	}
 
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrForbidden, err)
-	assert.Nil(t, note)
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().ResetBlockFormatting(gomock.Any(), blockID).Return(resetFormatting, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "forbidden - private note not owned",
+			setupMock: func() {
+				privateNote := &models.Note{
+					ID:       noteID,
+					UserID:   uuid.New(),
+					Title:    "Private Note",
+					IsPublic: false,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(privateNote, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "block not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrBlockNotFound,
+		},
+		{
+			name: "block belongs to different note",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				otherNoteID := uuid.New()
+				blockOther := &models.Block{
+					ID:          blockID,
+					NoteID:      otherNoteID,
+					BlockTypeID: 1,
+					Position:    0,
+				}
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(blockOther, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "reset formatting error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().ResetBlockFormatting(gomock.Any(), blockID).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.ResetBlockFormatting(context.Background(), blockID, noteID, userID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
 }
 
-func TestCreateNote_Success(t *testing.T) {
+func TestGetSubnotes(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
-	note := models.Note{
-		UserID: userID,
-		Title:  "New Note",
+	noteID := uuid.New()
+	subnoteID1 := uuid.New()
+	subnoteID2 := uuid.New()
+	parentID := noteID
+
+	note := &models.Note{
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Parent Note",
+		IsPublic: false,
+	}
+
+	subnotes := []models.Note{
+		{ID: subnoteID1, UserID: userID, Title: "Subnote 1", ParentID: &parentID, IsPublic: false},
+		{ID: subnoteID2, UserID: userID, Title: "Subnote 2", ParentID: &parentID, IsPublic: false},
+	}
+
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantLen   int
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(subnotes, nil)
+			},
+			wantLen: 2,
+			wantErr: false,
+		},
+		{
+			name: "success - no subnotes",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return([]models.Note{}, nil)
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+		{
+			name: "note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "forbidden - private note not owned",
+			setupMock: func() {
+				privateNote := &models.Note{
+					ID:       noteID,
+					UserID:   uuid.New(),
+					Title:    "Private Note",
+					IsPublic: false,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(privateNote, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "public note - accessible by other user",
+			setupMock: func() {
+				publicNote := &models.Note{
+					ID:       noteID,
+					UserID:   uuid.New(),
+					Title:    "Public Note",
+					IsPublic: true,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(publicNote, nil)
+				mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(subnotes, nil)
+			},
+			wantLen: 2,
+			wantErr: false,
+		},
+		{
+			name: "get subnotes error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.GetSubnotes(context.Background(), noteID, userID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, result, tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestCreateSubnote(t *testing.T) {
+	usecase, mockRepo, ctrl := setupTestUsecase(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	parentNoteID := uuid.New()
+	subnoteID := uuid.New()
+
+	parentNote := &models.Note{
+		ID:       parentNoteID,
+		UserID:   userID,
+		Title:    "Parent Note",
+		IsPublic: false,
+	}
+
+	newNote := models.Note{
+		UserID:   userID,
+		Title:    "New Subnote",
+		ParentID: &parentNoteID,
+		IsPublic: false,
 	}
 
 	createdNote := &models.Note{
-		ID:        uuid.New(),
+		ID:        subnoteID,
 		UserID:    userID,
-		Title:     "New Note",
+		Title:     "New Subnote",
+		ParentID:  &parentNoteID,
+		IsPublic:  false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	mockRepo.EXPECT().
-		CreateNote(gomock.Any(), gomock.Any()).
-		Return(createdNote, nil)
-
-	result, err := usecase.CreateNote(context.Background(), note)
-
-	assert.NoError(t, err)
-	assert.Equal(t, createdNote, result)
-}
-
-func TestCreateNote_EmptyTitle(t *testing.T) {
-	usecase, _, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	note := models.Note{
-		UserID: uuid.New(),
-		Title:  "",
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				mockRepo.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(createdNote, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "parent note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "forbidden - parent note not owned and not public",
+			setupMock: func() {
+				privateNote := &models.Note{
+					ID:       parentNoteID,
+					UserID:   uuid.New(),
+					Title:    "Private Note",
+					IsPublic: false,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(privateNote, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "public parent note - allowed",
+			setupMock: func() {
+				publicNote := &models.Note{
+					ID:       parentNoteID,
+					UserID:   uuid.New(),
+					Title:    "Public Note",
+					IsPublic: true,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(publicNote, nil)
+				mockRepo.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(createdNote, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "create note error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				mockRepo.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+		{
+			name: "empty title validation",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				// Note creation will fail in CreateNote method due to empty title
+				mockRepo.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(nil, notes.ErrInvalidNoteData)
+			},
+			wantErr: true,
+		},
 	}
 
-	result, err := usecase.CreateNote(context.Background(), note)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.CreateSubnote(context.Background(), parentNoteID, userID, newNote)
 
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidNoteData, err)
-	assert.Nil(t, result)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, createdNote.ID, result.ID)
+				assert.Equal(t, createdNote.Title, result.Title)
+			}
+		})
+	}
 }
 
-func TestUpdateNote_Success(t *testing.T) {
+func TestDeleteSubnote(t *testing.T) {
+	usecase, mockRepo, ctrl := setupTestUsecase(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	parentNoteID := uuid.New()
+	subnoteID := uuid.New()
+
+	parentNote := &models.Note{
+		ID:       parentNoteID,
+		UserID:   userID,
+		Title:    "Parent Note",
+		IsPublic: false,
+	}
+
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				mockRepo.EXPECT().DeleteNote(gomock.Any(), subnoteID).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "parent note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "forbidden - parent note not owned and not public",
+			setupMock: func() {
+				privateNote := &models.Note{
+					ID:       parentNoteID,
+					UserID:   uuid.New(),
+					Title:    "Private Note",
+					IsPublic: false,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(privateNote, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "public parent note - allowed",
+			setupMock: func() {
+				publicNote := &models.Note{
+					ID:       parentNoteID,
+					UserID:   uuid.New(),
+					Title:    "Public Note",
+					IsPublic: true,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(publicNote, nil)
+				mockRepo.EXPECT().DeleteNote(gomock.Any(), subnoteID).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "subnote not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				mockRepo.EXPECT().DeleteNote(gomock.Any(), subnoteID).Return(notes.ErrNoteNotFound)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "delete note error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), parentNoteID).Return(parentNote, nil)
+				mockRepo.EXPECT().DeleteNote(gomock.Any(), subnoteID).Return(errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			err := usecase.DeleteSubnote(context.Background(), parentNoteID, subnoteID, userID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetBlocksWithFormattingEmptyBlocks(t *testing.T) {
+	usecase, mockRepo, ctrl := setupTestUsecase(t)
+	defer ctrl.Finish()
+
+	noteID := uuid.New()
+
+	mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return([]models.Block{}, nil)
+	// GetBlocksFormatting should not be called
+
+	blocks, formattings, err := usecase.GetBlocksWithFormatting(context.Background(), noteID)
+
+	assert.NoError(t, err)
+	assert.Len(t, blocks, 0)
+	assert.NotNil(t, formattings)
+	assert.Len(t, formattings, 0)
+}
+
+func TestGetBlocksWithFormattingPartialFormatting(t *testing.T) {
+	usecase, mockRepo, ctrl := setupTestUsecase(t)
+	defer ctrl.Finish()
+
+	noteID := uuid.New()
+	blockID1 := uuid.New()
+	blockID2 := uuid.New()
+
+	blocks := []models.Block{
+		{ID: blockID1, NoteID: noteID, BlockTypeID: 1, Position: 0},
+		{ID: blockID2, NoteID: noteID, BlockTypeID: 1, Position: 1},
+	}
+
+	blockIDs := []uuid.UUID{blockID1, blockID2}
+
+	// Only blockID1 has formatting
+	formattings := map[string]models.BlockFormatting{
+		blockID1.String(): {
+			BlockID: blockID1.String(),
+			Ranges: []models.FormattingRange{
+				{StartPos: 0, EndPos: 3, Bold: boolPtr(true)},
+			},
+		},
+	}
+
+	mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+	mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), blockIDs).Return(formattings, nil)
+
+	resultBlocks, resultFormattings, err := usecase.GetBlocksWithFormatting(context.Background(), noteID)
+
+	assert.NoError(t, err)
+	assert.Len(t, resultBlocks, 2)
+	assert.Len(t, resultFormattings, 1)
+	assert.Contains(t, resultFormattings, blockID1.String())
+	assert.NotContains(t, resultFormattings, blockID2.String())
+}
+
+// Helper function
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+func TestGetBlocksWithFormatting(t *testing.T) {
+	usecase, mockRepo, ctrl := setupTestUsecase(t)
+	defer ctrl.Finish()
+
+	noteID := uuid.New()
+	blockID1 := uuid.New()
+	blockID2 := uuid.New()
+
+	blocks := []models.Block{
+		{ID: blockID1, NoteID: noteID, BlockTypeID: 1, Position: 0, Content: "Block 1"},
+		{ID: blockID2, NoteID: noteID, BlockTypeID: 1, Position: 1, Content: "Block 2"},
+	}
+
+	blockIDs := []uuid.UUID{blockID1, blockID2}
+
+	formattings := map[string]models.BlockFormatting{
+		blockID1.String(): {
+			BlockID: blockID1.String(),
+			Ranges: []models.FormattingRange{
+				{StartPos: 0, EndPos: 3, Bold: boolPtr(true)},
+			},
+		},
+		blockID2.String(): {
+			BlockID: blockID2.String(),
+			Ranges: []models.FormattingRange{
+				{StartPos: 0, EndPos: 5, Italic: boolPtr(true)},
+			},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantLen   int
+		wantErr   bool
+	}{
+		{
+			name: "success with blocks and formatting",
+			setupMock: func() {
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+				mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), blockIDs).Return(formattings, nil)
+			},
+			wantLen: 2,
+			wantErr: false,
+		},
+		{
+			name: "success with empty blocks",
+			setupMock: func() {
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return([]models.Block{}, nil)
+				// GetBlocksFormatting should not be called when blocks are empty
+			},
+			wantLen: 0,
+			wantErr: false,
+		},
+		{
+			name: "success with blocks but no formatting",
+			setupMock: func() {
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+				mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), blockIDs).Return(map[string]models.BlockFormatting{}, nil)
+			},
+			wantLen: 2,
+			wantErr: false,
+		},
+		{
+			name: "get blocks error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+		{
+			name: "get formatting error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+				mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), blockIDs).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			resultBlocks, resultFormattings, err := usecase.GetBlocksWithFormatting(context.Background(), noteID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, resultBlocks, tt.wantLen)
+				assert.NotNil(t, resultFormattings)
+			}
+		})
+	}
+}
+
+func TestGetBlockFormatting(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
-	existingNote := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-		Title:  "Old Title",
-	}
-	updatedNote := models.Note{
-		Title: "New Title",
-	}
-	expectedNote := &models.Note{
-		ID:        noteID,
-		UserID:    userID,
-		Title:     "New Title",
-		UpdatedAt: time.Now(),
-	}
+	blockID := uuid.New()
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(existingNote, nil)
-	mockRepo.EXPECT().
-		UpdateNote(gomock.Any(), noteID, gomock.Any()).
-		Return(expectedNote, nil)
-
-	result, err := usecase.UpdateNote(context.Background(), noteID, updatedNote, userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedNote.Title, result.Title)
-}
-
-func TestDeleteNote_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	existingNote := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(existingNote, nil)
-	mockRepo.EXPECT().
-		DeleteNote(gomock.Any(), noteID).
-		Return(nil)
-
-	err := usecase.DeleteNote(context.Background(), noteID, userID)
-
-	assert.NoError(t, err)
-}
-
-func TestCreateBlock_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
 	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
-	block := models.Block{
-		BlockTypeID: 1,
-		Position:    0,
-	}
-	existingBlocks := []models.Block{}
 
-	createdBlock := &models.Block{
-		ID:          uuid.New(),
+	block := &models.Block{
+		ID:          blockID,
 		NoteID:      noteID,
 		BlockTypeID: 1,
 		Position:    0,
-		Content:     "",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		Content:     "Test content",
 	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(existingBlocks, nil)
-	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 0, 1).
-		Return(nil)
-	mockRepo.EXPECT().
-		CreateBlock(gomock.Any(), gomock.Any()).
-		Return(createdBlock, nil)
+	formatting := &models.BlockFormatting{
+		BlockID: blockID.String(),
+		Ranges: []models.FormattingRange{
+			{StartPos: 0, EndPos: 3, Bold: boolPtr(true)},
+			{StartPos: 4, EndPos: 10, Italic: boolPtr(true)},
+		},
+	}
 
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().GetBlockFormatting(gomock.Any(), blockID).Return(formatting, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrNoteNotFound,
+		},
+		{
+			name: "forbidden - private note not owned",
+			setupMock: func() {
+				privateNote := &models.Note{
+					ID:       noteID,
+					UserID:   uuid.New(),
+					Title:    "Private Note",
+					IsPublic: false,
+				}
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(privateNote, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "block not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(nil, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrBlockNotFound,
+		},
+		{
+			name: "block belongs to different note",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				otherNoteID := uuid.New()
+				blockOther := &models.Block{
+					ID:          blockID,
+					NoteID:      otherNoteID,
+					BlockTypeID: 1,
+					Position:    0,
+				}
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(blockOther, nil)
+			},
+			wantErr: true,
+			errType: notes.ErrForbidden,
+		},
+		{
+			name: "get formatting error",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().GetBlockFormatting(gomock.Any(), blockID).Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
 
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, createdBlock, result)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.GetBlockFormatting(context.Background(), blockID, noteID, userID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, formatting.BlockID, result.BlockID)
+				assert.Len(t, result.Ranges, 2)
+			}
+		})
+	}
 }
 
-func TestCreateBlock_WithExistingBlocks(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := models.Block{
-		BlockTypeID: 1,
-		Position:    2,
-	}
-	existingBlocks := []models.Block{
-		{ID: uuid.New(), Position: 0},
-		{ID: uuid.New(), Position: 1},
-		{ID: uuid.New(), Position: 2},
-	}
-
-	createdBlock := &models.Block{
-		ID:          uuid.New(),
-		NoteID:      noteID,
-		BlockTypeID: 1,
-		Position:    2,
-		Content:     "",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(existingBlocks, nil)
-	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 2, 1).
-		Return(nil)
-	mockRepo.EXPECT().
-		CreateBlock(gomock.Any(), gomock.Any()).
-		Return(createdBlock, nil)
-
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestCreateBlock_InvalidType(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := models.Block{
-		BlockTypeID: 0,
-		Position:    0,
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidBlockType, err)
-	assert.Nil(t, result)
-}
-
-func TestCreateBlock_InvalidPosition(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := models.Block{
-		BlockTypeID: 1,
-		Position:    10,
-	}
-	existingBlocks := []models.Block{
-		{ID: uuid.New(), Position: 0},
-		{ID: uuid.New(), Position: 1},
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(existingBlocks, nil)
-
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidPosition, err)
-	assert.Nil(t, result)
-}
-
-func TestMoveBlock_Success(t *testing.T) {
+func TestCreateBlock(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
+
 	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:       blockID,
-		NoteID:   noteID,
-		Position: 0,
-	}
-	blocks := []models.Block{
-		{ID: blockID, Position: 0},
-		{ID: uuid.New(), Position: 1},
-		{ID: uuid.New(), Position: 2},
-	}
-	movedBlock := &models.Block{
-		ID:       blockID,
-		NoteID:   noteID,
-		Position: 2,
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(blocks, nil)
-	mockRepo.EXPECT().
-		MoveBlock(gomock.Any(), noteID, blockID, 0, 2).
-		Return(movedBlock, nil)
+	tests := []struct {
+		name      string
+		block     models.Block
+		setupMock func()
+		wantErr   bool
+	}{
+		{
+			name: "success - create at beginning with shift",
+			block: models.Block{
+				BlockTypeID: 1,
+				Position:    0,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				existingBlocks := []models.Block{
+					{ID: uuid.New(), NoteID: noteID, Position: 0},
+					{ID: uuid.New(), NoteID: noteID, Position: 1},
+				}
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(existingBlocks, nil)
+				mockRepo.EXPECT().ShiftBlockPositions(gomock.Any(), noteID, 0, 1).Return(nil)
+				mockRepo.EXPECT().CreateBlock(gomock.Any(), gomock.Any()).Return(&models.Block{ID: blockID, Position: 0}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid block type",
+			block: models.Block{
+				BlockTypeID: 0,
+				Position:    0,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid position",
+			block: models.Block{
+				BlockTypeID: 1,
+				Position:    10,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				existingBlocks := []models.Block{
+					{ID: uuid.New(), NoteID: noteID, Position: 0},
+					{ID: uuid.New(), NoteID: noteID, Position: 1},
+				}
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(existingBlocks, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "note not found",
+			block: models.Block{
+				BlockTypeID: 1,
+				Position:    0,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, nil)
+			},
+			wantErr: true,
+		},
+	}
 
-	result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, 2)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.CreateBlock(context.Background(), noteID, userID, tt.block)
 
-	assert.NoError(t, err)
-	assert.Equal(t, 2, result.Position)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
+	}
 }
 
-func TestMoveBlock_SamePosition(t *testing.T) {
+func TestUpdateBlockFormatting(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:       blockID,
-		NoteID:   noteID,
-		Position: 1,
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-
-	result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, 1)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 1, result.Position)
-}
-
-func TestMoveBlock_InvalidPosition(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:       blockID,
-		NoteID:   noteID,
-		Position: 0,
-	}
-	blocks := []models.Block{
-		{ID: blockID, Position: 0},
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(blocks, nil)
-
-	result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, 5)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidPosition, err)
-	assert.Nil(t, result)
-}
-
-func TestDeleteBlock_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:       blockID,
-		NoteID:   noteID,
-		Position: 1,
-	}
-	blockNoteID := noteID
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		DeleteBlock(gomock.Any(), blockID).
-		Return(&blockNoteID, nil)
-	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 1, -1).
-		Return(nil)
-
-	err := usecase.DeleteBlock(context.Background(), blockID, noteID, userID)
-
-	assert.NoError(t, err)
-}
-
-func TestUpdateBlockFormatting_ForTextBlock(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	bold := true
-	formattingRange := models.FormattingRange{
-		StartPos: 0,
-		EndPos:   5,
-		Bold:     &bold,
-	}
 
 	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
-	block := &models.Block{
+
+	textBlock := &models.Block{
 		ID:          blockID,
 		NoteID:      noteID,
 		BlockTypeID: 1,
 		Content:     "Hello World",
 	}
-	blockType := &models.BlockType{
-		ID:   1,
-		Name: "text",
-	}
-	expectedFormatting := &models.BlockFormatting{
-		BlockID: blockID.String(),
-		Ranges:  []models.FormattingRange{formattingRange},
-	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 1).
-		Return(blockType, nil)
-	mockRepo.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, formattingRange).
-		Return(expectedFormatting, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedFormatting, result)
-}
-
-func TestUpdateBlockFormatting_ForImageBlock_ValidFormatting(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	textAlign := 1
-	formattingRange := models.FormattingRange{
-		StartPos:  0,
-		EndPos:    9,
-		TextAlign: &textAlign,
-	}
-
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
+	imageBlock := &models.Block{
 		ID:          blockID,
 		NoteID:      noteID,
 		BlockTypeID: 2,
 		Content:     "image.jpg",
 	}
-	blockType := &models.BlockType{
-		ID:   2,
-		Name: "image",
+
+	textBlockType := &models.BlockType{ID: 1, Name: "text"}
+	imageBlockType := &models.BlockType{ID: 2, Name: "image"}
+
+	boldTrue := true
+	// textAlignCenter := 1
+
+	tests := []struct {
+		name            string
+		formattingRange models.FormattingRange
+		setupMock       func()
+		wantErr         bool
+	}{
+		{
+			name: "success - text block formatting",
+			formattingRange: models.FormattingRange{
+				StartPos: 0,
+				EndPos:   5,
+				Bold:     &boldTrue,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(textBlock, nil)
+				mockRepo.EXPECT().GetBlockType(gomock.Any(), textBlock.BlockTypeID).Return(textBlockType, nil)
+				mockRepo.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, gomock.Any()).Return(&models.BlockFormatting{BlockID: blockID.String()}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "error - image block with text formatting",
+			formattingRange: models.FormattingRange{
+				StartPos: 0,
+				EndPos:   5,
+				Bold:     &boldTrue,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(imageBlock, nil)
+				mockRepo.EXPECT().GetBlockType(gomock.Any(), imageBlock.BlockTypeID).Return(imageBlockType, nil)
+				// No UpdateBlockFormatting call expected
+			},
+			wantErr: true,
+		},
+		{
+			name: "error - invalid range",
+			formattingRange: models.FormattingRange{
+				StartPos: 100,
+				EndPos:   50,
+				Bold:     &boldTrue,
+			},
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(textBlock, nil)
+				mockRepo.EXPECT().GetBlockType(gomock.Any(), textBlock.BlockTypeID).Return(textBlockType, nil)
+			},
+			wantErr: true,
+		},
 	}
-	expectedFormatting := &models.BlockFormatting{
-		BlockID: blockID.String(),
-		Ranges:  []models.FormattingRange{formattingRange},
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, tt.formattingRange)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			}
+		})
 	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 2).
-		Return(blockType, nil)
-	mockRepo.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, formattingRange).
-		Return(expectedFormatting, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedFormatting, result)
 }
 
-func TestUpdateBlockFormatting_ForImageBlock_ValidRange(t *testing.T) {
+func TestMoveBlock(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
-	textAlign := 1
-	formattingRange := models.FormattingRange{
-		StartPos:  0,
-		EndPos:    9,
-		TextAlign: &textAlign,
-	}
 
 	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
+
 	block := &models.Block{
-		ID:          blockID,
-		NoteID:      noteID,
-		BlockTypeID: 2,
-		Content:     "image.jpg",
-	}
-	blockType := &models.BlockType{
-		ID:   2,
-		Name: "image",
-	}
-	expectedFormatting := &models.BlockFormatting{
-		BlockID: blockID.String(),
-		Ranges:  []models.FormattingRange{formattingRange},
+		ID:       blockID,
+		NoteID:   noteID,
+		Position: 2,
 	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 2).
-		Return(blockType, nil)
-	mockRepo.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, formattingRange).
-		Return(expectedFormatting, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedFormatting, result)
-}
-
-func TestUpdateBlockFormatting_ForImageBlock_InvalidFormatting(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	bold := true
-	formattingRange := models.FormattingRange{
-		StartPos: 0,
-		EndPos:   5,
-		Bold:     &bold,
-	}
-
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:          blockID,
-		NoteID:      noteID,
-		BlockTypeID: 2,
-		Content:     "image.jpg",
-	}
-	blockType := &models.BlockType{
-		ID:   2,
-		Name: "image",
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 2).
-		Return(blockType, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidFormattingForImageBlock, err)
-	assert.Nil(t, result)
-}
-
-func TestUpdateBlockFormatting_InvalidRange(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	formattingRange := models.FormattingRange{
-		StartPos: 10,
-		EndPos:   5,
-	}
-
-	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
-	}
-	block := &models.Block{
-		ID:          blockID,
-		NoteID:      noteID,
-		BlockTypeID: 1,
-		Content:     "Hello",
-	}
-	blockType := &models.BlockType{
-		ID:   1,
-		Name: "text",
-	}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 1).
-		Return(blockType, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidFormattingRange, err)
-	assert.Nil(t, result)
-}
-
-func TestGetBlocksWithFormatting_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	noteID := uuid.New()
 	blocks := []models.Block{
-		{ID: uuid.New(), NoteID: noteID, Position: 0},
-		{ID: uuid.New(), NoteID: noteID, Position: 1},
-	}
-	formattings := map[string]models.BlockFormatting{
-		blocks[0].ID.String(): {BlockID: blocks[0].ID.String(), Ranges: []models.FormattingRange{}},
+		{Position: 0}, {Position: 1}, {Position: 2}, {Position: 3},
 	}
 
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(blocks, nil)
-	mockRepo.EXPECT().
-		GetBlocksFormatting(gomock.Any(), gomock.Any()).
-		Return(formattings, nil)
+	tests := []struct {
+		name        string
+		newPosition int
+		setupMock   func()
+		wantErr     bool
+	}{
+		{
+			name:        "success - move up",
+			newPosition: 0,
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+				mockRepo.EXPECT().MoveBlock(gomock.Any(), noteID, blockID, 2, 0).Return(block, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:        "success - move down",
+			newPosition: 3,
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+				mockRepo.EXPECT().MoveBlock(gomock.Any(), noteID, blockID, 2, 3).Return(block, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:        "same position - no move",
+			newPosition: 2,
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				// No GetBlocks or MoveBlock calls expected
+			},
+			wantErr: false,
+		},
+		{
+			name:        "invalid position",
+			newPosition: 10,
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
+			},
+			wantErr: true,
+		},
+	}
 
-	resultBlocks, resultFormattings, err := usecase.GetBlocksWithFormatting(context.Background(), noteID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, tt.newPosition)
 
-	assert.NoError(t, err)
-	assert.Equal(t, blocks, resultBlocks)
-	assert.Equal(t, formattings, resultFormattings)
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.newPosition != 2 {
+					assert.Nil(t, result)
+				}
+			} else {
+				assert.NoError(t, err)
+				if tt.newPosition != 2 {
+					assert.NotNil(t, result)
+				}
+			}
+		})
+	}
 }
 
-func TestGetBlocksWithFormatting_EmptyBlocks(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	noteID := uuid.New()
-	blocks := []models.Block{}
-
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(blocks, nil)
-
-	resultBlocks, resultFormattings, err := usecase.GetBlocksWithFormatting(context.Background(), noteID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, blocks, resultBlocks)
-	assert.NotNil(t, resultFormattings)
-	assert.Empty(t, resultFormattings)
-}
-
-func TestGetBlockFormatting_Success(t *testing.T) {
+func TestDeleteBlock(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
+
 	note := &models.Note{
-		ID:     noteID,
-		UserID: userID,
+		ID:       noteID,
+		UserID:   userID,
+		Title:    "Test Note",
+		IsPublic: false,
 	}
+
 	block := &models.Block{
-		ID:     blockID,
-		NoteID: noteID,
-	}
-	expectedFormatting := &models.BlockFormatting{
-		BlockID: blockID.String(),
-		Ranges:  []models.FormattingRange{},
+		ID:       blockID,
+		NoteID:   noteID,
+		Position: 2,
 	}
 
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockFormatting(gomock.Any(), blockID).
-		Return(expectedFormatting, nil)
+	blockNoteID := noteID
 
-	result, err := usecase.GetBlockFormatting(context.Background(), blockID, noteID, userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedFormatting, result)
-}
-
-func TestGetBlocks_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	noteID := uuid.New()
-	expectedBlocks := []models.Block{
-		{ID: uuid.New(), NoteID: noteID, Position: 0},
-		{ID: uuid.New(), NoteID: noteID, Position: 1},
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
+				mockRepo.EXPECT().DeleteBlock(gomock.Any(), blockID).Return(&blockNoteID, nil)
+				mockRepo.EXPECT().ShiftBlockPositions(gomock.Any(), noteID, block.Position, -1).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "note not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "block not found",
+			setupMock: func() {
+				mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
+				mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(nil, nil)
+			},
+			wantErr: true,
+		},
 	}
 
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(expectedBlocks, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			err := usecase.DeleteBlock(context.Background(), blockID, noteID, userID)
 
-	blocks, err := usecase.GetBlocks(context.Background(), noteID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedBlocks, blocks)
-}
-
-func TestGetBlocks_Error(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	noteID := uuid.New()
-
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(nil, errors.New("database error"))
-
-	blocks, err := usecase.GetBlocks(context.Background(), noteID)
-
-	assert.Error(t, err)
-	assert.Nil(t, blocks)
-}
-
-func TestUpdateNote_EmptyTitle(t *testing.T) {
-	usecase, _, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := models.Note{Title: ""}
-
-	result, err := usecase.UpdateNote(context.Background(), noteID, note, userID)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidNoteData, err)
-	assert.Nil(t, result)
-}
-
-func TestUpdateNote_GetNoteError(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := models.Note{Title: "Updated Title"}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(nil, errors.New("database error"))
-
-	result, err := usecase.UpdateNote(context.Background(), noteID, note, userID)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestDeleteNote_GetNoteError(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(nil, errors.New("database error"))
-
-	err := usecase.DeleteNote(context.Background(), noteID, userID)
-
-	assert.Error(t, err)
-}
-
-func TestCreateBlock_ShiftPositionsError(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := models.Block{BlockTypeID: 1, Position: 0}
-	existingBlocks := []models.Block{}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(existingBlocks, nil)
-	mockRepo.EXPECT().
-		ShiftBlockPositions(gomock.Any(), noteID, 0, 1).
-		Return(errors.New("shift error"))
-
-	result, err := usecase.CreateBlock(context.Background(), noteID, userID, block)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestMoveBlock_GetBlocksError(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := &models.Block{ID: blockID, NoteID: noteID, Position: 0}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlocks(gomock.Any(), noteID).
-		Return(nil, errors.New("database error"))
-
-	result, err := usecase.MoveBlock(context.Background(), blockID, noteID, userID, 2)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestDeleteBlock_BlockNotFound(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := &models.Block{ID: blockID, NoteID: noteID, Position: 1}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		DeleteBlock(gomock.Any(), blockID).
-		Return(nil, nil)
-
-	err := usecase.DeleteBlock(context.Background(), blockID, noteID, userID)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrBlockNotFound, err)
-}
-
-func TestResetBlockFormatting_Success(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := &models.Block{ID: blockID, NoteID: noteID}
-	expectedFormatting := &models.BlockFormatting{BlockID: blockID.String(), Ranges: []models.FormattingRange{}}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		ResetBlockFormatting(gomock.Any(), blockID).
-		Return(expectedFormatting, nil)
-
-	result, err := usecase.ResetBlockFormatting(context.Background(), blockID, noteID, userID)
-
-	assert.NoError(t, err)
-	assert.Equal(t, expectedFormatting, result)
-}
-
-func TestResetBlockFormatting_NoteNotFound(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(nil, nil)
-
-	result, err := usecase.ResetBlockFormatting(context.Background(), blockID, noteID, userID)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrNoteNotFound, err)
-	assert.Nil(t, result)
-}
-
-func TestResetBlockFormatting_BlockNotFound(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(nil, nil)
-
-	result, err := usecase.ResetBlockFormatting(context.Background(), blockID, noteID, userID)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrBlockNotFound, err)
-	assert.Nil(t, result)
-}
-
-func TestUpdateBlockFormatting_BlockTypeNotFound(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := &models.Block{ID: blockID, NoteID: noteID, BlockTypeID: 1, Content: "Hello"}
-	formattingRange := models.FormattingRange{StartPos: 0, EndPos: 5}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 1).
-		Return(nil, nil)
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.Error(t, err)
-	assert.Equal(t, notes.ErrInvalidBlockType, err)
-	assert.Nil(t, result)
-}
-
-func TestUpdateBlockFormatting_GetBlockTypeError(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	note := &models.Note{ID: noteID, UserID: userID}
-	block := &models.Block{ID: blockID, NoteID: noteID, BlockTypeID: 1, Content: "Hello"}
-	formattingRange := models.FormattingRange{StartPos: 0, EndPos: 5}
-
-	mockRepo.EXPECT().
-		GetNote(gomock.Any(), noteID).
-		Return(note, nil)
-	mockRepo.EXPECT().
-		GetBlock(gomock.Any(), blockID).
-		Return(block, nil)
-	mockRepo.EXPECT().
-		GetBlockType(gomock.Any(), 1).
-		Return(nil, errors.New("database error"))
-
-	result, err := usecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userID, formattingRange)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

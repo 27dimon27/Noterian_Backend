@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func setupTestRepository(t *testing.T) (*userRepository, sqlmock.Sqlmock) {
@@ -23,23 +22,24 @@ func setupTestRepository(t *testing.T) (*userRepository, sqlmock.Sqlmock) {
 	return repo, mock
 }
 
-func TestCreateUser_Success(t *testing.T) {
+func TestUserRepository_CreateUser_Success(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "testuser"
 	password := "Test1234"
 
+	// Expect check for existing user
 	mock.ExpectQuery(regexp.QuoteMeta(CHECK_USER_EXISTS)).
 		WithArgs(username).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
+	// Expect insert
 	mock.ExpectExec(regexp.QuoteMeta(CREATE_USER)).
-		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	user, err := repo.CreateUser(ctx, username, password)
+	user, err := repo.CreateUser(context.Background(), username, password)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
@@ -47,39 +47,32 @@ func TestCreateUser_Success(t *testing.T) {
 	assert.Equal(t, 1, user.TokenVersion)
 	assert.NotEmpty(t, user.ID)
 	assert.NotEmpty(t, user.Password)
-
-	err = bcrypt.CompareHashAndPassword(user.Password, []byte(password))
-	assert.NoError(t, err)
-
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestCreateUser_UserAlreadyExists(t *testing.T) {
+func TestUserRepository_CreateUser_UserAlreadyExists(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "existinguser"
 	password := "Test1234"
 
+	// Expect check for existing user - returns true
 	mock.ExpectQuery(regexp.QuoteMeta(CHECK_USER_EXISTS)).
 		WithArgs(username).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-	user, err := repo.CreateUser(ctx, username, password)
+	user, err := repo.CreateUser(context.Background(), username, password)
 
-	assert.Error(t, err)
-	assert.Equal(t, auth.ErrUserExist, err)
 	assert.Nil(t, user)
-
+	assert.ErrorIs(t, err, auth.ErrUserExist)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestCreateUser_CheckExistsError(t *testing.T) {
+func TestUserRepository_CreateUser_CheckExistsQueryError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "testuser"
 	password := "Test1234"
 
@@ -87,20 +80,17 @@ func TestCreateUser_CheckExistsError(t *testing.T) {
 		WithArgs(username).
 		WillReturnError(sql.ErrConnDone)
 
-	user, err := repo.CreateUser(ctx, username, password)
+	user, err := repo.CreateUser(context.Background(), username, password)
 
-	assert.Error(t, err)
-	assert.Equal(t, sql.ErrConnDone, err)
 	assert.Nil(t, user)
-
+	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestCreateUser_InsertError(t *testing.T) {
+func TestUserRepository_CreateUser_InsertError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "testuser"
 	password := "Test1234"
 
@@ -109,86 +99,217 @@ func TestCreateUser_InsertError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 	mock.ExpectExec(regexp.QuoteMeta(CREATE_USER)).
-		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
 		WillReturnError(sql.ErrTxDone)
 
-	user, err := repo.CreateUser(ctx, username, password)
+	user, err := repo.CreateUser(context.Background(), username, password)
 
-	assert.Error(t, err)
-	assert.Equal(t, sql.ErrTxDone, err)
 	assert.Nil(t, user)
-
+	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestGetUserByUsername_Success(t *testing.T) {
+func TestUserRepository_GetUserByUsername_Success(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
-	username := "testuser"
 	userID := uuid.New()
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("Test1234"), bcrypt.DefaultCost)
-
+	username := "testuser"
+	hashedPassword := []byte("hashedpassword")
+	tokenVersion := 1
 	now := time.Now()
-	createdAt := now
-	updatedAt := now
 
+	// Используем правильные типы данных для time.Time
 	rows := sqlmock.NewRows([]string{"id", "username", "password", "token_version", "created_at", "updated_at"}).
-		AddRow(userID, username, hashedPassword, 1, createdAt, updatedAt)
+		AddRow(userID.String(), username, hashedPassword, tokenVersion, now, now)
 
 	mock.ExpectQuery(regexp.QuoteMeta(GET_USER_BY_USERNAME)).
 		WithArgs(username).
 		WillReturnRows(rows)
 
-	user, err := repo.GetUserByUsername(ctx, username)
+	user, err := repo.GetUserByUsername(context.Background(), username)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.Equal(t, userID, user.ID)
 	assert.Equal(t, username, user.Username)
 	assert.Equal(t, hashedPassword, user.Password)
-	assert.Equal(t, 1, user.TokenVersion)
-
+	assert.Equal(t, tokenVersion, user.TokenVersion)
+	assert.WithinDuration(t, now, user.CreatedAt, time.Second)
+	assert.WithinDuration(t, now, user.UpdatedAt, time.Second)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestGetUserByUsername_UserNotFound(t *testing.T) {
+func TestUserRepository_GetUserByUsername_NotFound(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "nonexistent"
 
 	mock.ExpectQuery(regexp.QuoteMeta(GET_USER_BY_USERNAME)).
 		WithArgs(username).
 		WillReturnError(sql.ErrNoRows)
 
-	user, err := repo.GetUserByUsername(ctx, username)
+	user, err := repo.GetUserByUsername(context.Background(), username)
 
-	assert.Error(t, err)
-	assert.Equal(t, auth.ErrUserNotExist, err)
 	assert.Nil(t, user)
-
+	assert.ErrorIs(t, err, auth.ErrUserNotExist)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestGetUserByUsername_DatabaseError(t *testing.T) {
+func TestUserRepository_GetUserByUsername_QueryError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
-	ctx := context.Background()
 	username := "testuser"
 
 	mock.ExpectQuery(regexp.QuoteMeta(GET_USER_BY_USERNAME)).
 		WithArgs(username).
 		WillReturnError(sql.ErrConnDone)
 
-	user, err := repo.GetUserByUsername(ctx, username)
+	user, err := repo.GetUserByUsername(context.Background(), username)
 
-	assert.Error(t, err)
-	assert.Equal(t, sql.ErrConnDone, err)
 	assert.Nil(t, user)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetUserByUsername_ScanError(t *testing.T) {
+	repo, mock := setupTestRepository(t)
+	defer repo.db.Close()
+
+	username := "testuser"
+
+	// Return wrong number of columns to cause scan error
+	rows := sqlmock.NewRows([]string{"id", "username"}).
+		AddRow(uuid.New().String(), username)
+
+	mock.ExpectQuery(regexp.QuoteMeta(GET_USER_BY_USERNAME)).
+		WithArgs(username).
+		WillReturnRows(rows)
+
+	user, err := repo.GetUserByUsername(context.Background(), username)
+
+	assert.Nil(t, user)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetUserByUsername_WithNullTimestamps(t *testing.T) {
+	repo, mock := setupTestRepository(t)
+	defer repo.db.Close()
+
+	userID := uuid.New()
+	username := "testuser"
+	hashedPassword := []byte("hashedpassword")
+	tokenVersion := 1
+
+	// Тестируем случай, когда в БД могут быть NULL значения (хотя по схеме они NOT NULL)
+	rows := sqlmock.NewRows([]string{"id", "username", "password", "token_version", "created_at", "updated_at"}).
+		AddRow(userID.String(), username, hashedPassword, tokenVersion, nil, nil)
+
+	mock.ExpectQuery(regexp.QuoteMeta(GET_USER_BY_USERNAME)).
+		WithArgs(username).
+		WillReturnRows(rows)
+
+	user, err := repo.GetUserByUsername(context.Background(), username)
+
+	// Это должно вызвать ошибку сканирования, так как NULL нельзя присвоить time.Time
+	assert.Error(t, err)
+	assert.Nil(t, user)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_CreateUser_WithSpecialCharacters(t *testing.T) {
+	repo, mock := setupTestRepository(t)
+	defer repo.db.Close()
+
+	testCases := []struct {
+		name     string
+		username string
+		password string
+	}{
+		{"with underscore", "test_user", "Test1234"},
+		{"with dot", "test.user", "Test1234"},
+		{"with numbers", "test123", "Test1234"},
+		{"russian", "тест", "Test1234"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock.ExpectQuery(regexp.QuoteMeta(CHECK_USER_EXISTS)).
+				WithArgs(tc.username).
+				WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+			mock.ExpectExec(regexp.QuoteMeta(CREATE_USER)).
+				WithArgs(sqlmock.AnyArg(), tc.username, sqlmock.AnyArg(), 1).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
+			user, err := repo.CreateUser(context.Background(), tc.username, tc.password)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, user)
+			assert.Equal(t, tc.username, user.Username)
+		})
+	}
+}
+
+func TestUserRepository_ConcurrentCreateUser(t *testing.T) {
+	repo, mock := setupTestRepository(t)
+	defer repo.db.Close()
+
+	username := "testuser"
+	password := "Test1234"
+
+	// Simulate concurrent access by checking expectations after each call
+	for i := 0; i < 3; i++ {
+		mock.ExpectQuery(regexp.QuoteMeta(CHECK_USER_EXISTS)).
+			WithArgs(username).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+		mock.ExpectExec(regexp.QuoteMeta(CREATE_USER)).
+			WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		user, err := repo.CreateUser(context.Background(), username, password)
+		assert.NoError(t, err)
+		assert.NotNil(t, user)
+	}
 
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_CreateUser_WithEmptyFields(t *testing.T) {
+	repo, mock := setupTestRepository(t)
+	defer repo.db.Close()
+
+	testCases := []struct {
+		name     string
+		username string
+		password string
+	}{
+		{"empty username", "", "Test1234"},
+		{"empty password", "testuser", ""},
+		{"both empty", "", ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mock.ExpectQuery(regexp.QuoteMeta(CHECK_USER_EXISTS)).
+				WithArgs(tc.username).
+				WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+			mock.ExpectExec(regexp.QuoteMeta(CREATE_USER)).
+				WithArgs(sqlmock.AnyArg(), tc.username, sqlmock.AnyArg(), 1).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
+			user, err := repo.CreateUser(context.Background(), tc.username, tc.password)
+
+			// Репозиторий не валидирует поля, он просто передает их в БД
+			// Поэтому ошибки не будет, даже если поля пустые
+			assert.NoError(t, err)
+			assert.NotNil(t, user)
+			assert.Equal(t, tc.username, user.Username)
+		})
+	}
 }

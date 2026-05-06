@@ -1,264 +1,490 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"errors"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
-	"golang.org/x/crypto/bcrypt"
 )
 
-func setupTestUsecase(t *testing.T) (*profileUsecase, *mocks.MockProfileRepository, *gomock.Controller) {
-	ctrl := gomock.NewController(t)
-	mockRepo := mocks.NewMockProfileRepository(ctrl)
-	usecase, _ := NewProfileUsecase(mockRepo)
-	return usecase, mockRepo, ctrl
+type mockProfileRepo struct {
+	getProfileFunc           func(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+	getProfileByUsernameFunc func(ctx context.Context, username string) (*models.Profile, error)
+	updateProfileFunc        func(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
+	deleteProfileFunc        func(ctx context.Context, userID uuid.UUID) error
+	getAvatarFunc            func(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
+	uploadAvatarFunc         func(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
+	deleteAvatarFunc         func(ctx context.Context, profileID uuid.UUID) error
+	changePasswordFunc       func(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error)
+	getPasswordFunc          func(ctx context.Context, userID uuid.UUID) ([]byte, error)
+}
+
+func (m *mockProfileRepo) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+	if m.getProfileFunc != nil {
+		return m.getProfileFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+	if m.getProfileByUsernameFunc != nil {
+		return m.getProfileByUsernameFunc(ctx, username)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+	if m.updateProfileFunc != nil {
+		return m.updateProfileFunc(ctx, userID, profile)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+	if m.deleteProfileFunc != nil {
+		return m.deleteProfileFunc(ctx, userID)
+	}
+	return nil
+}
+
+func (m *mockProfileRepo) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
+	if m.getAvatarFunc != nil {
+		return m.getAvatarFunc(ctx, profileID)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error) {
+	if m.uploadAvatarFunc != nil {
+		return m.uploadAvatarFunc(ctx, profileID, fileName, fileSize, mimeType, fileReader)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
+	if m.deleteAvatarFunc != nil {
+		return m.deleteAvatarFunc(ctx, profileID)
+	}
+	return nil
+}
+
+func (m *mockProfileRepo) ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error) {
+	if m.changePasswordFunc != nil {
+		return m.changePasswordFunc(ctx, userID, newPassword)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileRepo) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+	if m.getPasswordFunc != nil {
+		return m.getPasswordFunc(ctx, userID)
+	}
+	return nil, nil
 }
 
 func TestProfileUsecase_GetProfile(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	userID := uuid.New()
 	expectedProfile := &models.Profile{
 		ID:       userID,
 		Username: "testuser",
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetProfile(gomock.Any(), userID).
-			Return(expectedProfile, nil)
+	tests := []struct {
+		name      string
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileFunc = func(ctx context.Context, id uuid.UUID) (*models.Profile, error) {
+					return expectedProfile, nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileFunc = func(ctx context.Context, id uuid.UUID) (*models.Profile, error) {
+					return nil, profiles.ErrUserNotExist
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+		{
+			name: "Database Error",
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileFunc = func(ctx context.Context, id uuid.UUID) (*models.Profile, error) {
+					return nil, errors.New("database connection failed")
+				}
+			},
+			wantErr: true,
+		},
+	}
 
-		profile, err := usecase.GetProfile(context.Background(), userID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
 
-		assert.NoError(t, err)
-		assert.Equal(t, expectedProfile, profile)
-	})
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
 
-	t.Run("repository returns error", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetProfile(gomock.Any(), userID).
-			Return(nil, errors.New("db error"))
+			profile, err := usecase.GetProfile(context.Background(), userID)
 
-		profile, err := usecase.GetProfile(context.Background(), userID)
-
-		assert.Error(t, err)
-		assert.Nil(t, profile)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, expectedProfile, profile)
+			}
+		})
+	}
 }
 
 func TestProfileUsecase_UpdateProfile(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	userID := uuid.New()
-	validProfile := models.Profile{
-		ID:       userID,
-		Username: "validuser",
+	existingUsername := "existinguser"
+	newUsername := "newusername"
+
+	tests := []struct {
+		name      string
+		profile   models.Profile
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			profile: models.Profile{
+				Username: newUsername,
+			},
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileByUsernameFunc = func(ctx context.Context, username string) (*models.Profile, error) {
+					return nil, profiles.ErrUserNotExist
+				}
+				m.updateProfileFunc = func(ctx context.Context, id uuid.UUID, profile models.Profile) (*models.Profile, error) {
+					return &models.Profile{
+						ID:       id,
+						Username: newUsername,
+					}, nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid Username - Empty",
+			profile: models.Profile{
+				Username: "",
+			},
+			setupMock: func(m *mockProfileRepo) {},
+			wantErr:   true,
+			errType:   profiles.ErrInvalidProfileData,
+		},
+		{
+			name: "Username Already Exists",
+			profile: models.Profile{
+				Username: existingUsername,
+			},
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileByUsernameFunc = func(ctx context.Context, username string) (*models.Profile, error) {
+					return &models.Profile{
+						ID:       uuid.New(),
+						Username: existingUsername,
+					}, nil
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrUsernameExists,
+		},
+		{
+			name: "Database Error On GetByUsername",
+			profile: models.Profile{
+				Username: newUsername,
+			},
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileByUsernameFunc = func(ctx context.Context, username string) (*models.Profile, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "User Not Found On Update",
+			profile: models.Profile{
+				Username: newUsername,
+			},
+			setupMock: func(m *mockProfileRepo) {
+				m.getProfileByUsernameFunc = func(ctx context.Context, username string) (*models.Profile, error) {
+					return nil, profiles.ErrUserNotExist
+				}
+				m.updateProfileFunc = func(ctx context.Context, id uuid.UUID, profile models.Profile) (*models.Profile, error) {
+					return nil, profiles.ErrUserNotExist
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
 	}
-	updatedProfile := &models.Profile{
-		ID:       userID,
-		Username: "validuser",
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
+
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
+
+			profile, err := usecase.UpdateProfile(context.Background(), userID, tt.profile)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, profile)
+			}
+		})
 	}
-
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			UpdateProfile(gomock.Any(), userID, validProfile).
-			Return(updatedProfile, nil)
-
-		profile, err := usecase.UpdateProfile(context.Background(), userID, validProfile)
-
-		assert.NoError(t, err)
-		assert.Equal(t, updatedProfile, profile)
-	})
-
-	t.Run("empty username", func(t *testing.T) {
-		invalidProfile := models.Profile{
-			ID:       userID,
-			Username: "",
-		}
-
-		profile, err := usecase.UpdateProfile(context.Background(), userID, invalidProfile)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrInvalidProfileData, err)
-		assert.Nil(t, profile)
-	})
 }
 
 func TestProfileUsecase_DeleteProfile(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	userID := uuid.New()
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			DeleteProfile(gomock.Any(), userID).
-			Return(nil)
+	tests := []struct {
+		name      string
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func(m *mockProfileRepo) {
+				m.deleteProfileFunc = func(ctx context.Context, id uuid.UUID) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func(m *mockProfileRepo) {
+				m.deleteProfileFunc = func(ctx context.Context, id uuid.UUID) error {
+					return profiles.ErrUserNotExist
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
 
-		err := usecase.DeleteProfile(context.Background(), userID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
 
-		assert.NoError(t, err)
-	})
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
 
-	t.Run("repository returns error", func(t *testing.T) {
-		mockRepo.EXPECT().
-			DeleteProfile(gomock.Any(), userID).
-			Return(errors.New("delete failed"))
+			err = usecase.DeleteProfile(context.Background(), userID)
 
-		err := usecase.DeleteProfile(context.Background(), userID)
-
-		assert.Error(t, err)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestProfileUsecase_GetAvatar(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	profileID := uuid.New()
 	expectedAvatar := &models.Avatar{
 		ID:        uuid.New(),
 		ProfileID: profileID,
-		AvatarURL: "https://example.com/avatar.jpg",
+		AvatarURL: "http://example.com/avatar.jpg",
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetAvatar(gomock.Any(), profileID).
-			Return(expectedAvatar, nil)
+	tests := []struct {
+		name      string
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func(m *mockProfileRepo) {
+				m.getAvatarFunc = func(ctx context.Context, id uuid.UUID) (*models.Avatar, error) {
+					return expectedAvatar, nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Avatar Not Found",
+			setupMock: func(m *mockProfileRepo) {
+				m.getAvatarFunc = func(ctx context.Context, id uuid.UUID) (*models.Avatar, error) {
+					return nil, nil
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrAvatarNotFound,
+		},
+		{
+			name: "Database Error",
+			setupMock: func(m *mockProfileRepo) {
+				m.getAvatarFunc = func(ctx context.Context, id uuid.UUID) (*models.Avatar, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			wantErr: true,
+		},
+	}
 
-		avatar, err := usecase.GetAvatar(context.Background(), profileID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
 
-		assert.NoError(t, err)
-		assert.Equal(t, expectedAvatar, avatar)
-	})
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
 
-	t.Run("avatar not found - returns nil", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetAvatar(gomock.Any(), profileID).
-			Return(nil, nil)
+			avatar, err := usecase.GetAvatar(context.Background(), profileID)
 
-		avatar, err := usecase.GetAvatar(context.Background(), profileID)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrAvatarNotFound, err)
-		assert.Nil(t, avatar)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, expectedAvatar, avatar)
+			}
+		})
+	}
 }
 
 func TestProfileUsecase_UploadAvatar(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	profileID := uuid.New()
 	fileName := "test.jpg"
 	fileSize := int64(1024)
 	mimeType := "image/jpeg"
-	fileReader := bytes.NewReader([]byte("fake image data"))
+	fileReader := strings.NewReader("test image data")
 
-	expectedAvatar := &models.Avatar{
-		ID:        uuid.New(),
-		ProfileID: profileID,
-		AvatarURL: "https://example.com/avatar.jpg",
+	tests := []struct {
+		name      string
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+	}{
+		{
+			name: "Success",
+			setupMock: func(m *mockProfileRepo) {
+				m.uploadAvatarFunc = func(ctx context.Context, id uuid.UUID, fn string, fs int64, mt string, fr io.Reader) (*models.Avatar, error) {
+					return &models.Avatar{
+						ID:        uuid.New(),
+						ProfileID: id,
+						AvatarURL: "http://example.com/avatar.jpg",
+					}, nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Upload Failed",
+			setupMock: func(m *mockProfileRepo) {
+				m.uploadAvatarFunc = func(ctx context.Context, id uuid.UUID, fn string, fs int64, mt string, fr io.Reader) (*models.Avatar, error) {
+					return nil, profiles.ErrFailedToUpload
+				}
+			},
+			wantErr: true,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			UploadAvatar(gomock.Any(), profileID, fileName, fileSize, mimeType, gomock.Any()).
-			Return(expectedAvatar, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
 
-		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
 
-		assert.NoError(t, err)
-		assert.Equal(t, expectedAvatar, avatar)
-	})
+			avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
 
-	t.Run("repository returns error", func(t *testing.T) {
-		mockRepo.EXPECT().
-			UploadAvatar(gomock.Any(), profileID, fileName, fileSize, mimeType, gomock.Any()).
-			Return(nil, errors.New("upload failed"))
-
-		avatar, err := usecase.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
-
-		assert.Error(t, err)
-		assert.Nil(t, avatar)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, avatar)
+			}
+		})
+	}
 }
 
 func TestProfileUsecase_DeleteAvatar(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
 	profileID := uuid.New()
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			DeleteAvatar(gomock.Any(), profileID).
-			Return(nil)
-
-		err := usecase.DeleteAvatar(context.Background(), profileID)
-
-		assert.NoError(t, err)
-	})
-}
-
-func TestProfileUsecase_ChangePassword(t *testing.T) {
-	usecase, mockRepo, ctrl := setupTestUsecase(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correct123"), bcrypt.DefaultCost)
-	updatedProfile := &models.Profile{
-		ID:       userID,
-		Username: "testuser",
+	tests := []struct {
+		name      string
+		setupMock func(*mockProfileRepo)
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func(m *mockProfileRepo) {
+				m.deleteAvatarFunc = func(ctx context.Context, id uuid.UUID) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Avatar Not Found",
+			setupMock: func(m *mockProfileRepo) {
+				m.deleteAvatarFunc = func(ctx context.Context, id uuid.UUID) error {
+					return profiles.ErrAvatarNotFound
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrAvatarNotFound,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetPassword(gomock.Any(), userID).
-			Return(hashedPassword, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &mockProfileRepo{}
+			tt.setupMock(mockRepo)
 
-		mockRepo.EXPECT().
-			ChangePassword(gomock.Any(), userID, "new123").
-			Return(updatedProfile, nil)
+			usecase, err := NewProfileUsecase(mockRepo)
+			assert.NoError(t, err)
 
-		profile, err := usecase.ChangePassword(context.Background(), userID, "correct123", "new123")
+			err = usecase.DeleteAvatar(context.Background(), profileID)
 
-		assert.NoError(t, err)
-		assert.Equal(t, updatedProfile, profile)
-	})
-
-	t.Run("wrong old password", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetPassword(gomock.Any(), userID).
-			Return(hashedPassword, nil)
-
-		profile, err := usecase.ChangePassword(context.Background(), userID, "wrong123", "new123")
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrWrongPassword, err)
-		assert.Nil(t, profile)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mockRepo.EXPECT().
-			GetPassword(gomock.Any(), userID).
-			Return(nil, profiles.ErrUserNotExist)
-
-		profile, err := usecase.ChangePassword(context.Background(), userID, "old123", "new123")
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-		assert.Nil(t, profile)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

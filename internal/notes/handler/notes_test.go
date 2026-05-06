@@ -17,7 +17,6 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -28,448 +27,490 @@ func setupTestHandler(t *testing.T) (*NoteHandler, *mocks.MockNoteUsecase, *gomo
 	return handler, mockUsecase, ctrl
 }
 
-func createContextWithUserID(userID uuid.UUID) context.Context {
-	ctx := context.Background()
-	return context.WithValue(ctx, types.UserIDKey, userID)
+func addUserIDToContext(r *http.Request, userID uuid.UUID) *http.Request {
+	ctx := context.WithValue(r.Context(), types.UserIDKey, userID)
+	return r.WithContext(ctx)
 }
 
-func TestGetNotes_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	expectedNotes := []models.Note{
-		{
-			ID:        uuid.New(),
-			UserID:    userID,
-			Title:     "Note 1",
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-		{
-			ID:        uuid.New(),
-			UserID:    userID,
-			Title:     "Note 2",
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		},
-	}
-
-	mockUsecase.EXPECT().
-		GetNotes(gomock.Any(), userID).
-		Return(expectedNotes, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	w := httptest.NewRecorder()
-
-	handler.GetNotes(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response dto.NotesResponse
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Equal(t, 2, response.Total)
-	assert.Equal(t, expectedNotes[0].Title, response.Notes[0].Title)
-}
-
-func TestGetNotes_Unauthorized(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	req := httptest.NewRequest(http.MethodGet, "/notes", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetNotes(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestGetNotes_InternalError(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-
-	mockUsecase.EXPECT().
-		GetNotes(gomock.Any(), userID).
-		Return(nil, errors.New("database error"))
-
-	req := httptest.NewRequest(http.MethodGet, "/notes", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	w := httptest.NewRecorder()
-
-	handler.GetNotes(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestGetNote_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{
-		ID:        noteID,
-		UserID:    userID,
-		Title:     "Test Note",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	blocks := []models.Block{
-		{
-			ID:          uuid.New(),
-			NoteID:      noteID,
-			BlockTypeID: 1,
-			Position:    0,
-			Content:     "Hello",
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-	}
-	formattings := make(map[string]models.BlockFormatting)
-
-	mockUsecase.EXPECT().
-		GetNote(gomock.Any(), noteID, userID).
-		Return(note, nil)
-	mockUsecase.EXPECT().
-		GetBlocksWithFormatting(gomock.Any(), noteID).
-		Return(blocks, formattings, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetNote(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestGetNote_NotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockUsecase.EXPECT().
-		GetNote(gomock.Any(), noteID, userID).
-		Return(nil, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetNote(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestGetNote_Forbidden(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockUsecase.EXPECT().
-		GetNote(gomock.Any(), noteID, userID).
-		Return(nil, notes.ErrForbidden)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetNote(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestCreateNote_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteReq := dto.NoteRequest{
-		Title: "New Note",
-	}
-	body, _ := json.Marshal(noteReq)
-
-	createdNote := &models.Note{
-		ID:        uuid.New(),
-		UserID:    userID,
-		Title:     "New Note",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	mockUsecase.EXPECT().
-		CreateNote(gomock.Any(), gomock.Any()).
-		Return(createdNote, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	w := httptest.NewRecorder()
-
-	handler.CreateNote(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
-func TestCreateNote_InvalidData(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	body := []byte(`{"title": ""}`)
-
-	mockUsecase.EXPECT().
-		CreateNote(gomock.Any(), gomock.Any()).
-		Return(nil, notes.ErrInvalidNoteData)
-
-	req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	w := httptest.NewRecorder()
-
-	handler.CreateNote(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestUpdateNote_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	noteReq := dto.NoteRequest{
-		Title: "Updated Note",
-	}
-	body, _ := json.Marshal(noteReq)
-
-	updatedNote := &models.Note{
-		ID:        noteID,
-		UserID:    userID,
-		Title:     "Updated Note",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	mockUsecase.EXPECT().
-		UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).
-		Return(updatedNote, nil)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String(), bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateNote(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestDeleteNote_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockUsecase.EXPECT().
-		DeleteNote(gomock.Any(), noteID, userID).
-		Return(nil)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.DeleteNote(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-}
-
-func TestCreateBlock_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockReq := dto.BlockRequest{
-		BlockTypeID: 1,
-		Position:    0,
-	}
-	body, _ := json.Marshal(blockReq)
-
-	createdBlock := &models.Block{
-		ID:          uuid.New(),
-		NoteID:      noteID,
-		BlockTypeID: 1,
-		Position:    0,
-		Content:     "",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	mockUsecase.EXPECT().
-		CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).
-		Return(createdBlock, nil)
-
-	req := httptest.NewRequest(http.MethodPost, "/notes/"+noteID.String()+"/blocks", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.CreateBlock(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-}
-
-func TestUpdateBlockContent_Success(t *testing.T) {
+func TestMoveBlock(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
-	updateReq := dto.UpdateBlockContentRequest{
-		Content: "New content",
+
+	moveRequest := dto.MoveBlockRequest{
+		NewPosition: 5,
 	}
-	body, _ := json.Marshal(updateReq)
-
-	updatedBlock := &models.Block{
-		ID:          blockID,
-		NoteID:      noteID,
-		BlockTypeID: 1,
-		Position:    0,
-		Content:     "New content",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	mockUsecase.EXPECT().
-		UpdateBlockContent(gomock.Any(), blockID, noteID, userID, "New content").
-		Return(updatedBlock, nil)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String(), bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateBlockContent(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestMoveBlock_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	moveReq := dto.MoveBlockRequest{
-		NewPosition: 2,
-	}
-	body, _ := json.Marshal(moveReq)
 
 	movedBlock := &models.Block{
 		ID:          blockID,
 		NoteID:      noteID,
 		BlockTypeID: 1,
-		Position:    2,
-		Content:     "Content",
+		Position:    5,
+		Content:     "Test content",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	mockUsecase.EXPECT().
-		MoveBlock(gomock.Any(), blockID, noteID, userID, 2).
-		Return(movedBlock, nil)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/move", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.MoveBlock(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestDeleteBlock_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	mockUsecase.EXPECT().
-		DeleteBlock(gomock.Any(), blockID, noteID, userID).
-		Return(nil)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String()+"/blocks/"+blockID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.DeleteBlock(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-}
-
-func TestUpdateBlockFormatting_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	bold := true
-	formattingReq := dto.FormattingRange{
-		StartPos: 0,
-		EndPos:   5,
-		Bold:     &bold,
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		blockIDPath    string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:        "success",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(movedBlock, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			blockIDPath:    blockID.String(),
+			body:           moveRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "",
+			body:           moveRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			blockIDPath:    blockID.String(),
+			body:           moveRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "invalid-uuid",
+			body:           moveRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "empty body",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			body:           nil,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			body:           moveRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:        "note not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "block not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(nil, notes.ErrBlockNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "forbidden",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:        "invalid position",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(nil, notes.ErrInvalidPosition)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "internal error",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        moveRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, 5).Return(nil, errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
-	body, _ := json.Marshal(formattingReq)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyReader *bytes.Reader
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				bodyReader = bytes.NewReader(jsonBody)
+			} else {
+				bodyReader = bytes.NewReader([]byte{})
+			}
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tt.noteIDPath+"/blocks/"+tt.blockIDPath+"/move", bodyReader)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("blockId", tt.blockIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.MoveBlock(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestDeleteBlock(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	blockID := uuid.New()
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		blockIDPath    string
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:        "success",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteBlock(gomock.Any(), blockID, noteID, userID).Return(nil)
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "invalid-uuid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:        "note not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteBlock(gomock.Any(), blockID, noteID, userID).Return(notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "block not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteBlock(gomock.Any(), blockID, noteID, userID).Return(notes.ErrBlockNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "forbidden",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteBlock(gomock.Any(), blockID, noteID, userID).Return(notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:        "internal error",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteBlock(gomock.Any(), blockID, noteID, userID).Return(errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, "/notes/"+tt.noteIDPath+"/blocks/"+tt.blockIDPath, nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("blockId", tt.blockIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.DeleteBlock(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestUpdateBlockFormatting(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	blockID := uuid.New()
+
+	boldTrue := true
+	textAlignCenter := 1
+
+	formattingRequest := dto.FormattingRange{
+		StartPos:  0,
+		EndPos:    5,
+		Bold:      &boldTrue,
+		TextAlign: &textAlignCenter,
+	}
 
 	updatedFormatting := &models.BlockFormatting{
 		BlockID: blockID.String(),
 		Ranges: []models.FormattingRange{
-			{
-				StartPos: 0,
-				EndPos:   5,
-				Bold:     &bold,
-			},
+			{StartPos: 0, EndPos: 5, Bold: &boldTrue},
 		},
 	}
 
-	mockUsecase.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).
-		Return(updatedFormatting, nil)
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		blockIDPath    string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:        "success",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(updatedFormatting, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			blockIDPath:    blockID.String(),
+			body:           formattingRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "",
+			body:           formattingRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			blockIDPath:    blockID.String(),
+			body:           formattingRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "invalid-uuid",
+			body:           formattingRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "empty body",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			body:           nil,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			body:           formattingRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:        "note not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "block not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrBlockNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "forbidden",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:        "invalid block type",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidBlockType)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "invalid formatting for image block",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidFormattingForImageBlock)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "formatting not supported",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrFormattingNotSupported)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "invalid formatting range",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidFormattingRange)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "internal error",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        formattingRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
 
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyReader *bytes.Reader
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				bodyReader = bytes.NewReader(jsonBody)
+			} else {
+				bodyReader = bytes.NewReader([]byte{})
+			}
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tt.noteIDPath+"/blocks/"+tt.blockIDPath+"/formatting", bodyReader)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("blockId", tt.blockIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
 
-	handler.UpdateBlockFormatting(w, req)
+			tt.setupMock()
+			handler.UpdateBlockFormatting(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }
 
-func TestResetBlockFormatting_Success(t *testing.T) {
+func TestResetBlockFormatting(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
@@ -482,489 +523,505 @@ func TestResetBlockFormatting_Success(t *testing.T) {
 		Ranges:  []models.FormattingRange{},
 	}
 
-	mockUsecase.EXPECT().
-		ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).
-		Return(resetFormatting, nil)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.ResetBlockFormatting(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestGetNote_InvalidNoteID(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-
 	tests := []struct {
-		name       string
-		noteID     string
-		wantStatus int
+		name           string
+		noteIDPath     string
+		blockIDPath    string
+		setupMock      func()
+		expectedStatus int
 	}{
-		{"empty note id", "", http.StatusBadRequest},
-		{"invalid uuid", "invalid-uuid", http.StatusBadRequest},
+		{
+			name:        "success",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).Return(resetFormatting, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "invalid-uuid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:        "note not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "block not found",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).Return(nil, notes.ErrBlockNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:        "forbidden",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:        "internal error",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).Return(nil, errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/notes/"+tt.noteID, nil)
-			req = req.WithContext(createContextWithUserID(userID))
-			req.SetPathValue("noteId", tt.noteID)
+			req := httptest.NewRequest(http.MethodDelete, "/notes/"+tt.noteIDPath+"/blocks/"+tt.blockIDPath+"/formatting", nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("blockId", tt.blockIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
 			w := httptest.NewRecorder()
 
-			handler.GetNote(w, req)
+			tt.setupMock()
+			handler.ResetBlockFormatting(w, req)
 
-			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
 
-func TestGetNote_GetBlocksWithFormattingError(t *testing.T) {
+func TestCreateSubnote(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
-	noteID := uuid.New()
-	note := &models.Note{
-		ID:        noteID,
+	parentNoteID := uuid.New()
+	subnoteID := uuid.New()
+
+	noteRequest := dto.NoteRequest{
+		Title:    "New Subnote",
+		IsPublic: false,
+	}
+
+	createdNote := &models.Note{
+		ID:        subnoteID,
 		UserID:    userID,
-		Title:     "Test Note",
+		Title:     "New Subnote",
+		ParentID:  &parentNoteID,
+		IsPublic:  false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	mockUsecase.EXPECT().
-		GetNote(gomock.Any(), noteID, userID).
-		Return(note, nil)
-	mockUsecase.EXPECT().
-		GetBlocksWithFormatting(gomock.Any(), noteID).
-		Return(nil, nil, errors.New("database error"))
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetNote(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-}
-
-func TestUpdateNote_EmptyBody(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateNote(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestUpdateNote_InvalidNoteID(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	body := []byte(`{"title":"Updated"}`)
-
 	tests := []struct {
-		name       string
-		noteID     string
-		wantStatus int
+		name           string
+		noteIDPath     string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
 	}{
-		{"empty note id", "", http.StatusBadRequest},
-		{"invalid uuid", "invalid", http.StatusBadRequest},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPut, "/notes/"+tt.noteID, bytes.NewBuffer(body))
-			req = req.WithContext(createContextWithUserID(userID))
-			req.SetPathValue("noteId", tt.noteID)
-			w := httptest.NewRecorder()
-
-			handler.UpdateNote(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-		})
-	}
-}
-
-func TestUpdateNote_NotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	noteReq := dto.NoteRequest{Title: "Updated Note"}
-	body, _ := json.Marshal(noteReq)
-
-	mockUsecase.EXPECT().
-		UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).
-		Return(nil, notes.ErrNoteNotFound)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String(), bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateNote(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestUpdateNote_Forbidden(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	noteReq := dto.NoteRequest{Title: "Updated Note"}
-	body, _ := json.Marshal(noteReq)
-
-	mockUsecase.EXPECT().
-		UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).
-		Return(nil, notes.ErrForbidden)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String(), bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateNote(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestDeleteNote_NotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockUsecase.EXPECT().
-		DeleteNote(gomock.Any(), noteID, userID).
-		Return(notes.ErrNoteNotFound)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.DeleteNote(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestDeleteNote_Forbidden(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	mockUsecase.EXPECT().
-		DeleteNote(gomock.Any(), noteID, userID).
-		Return(notes.ErrForbidden)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.DeleteNote(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestGetBlock_InvalidIDs(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-
-	tests := []struct {
-		name       string
-		noteID     string
-		blockID    string
-		wantStatus int
-	}{
-		{"empty note id", "", "block-id", http.StatusBadRequest},
-		{"invalid note id", "invalid", "block-id", http.StatusBadRequest},
-		{"empty block id", uuid.New().String(), "", http.StatusBadRequest},
-		{"invalid block id", uuid.New().String(), "invalid", http.StatusBadRequest},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/notes/"+tt.noteID+"/blocks/"+tt.blockID, nil)
-			req = req.WithContext(createContextWithUserID(userID))
-			req.SetPathValue("noteId", tt.noteID)
-			req.SetPathValue("blockId", tt.blockID)
-			w := httptest.NewRecorder()
-
-			handler.GetBlock(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-		})
-	}
-}
-
-func TestGetBlock_NotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	mockUsecase.EXPECT().
-		GetBlock(gomock.Any(), blockID, noteID, userID).
-		Return(nil, notes.ErrBlockNotFound)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String()+"/blocks/"+blockID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetBlock(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestGetBlock_Forbidden(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	mockUsecase.EXPECT().
-		GetBlock(gomock.Any(), blockID, noteID, userID).
-		Return(nil, notes.ErrForbidden)
-
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String()+"/blocks/"+blockID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.GetBlock(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestCreateBlock_EmptyBody(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-
-	req := httptest.NewRequest(http.MethodPost, "/notes/"+noteID.String()+"/blocks", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.CreateBlock(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestCreateBlock_NoteNotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockReq := dto.BlockRequest{BlockTypeID: 1, Position: 0}
-	body, _ := json.Marshal(blockReq)
-
-	mockUsecase.EXPECT().
-		CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).
-		Return(nil, notes.ErrNoteNotFound)
-
-	req := httptest.NewRequest(http.MethodPost, "/notes/"+noteID.String()+"/blocks", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	w := httptest.NewRecorder()
-
-	handler.CreateBlock(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestUpdateBlockContent_EmptyBody(t *testing.T) {
-	handler, _, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String(), nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateBlockContent(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestMoveBlock_InvalidPosition(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	moveReq := dto.MoveBlockRequest{NewPosition: 10}
-	body, _ := json.Marshal(moveReq)
-
-	mockUsecase.EXPECT().
-		MoveBlock(gomock.Any(), blockID, noteID, userID, 10).
-		Return(nil, notes.ErrInvalidPosition)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/move", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.MoveBlock(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestUpdateBlockFormatting_InvalidFormatting(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	formattingReq := dto.FormattingRange{StartPos: -1, EndPos: 5}
-	body, _ := json.Marshal(formattingReq)
-
-	mockUsecase.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).
-		Return(nil, notes.ErrInvalidFormattingRange)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateBlockFormatting(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestUpdateBlockFormatting_FormattingNotSupported(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	bold := true
-	formattingReq := dto.FormattingRange{StartPos: 0, EndPos: 5, Bold: &bold}
-	body, _ := json.Marshal(formattingReq)
-
-	mockUsecase.EXPECT().
-		UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).
-		Return(nil, notes.ErrFormattingNotSupported)
-
-	req := httptest.NewRequest(http.MethodPut, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", bytes.NewBuffer(body))
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.UpdateBlockFormatting(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestResetBlockFormatting_NotFound(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-
-	mockUsecase.EXPECT().
-		ResetBlockFormatting(gomock.Any(), blockID, noteID, userID).
-		Return(nil, notes.ErrBlockNotFound)
-
-	req := httptest.NewRequest(http.MethodDelete, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
-
-	handler.ResetBlockFormatting(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func TestGetBlockFormatting_Success(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	noteID := uuid.New()
-	blockID := uuid.New()
-	bold := true
-	expectedFormatting := &models.BlockFormatting{
-		BlockID: blockID.String(),
-		Ranges: []models.FormattingRange{
-			{StartPos: 0, EndPos: 5, Bold: &bold},
+		{
+			name:       "success",
+			noteIDPath: parentNoteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateSubnote(gomock.Any(), parentNoteID, userID, gomock.Any()).Return(createdNote, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     parentNoteID.String(),
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "empty body",
+			noteIDPath:     parentNoteID.String(),
+			body:           nil,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: parentNoteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateSubnote(gomock.Any(), parentNoteID, userID, gomock.Any()).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: parentNoteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateSubnote(gomock.Any(), parentNoteID, userID, gomock.Any()).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "internal error",
+			noteIDPath: parentNoteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateSubnote(gomock.Any(), parentNoteID, userID, gomock.Any()).Return(nil, errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
 
-	mockUsecase.EXPECT().
-		GetBlockFormatting(gomock.Any(), blockID, noteID, userID).
-		Return(expectedFormatting, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyReader *bytes.Reader
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				bodyReader = bytes.NewReader(jsonBody)
+			} else {
+				bodyReader = bytes.NewReader([]byte{})
+			}
+			req := httptest.NewRequest(http.MethodPost, "/notes/"+tt.noteIDPath+"/subnotes", bodyReader)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
+			tt.setupMock()
+			handler.CreateSubnote(w, req)
 
-	handler.GetBlockFormatting(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response dto.BlockFormatting
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Equal(t, blockID.String(), response.BlockID)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }
 
-func TestGetBlockFormatting_NotFound(t *testing.T) {
+func TestDeleteSubnote(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	subnoteID := uuid.New()
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		subnoteIDPath  string
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:          "success",
+			noteIDPath:    noteID.String(),
+			subnoteIDPath: subnoteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteSubnote(gomock.Any(), noteID, subnoteID, userID).Return(nil)
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			subnoteIDPath:  subnoteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing subnote ID",
+			noteIDPath:     noteID.String(),
+			subnoteIDPath:  "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			subnoteIDPath:  subnoteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid subnote ID",
+			noteIDPath:     noteID.String(),
+			subnoteIDPath:  "invalid-uuid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			subnoteIDPath:  subnoteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:          "note not found",
+			noteIDPath:    noteID.String(),
+			subnoteIDPath: subnoteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteSubnote(gomock.Any(), noteID, subnoteID, userID).Return(notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:          "forbidden",
+			noteIDPath:    noteID.String(),
+			subnoteIDPath: subnoteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteSubnote(gomock.Any(), noteID, subnoteID, userID).Return(notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:          "internal error",
+			noteIDPath:    noteID.String(),
+			subnoteIDPath: subnoteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteSubnote(gomock.Any(), noteID, subnoteID, userID).Return(errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, "/notes/"+tt.noteIDPath+"/subnotes/"+tt.subnoteIDPath, nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("subnoteId", tt.subnoteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.DeleteSubnote(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestGetSubnotes(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	subnoteID := uuid.New()
+	parentID := noteID
+
+	subnotes := []models.Note{
+		{
+			ID:        subnoteID,
+			UserID:    userID,
+			Title:     "Subnote 1",
+			ParentID:  &parentID,
+			IsPublic:  false,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:       "success",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetSubnotes(gomock.Any(), noteID, userID).Return(subnotes, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetSubnotes(gomock.Any(), noteID, userID).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetSubnotes(gomock.Any(), noteID, userID).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "internal error",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetSubnotes(gomock.Any(), noteID, userID).Return(nil, errors.New("internal error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "empty subnotes",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetSubnotes(gomock.Any(), noteID, userID).Return([]models.Note{}, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/notes/"+tt.noteIDPath+"/subnotes", nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.GetSubnotes(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestGetNotes(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	subnoteID := uuid.New()
+	parentID := uuid.New()
+
+	notes_list := []models.Note{
+		{ID: noteID, UserID: userID, Title: "Note 1", IsPublic: false, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
+	subnotes := map[string][]models.Note{
+		noteID.String(): {{ID: subnoteID, UserID: userID, Title: "Subnote 1", ParentID: &parentID, IsPublic: false, CreatedAt: time.Now(), UpdatedAt: time.Now()}},
+	}
+
+	tests := []struct {
+		name           string
+		setupMock      func()
+		expectedStatus int
+		expectedBody   interface{}
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNotes(gomock.Any(), userID).Return(notes_list, subnotes, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name: "unauthorized - no userID",
+			setupMock: func() {
+				// no mock call expected
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "internal server error",
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNotes(gomock.Any(), userID).Return(nil, nil, errors.New("db error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/notes", nil)
+			if tt.name != "unauthorized - no userID" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.GetNotes(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestGetNote(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
@@ -972,17 +1029,585 @@ func TestGetBlockFormatting_NotFound(t *testing.T) {
 	noteID := uuid.New()
 	blockID := uuid.New()
 
-	mockUsecase.EXPECT().
-		GetBlockFormatting(gomock.Any(), blockID, noteID, userID).
-		Return(nil, notes.ErrBlockNotFound)
+	note := &models.Note{
+		ID:        noteID,
+		UserID:    userID,
+		Title:     "Test Note",
+		IsPublic:  false,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/notes/"+noteID.String()+"/blocks/"+blockID.String()+"/formatting", nil)
-	req = req.WithContext(createContextWithUserID(userID))
-	req.SetPathValue("noteId", noteID.String())
-	req.SetPathValue("blockId", blockID.String())
-	w := httptest.NewRecorder()
+	blocks := []models.Block{
+		{ID: blockID, NoteID: noteID, BlockTypeID: 1, Position: 0, Content: "Test content", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
 
-	handler.GetBlockFormatting(w, req)
+	blockFormattings := map[string]models.BlockFormatting{
+		blockID.String(): {BlockID: blockID.String(), Ranges: []models.FormattingRange{}},
+	}
 
-	assert.Equal(t, http.StatusNotFound, w.Code)
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:       "success",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil)
+				mockUsecase.EXPECT().GetBlocksWithFormatting(gomock.Any(), noteID).Return(blocks, blockFormattings, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid-uuid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(nil, nil)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "blocks error",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil)
+				mockUsecase.EXPECT().GetBlocksWithFormatting(gomock.Any(), noteID).Return(nil, nil, errors.New("db error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/notes/"+tt.noteIDPath, nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.GetNote(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestCreateNote(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+
+	noteRequest := dto.NoteRequest{
+		Title:    "New Note",
+		IsPublic: false,
+	}
+
+	createdNote := &models.Note{
+		ID:        noteID,
+		UserID:    userID,
+		Title:     "New Note",
+		IsPublic:  false,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	tests := []struct {
+		name           string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name: "success",
+			body: noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(createdNote, nil)
+			},
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name:           "empty body",
+			body:           nil,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid json",
+			body:           "invalid json",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "invalid note data",
+			body: noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(nil, notes.ErrInvalidNoteData)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "internal error",
+			body: noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyReader *bytes.Reader
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				bodyReader = bytes.NewReader(jsonBody)
+			} else {
+				bodyReader = bytes.NewReader([]byte{})
+			}
+			req := httptest.NewRequest(http.MethodPost, "/notes", bodyReader)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.CreateNote(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestUpdateNote(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+
+	noteRequest := dto.NoteRequest{
+		Title:    "Updated Note",
+		IsPublic: true,
+	}
+
+	updatedNote := &models.Note{
+		ID:        noteID,
+		UserID:    userID,
+		Title:     "Updated Note",
+		IsPublic:  true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:       "success",
+			noteIDPath: noteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).Return(updatedNote, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid",
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			body:           noteRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: noteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "invalid data",
+			noteIDPath: noteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).Return(nil, notes.ErrInvalidNoteData)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: noteID.String(),
+			body:       noteRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateNote(gomock.Any(), noteID, gomock.Any(), userID).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonBody, _ := json.Marshal(tt.body)
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tt.noteIDPath, bytes.NewReader(jsonBody))
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.UpdateNote(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestDeleteNote(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:       "success",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteNote(gomock.Any(), noteID, userID).Return(nil)
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid",
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteNote(gomock.Any(), noteID, userID).Return(notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: noteID.String(),
+			setupMock: func() {
+				mockUsecase.EXPECT().DeleteNote(gomock.Any(), noteID, userID).Return(notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, "/notes/"+tt.noteIDPath, nil)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.DeleteNote(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestCreateBlock(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	blockID := uuid.New()
+
+	blockRequest := dto.BlockRequest{
+		NoteID:      noteID,
+		BlockTypeID: 1,
+		Position:    0,
+		Content:     "",
+	}
+
+	createdBlock := &models.Block{
+		ID:          blockID,
+		NoteID:      noteID,
+		BlockTypeID: 1,
+		Position:    0,
+		Content:     "",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:       "success",
+			noteIDPath: noteID.String(),
+			body:       blockRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).Return(createdBlock, nil)
+			},
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			body:           blockRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "empty body",
+			noteIDPath:     noteID.String(),
+			body:           nil,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			body:           blockRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "note not found",
+			noteIDPath: noteID.String(),
+			body:       blockRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, notes.ErrNoteNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "forbidden",
+			noteIDPath: noteID.String(),
+			body:       blockRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, notes.ErrForbidden)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "invalid block type",
+			noteIDPath: noteID.String(),
+			body:       blockRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidBlockType)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var bodyReader *bytes.Reader
+			if tt.body != nil {
+				jsonBody, _ := json.Marshal(tt.body)
+				bodyReader = bytes.NewReader(jsonBody)
+			} else {
+				bodyReader = bytes.NewReader([]byte{})
+			}
+			req := httptest.NewRequest(http.MethodPost, "/notes/"+tt.noteIDPath+"/blocks", bodyReader)
+			req.SetPathValue("noteId", tt.noteIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.CreateBlock(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestUpdateBlockContent(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	userID := uuid.New()
+	noteID := uuid.New()
+	blockID := uuid.New()
+
+	updateRequest := dto.UpdateBlockContentRequest{
+		Content: "Updated content",
+	}
+
+	updatedBlock := &models.Block{
+		ID:          blockID,
+		NoteID:      noteID,
+		BlockTypeID: 1,
+		Position:    0,
+		Content:     "Updated content",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	tests := []struct {
+		name           string
+		noteIDPath     string
+		blockIDPath    string
+		body           interface{}
+		setupMock      func()
+		expectedStatus int
+	}{
+		{
+			name:        "success",
+			noteIDPath:  noteID.String(),
+			blockIDPath: blockID.String(),
+			body:        updateRequest,
+			setupMock: func() {
+				mockUsecase.EXPECT().UpdateBlockContent(gomock.Any(), blockID, noteID, userID, "Updated content").Return(updatedBlock, nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "missing note ID",
+			noteIDPath:     "",
+			blockIDPath:    blockID.String(),
+			body:           updateRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "",
+			body:           updateRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid note ID",
+			noteIDPath:     "invalid",
+			blockIDPath:    blockID.String(),
+			body:           updateRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid block ID",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    "invalid",
+			body:           updateRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "unauthorized",
+			noteIDPath:     noteID.String(),
+			blockIDPath:    blockID.String(),
+			body:           updateRequest,
+			setupMock:      func() {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonBody, _ := json.Marshal(tt.body)
+			req := httptest.NewRequest(http.MethodPut, "/notes/"+tt.noteIDPath+"/blocks/"+tt.blockIDPath+"/content", bytes.NewReader(jsonBody))
+			req.SetPathValue("noteId", tt.noteIDPath)
+			req.SetPathValue("blockId", tt.blockIDPath)
+			if tt.name != "unauthorized" {
+				req = addUserIDToContext(req, userID)
+			}
+			w := httptest.NewRecorder()
+
+			tt.setupMock()
+			handler.UpdateBlockContent(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }

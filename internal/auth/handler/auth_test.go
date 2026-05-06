@@ -3,9 +3,11 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
@@ -13,42 +15,44 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
 func setupTestHandler(t *testing.T) (*AuthHandler, *mocks.MockAuthUsecase, *gomock.Controller) {
 	ctrl := gomock.NewController(t)
-	mockUsecase := mocks.NewMockAuthUsecase(ctrl)
+	mockAuthUsecase := mocks.NewMockAuthUsecase(ctrl)
 
 	jwtConfig := config.JWTConfig{
-		CookieName: "test_cookie",
-		CookieTime: 3600,
-		Secret:     "test_secret",
+		Secret:     "test-secret",
+		CookieName: "test-cookie",
+		CookieTime: 24 * time.Hour,
 		Secure:     false,
 	}
 
-	handler := NewAuthHandler(mockUsecase, jwtConfig)
-	return handler, mockUsecase, ctrl
+	handler := NewAuthHandler(mockAuthUsecase, jwtConfig)
+	return handler, mockAuthUsecase, ctrl
 }
 
-func TestSignupUser_Success(t *testing.T) {
+func TestAuthHandler_SignupUser_Success(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
-	reqBody := dto.SignUpUser{
-		Username: "testuser",
-		Password: "Test1234",
-	}
-	bodyBytes, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
-
 	expectedUser := &models.Profile{
 		ID:       userID,
 		Username: "testuser",
 	}
+
+	signUpData := dto.SignUpUser{
+		Username: "testuser",
+		Password: "Test1234",
+	}
+	bodyBytes, _ := json.Marshal(signUpData)
+
+	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
 		CreateUser(gomock.Any(), "testuser", "Test1234").
@@ -59,26 +63,17 @@ func TestSignupUser_Success(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status OK, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var userResp dto.UserResponse
-	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if userResp.Username != "testuser" {
-		t.Errorf("Expected username testuser, got %s", userResp.Username)
-	}
-
+	// Check cookie is set
 	cookies := resp.Cookies()
-	if len(cookies) == 0 {
-		t.Error("Expected cookie to be set")
-	}
+	assert.Len(t, cookies, 1)
+	assert.Equal(t, "test-cookie", cookies[0].Name)
+	assert.NotEmpty(t, cookies[0].Value)
+	assert.True(t, cookies[0].HttpOnly)
 }
 
-func TestSignupUser_EmptyBody(t *testing.T) {
+func TestAuthHandler_SignupUser_EmptyBody(t *testing.T) {
 	handler, _, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
@@ -90,16 +85,19 @@ func TestSignupUser_EmptyBody(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status BadRequest, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var errResp map[string]string
+	err := json.NewDecoder(resp.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, auth.ErrInvalidInput.Error(), errResp["error"])
 }
 
-func TestSignupUser_InvalidJSON(t *testing.T) {
+func TestAuthHandler_SignupUser_InvalidJSON(t *testing.T) {
 	handler, _, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
-	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader([]byte("{invalid json")))
+	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader([]byte("invalid json")))
 	w := httptest.NewRecorder()
 
 	handler.SignupUser(w, req)
@@ -107,20 +105,23 @@ func TestSignupUser_InvalidJSON(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status BadRequest, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	var errResp map[string]string
+	err := json.NewDecoder(resp.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, auth.ErrInvalidInput.Error(), errResp["error"])
 }
 
-func TestSignupUser_UserAlreadyExists(t *testing.T) {
+func TestAuthHandler_SignupUser_UserAlreadyExists(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
-	reqBody := dto.SignUpUser{
+	signUpData := dto.SignUpUser{
 		Username: "existinguser",
 		Password: "Test1234",
 	}
-	bodyBytes, _ := json.Marshal(reqBody)
+	bodyBytes, _ := json.Marshal(signUpData)
 
 	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader(bodyBytes))
 	w := httptest.NewRecorder()
@@ -134,26 +135,29 @@ func TestSignupUser_UserAlreadyExists(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusConflict {
-		t.Errorf("Expected status Conflict, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusConflict, resp.StatusCode)
+
+	var errResp map[string]string
+	err := json.NewDecoder(resp.Body).Decode(&errResp)
+	require.NoError(t, err)
+	assert.Equal(t, auth.ErrUserExist.Error(), errResp["error"])
 }
 
-func TestSignupUser_InvalidUsername(t *testing.T) {
+func TestAuthHandler_SignupUser_InvalidUsername(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
-	reqBody := dto.SignUpUser{
-		Username: "invalid@username",
+	signUpData := dto.SignUpUser{
+		Username: "invalid username!",
 		Password: "Test1234",
 	}
-	bodyBytes, _ := json.Marshal(reqBody)
+	bodyBytes, _ := json.Marshal(signUpData)
 
 	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader(bodyBytes))
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		CreateUser(gomock.Any(), "invalid@username", "Test1234").
+		CreateUser(gomock.Any(), "invalid username!", "Test1234").
 		Return(nil, auth.ErrInvalidUsername)
 
 	handler.SignupUser(w, req)
@@ -161,29 +165,52 @@ func TestSignupUser_InvalidUsername(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status BadRequest, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-func TestSigninUser_Success(t *testing.T) {
+func TestAuthHandler_SignupUser_InternalError(t *testing.T) {
+	handler, mockUsecase, ctrl := setupTestHandler(t)
+	defer ctrl.Finish()
+
+	signUpData := dto.SignUpUser{
+		Username: "testuser",
+		Password: "Test1234",
+	}
+	bodyBytes, _ := json.Marshal(signUpData)
+
+	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	mockUsecase.EXPECT().
+		CreateUser(gomock.Any(), "testuser", "Test1234").
+		Return(nil, errors.New("database error"))
+
+	handler.SignupUser(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+}
+
+func TestAuthHandler_SigninUser_Success(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
 	userID := uuid.New()
-	reqBody := dto.SignInUser{
-		Username: "testuser",
-		Password: "Test1234",
-	}
-	bodyBytes, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
-
 	expectedUser := &models.Profile{
 		ID:       userID,
 		Username: "testuser",
 	}
+
+	signInData := dto.SignInUser{
+		Username: "testuser",
+		Password: "Test1234",
+	}
+	bodyBytes, _ := json.Marshal(signInData)
+
+	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
 		ValidateUser(gomock.Any(), "testuser", "Test1234").
@@ -194,29 +221,25 @@ func TestSigninUser_Success(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status OK, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
+	// Check response body
 	var userResp dto.UserResponse
-	if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if userResp.Username != "testuser" {
-		t.Errorf("Expected username testuser, got %s", userResp.Username)
-	}
+	err := json.NewDecoder(resp.Body).Decode(&userResp)
+	require.NoError(t, err)
+	assert.Equal(t, userID.String(), userResp.ID)
+	assert.Equal(t, "testuser", userResp.Username)
 }
 
-func TestSigninUser_InvalidCredentials(t *testing.T) {
+func TestAuthHandler_SigninUser_BadCredentials(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
-	reqBody := dto.SignInUser{
+	signInData := dto.SignInUser{
 		Username: "testuser",
 		Password: "wrongpassword",
 	}
-	bodyBytes, _ := json.Marshal(reqBody)
+	bodyBytes, _ := json.Marshal(signInData)
 
 	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewReader(bodyBytes))
 	w := httptest.NewRecorder()
@@ -230,20 +253,18 @@ func TestSigninUser_InvalidCredentials(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("Expected status Unauthorized, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestSigninUser_UserNotFound(t *testing.T) {
+func TestAuthHandler_SigninUser_UserNotFound(t *testing.T) {
 	handler, mockUsecase, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
-	reqBody := dto.SignInUser{
+	signInData := dto.SignInUser{
 		Username: "nonexistent",
 		Password: "Test1234",
 	}
-	bodyBytes, _ := json.Marshal(reqBody)
+	bodyBytes, _ := json.Marshal(signInData)
 
 	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewReader(bodyBytes))
 	w := httptest.NewRecorder()
@@ -257,37 +278,30 @@ func TestSigninUser_UserNotFound(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("Expected status Unauthorized, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
-func TestLogOutUser(t *testing.T) {
+func TestAuthHandler_LogOutUser_Success(t *testing.T) {
 	handler, _, ctrl := setupTestHandler(t)
 	defer ctrl.Finish()
 
 	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
 	w := httptest.NewRecorder()
 
+	http.SetCookie(w, &http.Cookie{
+		Name:  "test-cookie",
+		Value: "some-token",
+	})
+
 	handler.LogOutUser(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
-		t.Errorf("Expected status NoContent, got %v", resp.Status)
-	}
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 
 	cookies := resp.Cookies()
-	if len(cookies) == 0 {
-		t.Error("Expected logout cookie to be set")
-	}
-
-	if cookies[0].Value != "" {
-		t.Error("Expected empty cookie value")
-	}
-
-	if cookies[0].MaxAge != -1 {
-		t.Errorf("Expected MaxAge -1, got %d", cookies[0].MaxAge)
-	}
+	assert.Len(t, cookies, 2)
+	assert.Equal(t, "test-cookie", cookies[0].Name)
+	assert.Equal(t, 0, cookies[0].MaxAge)
 }

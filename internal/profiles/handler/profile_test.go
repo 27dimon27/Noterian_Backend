@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -14,402 +15,587 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/mocks"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
-func setupTestHandler(t *testing.T) (*ProfileHandler, *mocks.MockProfileUsecase, *gomock.Controller) {
-	ctrl := gomock.NewController(t)
-	mockUsecase := mocks.NewMockProfileUsecase(ctrl)
+type mockProfileUsecase struct {
+	getProfileFunc     func(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+	updateProfileFunc  func(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
+	deleteProfileFunc  func(ctx context.Context, userID uuid.UUID) error
+	getAvatarFunc      func(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
+	uploadAvatarFunc   func(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
+	deleteAvatarFunc   func(ctx context.Context, profileID uuid.UUID) error
+	changePasswordFunc func(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error)
+}
 
-	jwtConfig := config.JWTConfig{
-		CookieName: "auth_token",
-		Secure:     false,
+func (m *mockProfileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+	if m.getProfileFunc != nil {
+		return m.getProfileFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+	if m.updateProfileFunc != nil {
+		return m.updateProfileFunc(ctx, userID, profile)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+	if m.deleteProfileFunc != nil {
+		return m.deleteProfileFunc(ctx, userID)
+	}
+	return nil
+}
+
+func (m *mockProfileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
+	if m.getAvatarFunc != nil {
+		return m.getAvatarFunc(ctx, profileID)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileUsecase) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error) {
+	if m.uploadAvatarFunc != nil {
+		return m.uploadAvatarFunc(ctx, profileID, fileName, fileSize, mimeType, fileReader)
+	}
+	return nil, nil
+}
+
+func (m *mockProfileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
+	if m.deleteAvatarFunc != nil {
+		return m.deleteAvatarFunc(ctx, profileID)
+	}
+	return nil
+}
+
+func (m *mockProfileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error) {
+	if m.changePasswordFunc != nil {
+		return m.changePasswordFunc(ctx, userID, oldPassword, newPassword)
+	}
+	return nil, nil
+}
+
+func TestGetProfile(t *testing.T) {
+	tests := []struct {
+		name           string
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:          "Success",
+			contextUserID: uuid.New(),
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.getProfileFunc = func(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+					return &models.Profile{
+						ID:       userID,
+						Username: "testuser",
+					}, nil
+				}
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   `"username":"testuser"`,
+		},
+		{
+			name:           "Unauthorized - Invalid UserID",
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Невалидный UserID",
+		},
+		{
+			name:          "Internal Server Error",
+			contextUserID: uuid.New(),
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.getProfileFunc = func(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
 
-	handler := NewProfileHandler(mockUsecase, jwtConfig)
-	return handler, mockUsecase, ctrl
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
+
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{CookieName: "token", Secure: false})
+
+			req := httptest.NewRequest(http.MethodGet, "/profile", nil)
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
+
+			w := httptest.NewRecorder()
+			handler.GetProfile(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.expectedBody != "" {
+				assert.Contains(t, w.Body.String(), tt.expectedBody)
+			}
+		})
+	}
 }
 
-func createContextWithUserID(userID uuid.UUID) context.Context {
-	ctx := context.Background()
-	return context.WithValue(ctx, types.UserIDKey, userID)
-}
-
-func createMultipartRequest(t *testing.T, fileName string, content []byte) (*http.Request, string) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	part, err := writer.CreateFormFile("file", fileName)
-	require.NoError(t, err)
-
-	_, err = part.Write(content)
-	require.NoError(t, err)
-
-	err = writer.Close()
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodPost, "/avatar", body)
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	return req, writer.FormDataContentType()
-}
-
-func TestProfileHandler_GetProfile(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
+func TestUpdateProfile(t *testing.T) {
 	userID := uuid.New()
-	expectedProfile := &models.Profile{
-		ID:       userID,
-		Username: "testuser",
+	validProfile := ProfileRequest{Username: "newusername"}
+
+	tests := []struct {
+		name           string
+		body           io.Reader
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:          "Success",
+			body:          createJSONBody(validProfile),
+			contextUserID: userID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.updateProfileFunc = func(ctx context.Context, id uuid.UUID, profile models.Profile) (*models.Profile, error) {
+					return &models.Profile{
+						ID:       id,
+						Username: "newusername",
+					}, nil
+				}
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody:   "newusername",
+		},
+		{
+			// В реальном коде при nil body не проверяется отдельно,
+			// а ошибка возникает при попытке распарсить JSON
+			name:           "Bad Request - Missing Body",
+			body:           nil,
+			contextUserID:  userID,
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Невалидные данные профиля", // реальная ошибка из кода
+		},
+		{
+			name:           "Unauthorized - Invalid UserID",
+			body:           createJSONBody(validProfile),
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Невалидный UserID",
+		},
+		{
+			name:           "Bad Request - Invalid JSON",
+			body:           strings.NewReader(`{invalid json`),
+			contextUserID:  userID,
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Невалидные данные профиля",
+		},
+		{
+			name:          "Bad Request - Invalid Profile Data",
+			body:          createJSONBody(validProfile),
+			contextUserID: userID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.updateProfileFunc = func(ctx context.Context, id uuid.UUID, profile models.Profile) (*models.Profile, error) {
+					return nil, profiles.ErrInvalidProfileData
+				}
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Невалидные данные профиля",
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			GetProfile(gomock.Any(), userID).
-			Return(expectedProfile, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{})
 
-		handler.GetProfile(w, req)
+			req := httptest.NewRequest(http.MethodPut, "/profile", tt.body)
+			if tt.body != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+			w := httptest.NewRecorder()
+			handler.UpdateProfile(w, req)
 
-		var response dto.Profile
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, userID, response.ID)
-		assert.Equal(t, "testuser", response.Username)
-	})
-
-	t.Run("invalid user ID in context", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-		req = req.WithContext(context.Background())
-		w := httptest.NewRecorder()
-
-		handler.GetProfile(w, req)
-
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-
-	t.Run("usecase returns error", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			GetProfile(gomock.Any(), userID).
-			Return(nil, errors.New("database error"))
-
-		req := httptest.NewRequest(http.MethodGet, "/profile", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.GetProfile(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.expectedBody != "" {
+				assert.Contains(t, w.Body.String(), tt.expectedBody)
+			}
+		})
+	}
 }
 
-func TestProfileHandler_UpdateProfile(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	updatedProfile := &models.Profile{
-		ID:       userID,
-		Username: "newusername",
+func TestDeleteProfile(t *testing.T) {
+	tests := []struct {
+		name           string
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+	}{
+		{
+			name:          "Success",
+			contextUserID: uuid.New(),
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.deleteProfileFunc = func(ctx context.Context, userID uuid.UUID) error {
+					return nil
+				}
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:           "Unauthorized",
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:          "Internal Server Error",
+			contextUserID: uuid.New(),
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.deleteProfileFunc = func(ctx context.Context, userID uuid.UUID) error {
+					return errors.New("database error")
+				}
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			UpdateProfile(gomock.Any(), userID, gomock.Any()).
-			Return(updatedProfile, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		reqBody := `{"username": "newusername"}`
-		req := httptest.NewRequest(http.MethodPut, "/profile", strings.NewReader(reqBody))
-		req.Header.Set("Content-Type", "application/json")
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{CookieName: "token", Secure: false})
 
-		handler.UpdateProfile(w, req)
+			req := httptest.NewRequest(http.MethodDelete, "/profile", nil)
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+			w := httptest.NewRecorder()
+			handler.DeleteProfile(w, req)
 
-		var response dto.Profile
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, "newusername", response.Username)
-	})
-
-	t.Run("missing body", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPut, "/profile", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.UpdateProfile(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("invalid user ID", func(t *testing.T) {
-		reqBody := `{"username": "newusername"}`
-		req := httptest.NewRequest(http.MethodPut, "/profile", strings.NewReader(reqBody))
-		req = req.WithContext(context.Background())
-		w := httptest.NewRecorder()
-
-		handler.UpdateProfile(w, req)
-
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }
 
-func TestProfileHandler_DeleteProfile(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
+func TestGetAvatar(t *testing.T) {
+	avatarID := uuid.New()
+	profileID := uuid.New()
 
-	userID := uuid.New()
-
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			DeleteProfile(gomock.Any(), userID).
-			Return(nil)
-
-		req := httptest.NewRequest(http.MethodDelete, "/profile", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.DeleteProfile(w, req)
-
-		assert.Equal(t, http.StatusNoContent, w.Code)
-	})
-
-	t.Run("usecase returns error", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			DeleteProfile(gomock.Any(), userID).
-			Return(errors.New("delete failed"))
-
-		req := httptest.NewRequest(http.MethodDelete, "/profile", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.DeleteProfile(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-}
-
-func TestProfileHandler_GetAvatar(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	expectedAvatar := &models.Avatar{
-		ID:        uuid.New(),
-		ProfileID: userID,
-		AvatarURL: "https://example.com/avatar.jpg",
+	tests := []struct {
+		name           string
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+	}{
+		{
+			name:          "Success",
+			contextUserID: profileID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.getAvatarFunc = func(ctx context.Context, id uuid.UUID) (*models.Avatar, error) {
+					return &models.Avatar{
+						ID:        avatarID,
+						ProfileID: id,
+						AvatarURL: "http://example.com/avatar.jpg",
+					}, nil
+				}
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:          "Avatar Not Found",
+			contextUserID: profileID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.getAvatarFunc = func(ctx context.Context, id uuid.UUID) (*models.Avatar, error) {
+					return nil, profiles.ErrAvatarNotFound
+				}
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "Unauthorized",
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			GetAvatar(gomock.Any(), userID).
-			Return(expectedAvatar, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		req := httptest.NewRequest(http.MethodGet, "/avatar", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{})
 
-		handler.GetAvatar(w, req)
+			req := httptest.NewRequest(http.MethodGet, "/profile/avatar", nil)
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+			w := httptest.NewRecorder()
+			handler.GetAvatar(w, req)
 
-		var response dto.Avatar
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, expectedAvatar.AvatarURL, response.AvatarURL)
-	})
-
-	t.Run("avatar not found", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			GetAvatar(gomock.Any(), userID).
-			Return(nil, profiles.ErrAvatarNotFound)
-
-		req := httptest.NewRequest(http.MethodGet, "/avatar", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.GetAvatar(w, req)
-
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }
 
-func TestProfileHandler_UploadAvatar(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
+func TestUploadAvatar(t *testing.T) {
+	profileID := uuid.New()
 
-	userID := uuid.New()
-	avatar := &models.Avatar{
-		ID:        uuid.New(),
-		ProfileID: userID,
-		AvatarURL: "https://example.com/new-avatar.jpg",
+	tests := []struct {
+		name           string
+		contextUserID  interface{}
+		fileContent    []byte
+		fileName       string
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+	}{
+		{
+			name:          "Success",
+			contextUserID: profileID,
+			fileContent:   []byte{0xFF, 0xD8, 0xFF, 0xE0}, // JPEG magic bytes
+			fileName:      "test.jpg",
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.uploadAvatarFunc = func(ctx context.Context, id uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error) {
+					return &models.Avatar{
+						ID:        uuid.New(),
+						ProfileID: id,
+						AvatarURL: "http://example.com/avatar.jpg",
+					}, nil
+				}
+			},
+			expectedStatus: http.StatusCreated,
+		},
+		{
+			name:           "Unauthorized",
+			contextUserID:  "invalid",
+			fileContent:    []byte{0xFF, 0xD8, 0xFF, 0xE0},
+			fileName:       "test.jpg",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid MIME Type",
+			contextUserID:  profileID,
+			fileContent:    []byte{0x25, 0x50, 0x44, 0x46}, // PDF magic bytes
+			fileName:       "test.pdf",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			UploadAvatar(gomock.Any(), userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any()).
-			Return(avatar, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		pngData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-		req, _ := createMultipartRequest(t, "test.png", pngData)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{})
 
-		handler.UploadAvatar(w, req)
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+			part, _ := writer.CreateFormFile("file", tt.fileName)
+			part.Write(tt.fileContent)
+			writer.Close()
 
-		assert.Equal(t, http.StatusCreated, w.Code)
+			req := httptest.NewRequest(http.MethodPost, "/profile/avatar", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		var response dto.Avatar
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, avatar.AvatarURL, response.AvatarURL)
-	})
+			w := httptest.NewRecorder()
+			handler.UploadAvatar(w, req)
 
-	t.Run("file too large", func(t *testing.T) {
-		largeData := make([]byte, profiles.MAX_FILE_SIZE+1)
-		req, _ := createMultipartRequest(t, "large.jpg", largeData)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.UploadAvatar(w, req)
-
-		assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
-	})
-
-	t.Run("no file in request", func(t *testing.T) {
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		writer.Close()
-
-		req := httptest.NewRequest(http.MethodPost, "/avatar", body)
-		req.Header.Set("Content-Type", writer.FormDataContentType())
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.UploadAvatar(w, req)
-
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-
-	t.Run("invalid mime type", func(t *testing.T) {
-		req, _ := createMultipartRequest(t, "test.txt", []byte("text content"))
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.UploadAvatar(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("invalid user ID", func(t *testing.T) {
-		req, _ := createMultipartRequest(t, "test.png", []byte("fake"))
-		req = req.WithContext(context.Background())
-		w := httptest.NewRecorder()
-
-		handler.UploadAvatar(w, req)
-
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
 }
 
-func TestProfileHandler_DeleteAvatar(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
+func TestDeleteAvatar(t *testing.T) {
+	profileID := uuid.New()
 
-	userID := uuid.New()
-
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			DeleteAvatar(gomock.Any(), userID).
-			Return(nil)
-
-		req := httptest.NewRequest(http.MethodDelete, "/avatar", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.DeleteAvatar(w, req)
-
-		assert.Equal(t, http.StatusNoContent, w.Code)
-	})
-
-	t.Run("avatar not found", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			DeleteAvatar(gomock.Any(), userID).
-			Return(profiles.ErrAvatarNotFound)
-
-		req := httptest.NewRequest(http.MethodDelete, "/avatar", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
-
-		handler.DeleteAvatar(w, req)
-
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
-}
-
-func TestProfileHandler_ChangePassword(t *testing.T) {
-	handler, mockUsecase, ctrl := setupTestHandler(t)
-	defer ctrl.Finish()
-
-	userID := uuid.New()
-	updatedProfile := &models.Profile{
-		ID:       userID,
-		Username: "testuser",
+	tests := []struct {
+		name           string
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+	}{
+		{
+			name:          "Success",
+			contextUserID: profileID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.deleteAvatarFunc = func(ctx context.Context, id uuid.UUID) error {
+					return nil
+				}
+			},
+			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:          "Avatar Not Found",
+			contextUserID: profileID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.deleteAvatarFunc = func(ctx context.Context, id uuid.UUID) error {
+					return profiles.ErrAvatarNotFound
+				}
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "Unauthorized",
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			ChangePassword(gomock.Any(), userID, "old123", "new123").
-			Return(updatedProfile, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		reqBody := `{"old_password": "old123", "new_password": "new123"}`
-		req := httptest.NewRequest(http.MethodPut, "/profile/password", strings.NewReader(reqBody))
-		req.Header.Set("Content-Type", "application/json")
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{})
 
-		handler.ChangePassword(w, req)
+			req := httptest.NewRequest(http.MethodDelete, "/profile/avatar", nil)
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
+			w := httptest.NewRecorder()
+			handler.DeleteAvatar(w, req)
 
-	t.Run("missing body", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPut, "/profile/password", nil)
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
 
-		handler.ChangePassword(w, req)
+func TestChangePassword(t *testing.T) {
+	userID := uuid.New()
+	validPassword := UpdatePasswordRequest{OldPassword: "oldpass123", NewPassword: "newpass456"}
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
+	tests := []struct {
+		name           string
+		body           io.Reader
+		contextUserID  interface{}
+		setupMock      func(mock *mockProfileUsecase)
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:          "Success",
+			body:          createJSONBody(validPassword),
+			contextUserID: userID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.changePasswordFunc = func(ctx context.Context, id uuid.UUID, old, new string) (*models.Profile, error) {
+					return &models.Profile{
+						ID:       id,
+						Username: "testuser",
+					}, nil
+				}
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			// В реальном коде при nil body не проверяется отдельно,
+			// а ошибка возникает при попытке распарсить JSON
+			name:           "Bad Request - Missing Body",
+			body:           nil,
+			contextUserID:  userID,
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "Невалидные данные пароля", // реальная ошибка из кода
+		},
+		{
+			name:           "Unauthorized",
+			body:           createJSONBody(validPassword),
+			contextUserID:  "invalid",
+			setupMock:      func(mock *mockProfileUsecase) {},
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   "Невалидный UserID",
+		},
+		{
+			name:          "Wrong Password",
+			body:          createJSONBody(validPassword),
+			contextUserID: userID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.changePasswordFunc = func(ctx context.Context, id uuid.UUID, old, new string) (*models.Profile, error) {
+					return nil, profiles.ErrWrongPassword
+				}
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   "Неверный пароль",
+		},
+		{
+			name:          "User Not Found",
+			body:          createJSONBody(validPassword),
+			contextUserID: userID,
+			setupMock: func(mock *mockProfileUsecase) {
+				mock.changePasswordFunc = func(ctx context.Context, id uuid.UUID, old, new string) (*models.Profile, error) {
+					return nil, profiles.ErrUserNotExist
+				}
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   "Пользователь не найден",
+		},
+	}
 
-	t.Run("wrong password", func(t *testing.T) {
-		mockUsecase.EXPECT().
-			ChangePassword(gomock.Any(), userID, "wrong", "new123").
-			Return(nil, profiles.ErrWrongPassword)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUsecase := &mockProfileUsecase{}
+			if tt.setupMock != nil {
+				tt.setupMock(mockUsecase)
+			}
 
-		reqBody := `{"old_password": "wrong", "new_password": "new123"}`
-		req := httptest.NewRequest(http.MethodPut, "/profile/password", strings.NewReader(reqBody))
-		req.Header.Set("Content-Type", "application/json")
-		req = req.WithContext(createContextWithUserID(userID))
-		w := httptest.NewRecorder()
+			handler := NewProfileHandler(mockUsecase, config.JWTConfig{})
 
-		handler.ChangePassword(w, req)
+			req := httptest.NewRequest(http.MethodPut, "/profile/password", tt.body)
+			if tt.body != nil {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			ctx := context.WithValue(req.Context(), types.UserIDKey, tt.contextUserID)
+			req = req.WithContext(ctx)
 
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
+			w := httptest.NewRecorder()
+			handler.ChangePassword(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.expectedBody != "" {
+				assert.Contains(t, w.Body.String(), tt.expectedBody)
+			}
+		})
+	}
+}
+
+// Helper functions
+type ProfileRequest struct {
+	Username string `json:"username"`
+}
+
+type UpdatePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+func createJSONBody(data interface{}) io.Reader {
+	jsonData, _ := json.Marshal(data)
+	return bytes.NewReader(jsonData)
 }

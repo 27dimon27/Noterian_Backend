@@ -5,41 +5,49 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"regexp"
+	"io"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func setupTestRepository(t *testing.T) (*profileRepository, sqlmock.Sqlmock, *mocks.MockMinIOService, *gomock.Controller) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
-	require.NoError(t, err)
-
-	ctrl := gomock.NewController(t)
-	mockMinio := mocks.NewMockMinIOService(ctrl)
-
-	repo := NewProfileRepository(db, mockMinio, "test-bucket")
-
-	return repo, mock, mockMinio, ctrl
+type mockMinIOService struct {
+	uploadFileFunc           func(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error
+	deleteFileFunc           func(ctx context.Context, bucketName, key string) error
+	generatePresignedURLFunc func(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error)
 }
 
-func quoteSQL(sql string) string {
-	return regexp.QuoteMeta(sql)
+func (m *mockMinIOService) UploadFile(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
+	if m.uploadFileFunc != nil {
+		return m.uploadFileFunc(ctx, bucketName, key, reader, size, contentType)
+	}
+	return nil
 }
 
-func TestProfileRepository_GetProfile(t *testing.T) {
-	repo, mock, _, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func (m *mockMinIOService) DeleteFile(ctx context.Context, bucketName, key string) error {
+	if m.deleteFileFunc != nil {
+		return m.deleteFileFunc(ctx, bucketName, key)
+	}
+	return nil
+}
+
+func (m *mockMinIOService) GeneratePresignedURL(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+	if m.generatePresignedURLFunc != nil {
+		return m.generatePresignedURLFunc(ctx, bucketName, key, expiry)
+	}
+	return "http://example.com/presigned", nil
+}
+
+func TestGetProfile(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	userID := uuid.New()
 	expectedProfile := &models.Profile{
@@ -49,362 +57,662 @@ func TestProfileRepository_GetProfile(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
-			AddRow(expectedProfile.ID, expectedProfile.Username, expectedProfile.CreatedAt, expectedProfile.UpdatedAt)
-
-		mock.ExpectQuery(quoteSQL(GET_PROFILE_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnRows(rows)
-
-		profile, err := repo.GetProfile(context.Background(), userID)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedProfile.ID, profile.ID)
-		assert.Equal(t, expectedProfile.Username, profile.Username)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(GET_PROFILE_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnError(sql.ErrNoRows)
-
-		profile, err := repo.GetProfile(context.Background(), userID)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-		assert.Nil(t, profile)
-	})
-}
-
-func TestProfileRepository_UpdateProfile(t *testing.T) {
-	repo, mock, _, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
-
-	userID := uuid.New()
-	profile := models.Profile{
-		Username: "newusername",
-	}
-	expectedProfile := &models.Profile{
-		ID:        userID,
-		Username:  "newusername",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
+					AddRow(userID, expectedProfile.Username, expectedProfile.CreatedAt, expectedProfile.UpdatedAt)
+				mock.ExpectQuery("SELECT id, username, created_at, updated_at FROM profiles WHERE id = \\$1").
+					WithArgs(userID).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("SELECT id, username, created_at, updated_at FROM profiles WHERE id = \\$1").
+					WithArgs(userID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+		{
+			name: "Database Error",
+			setupMock: func() {
+				mock.ExpectQuery("SELECT id, username, created_at, updated_at FROM profiles WHERE id = \\$1").
+					WithArgs(userID).
+					WillReturnError(errors.New("connection failed"))
+			},
+			wantErr: true,
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
-			AddRow(expectedProfile.ID, expectedProfile.Username, expectedProfile.CreatedAt, expectedProfile.UpdatedAt)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
 
-		mock.ExpectQuery(quoteSQL(UPDATE_PROFILE_BY_USER_ID)).
-			WithArgs(userID, profile.Username).
-			WillReturnRows(rows)
+			profile, err := repo.GetProfile(context.Background(), userID)
 
-		updatedProfile, err := repo.UpdateProfile(context.Background(), userID, profile)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedProfile.Username, updatedProfile.Username)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(UPDATE_PROFILE_BY_USER_ID)).
-			WithArgs(userID, profile.Username).
-			WillReturnError(sql.ErrNoRows)
-
-		updatedProfile, err := repo.UpdateProfile(context.Background(), userID, profile)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-		assert.Nil(t, updatedProfile)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, expectedProfile.ID, profile.ID)
+				assert.Equal(t, expectedProfile.Username, profile.Username)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_DeleteProfile(t *testing.T) {
-	repo, mock, _, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestGetProfileByUsername(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	userID := uuid.New()
+	username := "testuser"
+
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
+					AddRow(userID, username, time.Now(), time.Now())
+				mock.ExpectQuery("SELECT id, username, created_at, updated_at FROM profiles WHERE username = \\$1").
+					WithArgs(username).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("SELECT id, username, created_at, updated_at FROM profiles WHERE username = \\$1").
+					WithArgs(username).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
+
+			profile, err := repo.GetProfileByUsername(context.Background(), username)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, profile)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestUpdateProfile(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	userID := uuid.New()
+	newUsername := "newusername"
+
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
+					AddRow(userID, newUsername, time.Now(), time.Now())
+				mock.ExpectQuery("UPDATE profiles SET username = \\$2, updated_at = now\\(\\) WHERE id = \\$1 RETURNING id, username, created_at, updated_at").
+					WithArgs(userID, newUsername).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("UPDATE profiles SET username = \\$2, updated_at = now\\(\\) WHERE id = \\$1 RETURNING id, username, created_at, updated_at").
+					WithArgs(userID, newUsername).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
+
+			profile, err := repo.UpdateProfile(context.Background(), userID, models.Profile{Username: newUsername})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, newUsername, profile.Username)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestDeleteProfile(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	userID := uuid.New()
 
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"id"}).AddRow(userID)
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id"}).AddRow(userID)
+				mock.ExpectQuery("DELETE FROM profiles WHERE id = \\$1 RETURNING id").
+					WithArgs(userID).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("DELETE FROM profiles WHERE id = \\$1 RETURNING id").
+					WithArgs(userID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
 
-		mock.ExpectQuery(quoteSQL(DELETE_PROFILE_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnRows(rows)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
 
-		err := repo.DeleteProfile(context.Background(), userID)
+			err := repo.DeleteProfile(context.Background(), userID)
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(DELETE_PROFILE_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnError(sql.ErrNoRows)
-
-		err := repo.DeleteProfile(context.Background(), userID)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_GetAvatar(t *testing.T) {
-	repo, mock, mockMinio, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestGetAvatar(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	profileID := uuid.New()
 	avatarID := uuid.New()
 	minioKey := "test-key"
+	avatarURL := "http://example.com/avatar.jpg"
+	urlExpiresAt := time.Now().Add(1 * time.Hour)
 
-	t.Run("success with valid URL", func(t *testing.T) {
-		expiresAt := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
-		rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
-			AddRow(avatarID, profileID, minioKey, "https://example.com/avatar.jpg", expiresAt, time.Now(), time.Now())
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		checkNil  bool
+	}{
+		{
+			name: "Success - Valid URL",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
+					AddRow(avatarID, profileID, minioKey, avatarURL, urlExpiresAt, time.Now(), time.Now())
+				mock.ExpectQuery("SELECT id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at FROM avatars WHERE profile_id = \\$1").
+					WithArgs(profileID).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Avatar Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("SELECT id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at FROM avatars WHERE profile_id = \\$1").
+					WithArgs(profileID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr:  false,
+			checkNil: true,
+		},
+		{
+			name: "Expired URL - Regenerate",
+			setupMock: func() {
+				expiredTime := time.Now().Add(-1 * time.Hour)
+				rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
+					AddRow(avatarID, profileID, minioKey, avatarURL, expiredTime, time.Now(), time.Now())
+				mock.ExpectQuery("SELECT id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at FROM avatars WHERE profile_id = \\$1").
+					WithArgs(profileID).
+					WillReturnRows(rows)
 
-		mock.ExpectQuery(quoteSQL(GET_AVATAR_BY_PROFILE_ID)).
-			WithArgs(profileID).
-			WillReturnRows(rows)
+				mock.ExpectQuery("UPDATE avatars SET avatar_url = \\$2, url_expires_at = \\$3, updated_at = now\\(\\) WHERE id = \\$1 RETURNING avatar_url, url_expires_at, updated_at").
+					WithArgs(avatarID, sqlmock.AnyArg(), sqlmock.AnyArg()).
+					WillReturnRows(sqlmock.NewRows([]string{"avatar_url", "url_expires_at", "updated_at"}).
+						AddRow("http://example.com/new-url.jpg", time.Now().Add(30*time.Minute), time.Now()))
+			},
+			wantErr: false,
+		},
+	}
 
-		avatar, err := repo.GetAvatar(context.Background(), profileID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			minioMock := &mockMinIOService{
+				generatePresignedURLFunc: func(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+					return "http://example.com/new-url.jpg", nil
+				},
+			}
+			repo := NewProfileRepository(db, minioMock, "avatars")
 
-		assert.NoError(t, err)
-		assert.Equal(t, avatarID, avatar.ID)
-	})
+			avatar, err := repo.GetAvatar(context.Background(), profileID)
 
-	t.Run("expired URL - regenerates", func(t *testing.T) {
-		expiredAt := time.Now().Add(-time.Hour)
-		rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
-			AddRow(avatarID, profileID, minioKey, "https://example.com/old.jpg", expiredAt, time.Now(), time.Now())
-
-		mock.ExpectQuery(quoteSQL(GET_AVATAR_BY_PROFILE_ID)).
-			WithArgs(profileID).
-			WillReturnRows(rows)
-
-		mockMinio.EXPECT().
-			GeneratePresignedURL(gomock.Any(), repo.avatarBucket, minioKey, profiles.PRESIGNED_URL_EXPIRY).
-			Return("https://example.com/new.jpg", nil)
-
-		updateRows := sqlmock.NewRows([]string{"avatar_url", "url_expires_at", "updated_at"}).
-			AddRow("https://example.com/new.jpg", time.Now().Add(profiles.PRESIGNED_URL_EXPIRY), time.Now())
-
-		mock.ExpectQuery(quoteSQL(UPDATE_AVATAR_URL)).
-			WithArgs("https://example.com/new.jpg", sqlmock.AnyArg(), sqlmock.AnyArg(), avatarID).
-			WillReturnRows(updateRows)
-
-		avatar, err := repo.GetAvatar(context.Background(), profileID)
-
-		assert.NoError(t, err)
-		assert.Equal(t, "https://example.com/new.jpg", avatar.AvatarURL)
-	})
-
-	t.Run("avatar not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(GET_AVATAR_BY_PROFILE_ID)).
-			WithArgs(profileID).
-			WillReturnError(sql.ErrNoRows)
-
-		avatar, err := repo.GetAvatar(context.Background(), profileID)
-
-		assert.NoError(t, err)
-		assert.Nil(t, avatar)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else if tt.checkNil {
+				assert.NoError(t, err)
+				assert.Nil(t, avatar)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, avatar)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_UploadAvatar(t *testing.T) {
-	repo, mock, mockMinio, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestUploadAvatar(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	profileID := uuid.New()
 	fileName := "test.jpg"
 	fileSize := int64(1024)
 	mimeType := "image/jpeg"
-	fileReader := bytes.NewReader([]byte("fake image data"))
+	fileReader := bytes.NewReader([]byte("test image data"))
 
-	t.Run("success - no existing avatar", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(DELETE_AVATAR_BY_ID)).
-			WithArgs(profileID).
-			WillReturnError(sql.ErrNoRows)
+	tests := []struct {
+		name       string
+		setupMock  func()
+		setupMinio func(*mockMinIOService)
+		wantErr    bool
+		errType    error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				// Delete existing avatar (if any) - no rows found
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnError(sql.ErrNoRows)
 
-		mockMinio.EXPECT().
-			UploadFile(gomock.Any(), repo.avatarBucket, gomock.Any(), gomock.Any(), fileSize, mimeType).
-			Return(nil)
+				// Insert new avatar
+				newAvatarID := uuid.New()
+				newMinioKey := newAvatarID.String()
+				newURL := "http://example.com/avatar.jpg"
+				newExpiry := time.Now().Add(30 * time.Minute)
 
-		mockMinio.EXPECT().
-			GeneratePresignedURL(gomock.Any(), repo.avatarBucket, gomock.Any(), profiles.PRESIGNED_URL_EXPIRY).
-			Return("https://example.com/avatar.jpg", nil)
+				rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
+					AddRow(newAvatarID, profileID, newMinioKey, newURL, newExpiry, time.Now(), time.Now())
+				mock.ExpectQuery("INSERT INTO avatars \\(id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5, now\\(\\), now\\(\\)\\) RETURNING id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at").
+					WithArgs(sqlmock.AnyArg(), profileID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+					WillReturnRows(rows)
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.uploadFileFunc = func(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
+					return nil
+				}
+				m.generatePresignedURLFunc = func(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+					return "http://example.com/avatar.jpg", nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Delete Existing Avatar Success",
+			setupMock: func() {
+				// Delete existing avatar - found
+				rows := sqlmock.NewRows([]string{"minio_key"}).AddRow("old-key")
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnRows(rows)
 
-		rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
-			AddRow(uuid.New(), profileID, "key", "https://example.com/avatar.jpg", time.Now().Add(profiles.PRESIGNED_URL_EXPIRY), time.Now(), time.Now())
+				// Insert new avatar
+				newAvatarID := uuid.New()
+				newMinioKey := newAvatarID.String()
+				newURL := "http://example.com/avatar.jpg"
+				newExpiry := time.Now().Add(30 * time.Minute)
 
-		mock.ExpectQuery(quoteSQL(CREATE_AVATAR)).
-			WithArgs(sqlmock.AnyArg(), profileID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-			WillReturnRows(rows)
+				rows2 := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
+					AddRow(newAvatarID, profileID, newMinioKey, newURL, newExpiry, time.Now(), time.Now())
+				mock.ExpectQuery("INSERT INTO avatars \\(id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5, now\\(\\), now\\(\\)\\) RETURNING id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at").
+					WithArgs(sqlmock.AnyArg(), profileID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+					WillReturnRows(rows2)
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.deleteFileFunc = func(ctx context.Context, bucketName, key string) error {
+					return nil
+				}
+				m.uploadFileFunc = func(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
+					return nil
+				}
+				m.generatePresignedURLFunc = func(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+					return "http://example.com/avatar.jpg", nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "MinIO Upload Failed",
+			setupMock: func() {
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.uploadFileFunc = func(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
+					return errors.New("minio upload failed")
+				}
+			},
+			wantErr: true,
+			errType: profiles.ErrFailedToUpload,
+		},
+		{
+			name: "Database Insert Failed",
+			setupMock: func() {
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnError(sql.ErrNoRows)
 
-		avatar, err := repo.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
+				mock.ExpectQuery("INSERT INTO avatars \\(id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5, now\\(\\), now\\(\\)\\) RETURNING id, profile_id, minio_key, avatar_url, url_expires_at, created_at, updated_at").
+					WithArgs(sqlmock.AnyArg(), profileID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+					WillReturnError(errors.New("insert failed"))
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.uploadFileFunc = func(ctx context.Context, bucketName, key string, reader io.Reader, size int64, contentType string) error {
+					return nil
+				}
+				m.generatePresignedURLFunc = func(ctx context.Context, bucketName, key string, expiry time.Duration) (string, error) {
+					return "http://example.com/avatar.jpg", nil
+				}
+				m.deleteFileFunc = func(ctx context.Context, bucketName, key string) error {
+					return nil
+				}
+			},
+			wantErr: true,
+		},
+	}
 
-		assert.NoError(t, err)
-		assert.NotNil(t, avatar)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			minioMock := &mockMinIOService{}
+			if tt.setupMinio != nil {
+				tt.setupMinio(minioMock)
+			}
+			repo := NewProfileRepository(db, minioMock, "avatars")
 
-	t.Run("success - with existing avatar", func(t *testing.T) {
-		deleteRows := sqlmock.NewRows([]string{"minio_key"}).AddRow("old-key")
-		mock.ExpectQuery(quoteSQL(DELETE_AVATAR_BY_ID)).
-			WithArgs(profileID).
-			WillReturnRows(deleteRows)
+			avatar, err := repo.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
 
-		mockMinio.EXPECT().
-			DeleteFile(gomock.Any(), repo.avatarBucket, "old-key").
-			Return(nil)
-
-		mockMinio.EXPECT().
-			UploadFile(gomock.Any(), repo.avatarBucket, gomock.Any(), gomock.Any(), fileSize, mimeType).
-			Return(nil)
-
-		mockMinio.EXPECT().
-			GeneratePresignedURL(gomock.Any(), repo.avatarBucket, gomock.Any(), profiles.PRESIGNED_URL_EXPIRY).
-			Return("https://example.com/new-avatar.jpg", nil)
-
-		rows := sqlmock.NewRows([]string{"id", "profile_id", "minio_key", "avatar_url", "url_expires_at", "created_at", "updated_at"}).
-			AddRow(uuid.New(), profileID, "new-key", "https://example.com/new-avatar.jpg", time.Now().Add(profiles.PRESIGNED_URL_EXPIRY), time.Now(), time.Now())
-
-		mock.ExpectQuery(quoteSQL(CREATE_AVATAR)).
-			WithArgs(sqlmock.AnyArg(), profileID, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-			WillReturnRows(rows)
-
-		avatar, err := repo.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, avatar)
-	})
-
-	t.Run("upload fails - rolls back", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(DELETE_AVATAR_BY_ID)).
-			WithArgs(profileID).
-			WillReturnError(sql.ErrNoRows)
-
-		mockMinio.EXPECT().
-			UploadFile(gomock.Any(), repo.avatarBucket, gomock.Any(), gomock.Any(), fileSize, mimeType).
-			Return(errors.New("upload failed"))
-
-		avatar, err := repo.UploadAvatar(context.Background(), profileID, fileName, fileSize, mimeType, fileReader)
-
-		assert.Error(t, err)
-		assert.Nil(t, avatar)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, avatar)
+				assert.Equal(t, profileID, avatar.ProfileID)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_DeleteAvatar(t *testing.T) {
-	repo, mock, mockMinio, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestDeleteAvatar(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	profileID := uuid.New()
 	minioKey := "test-key"
 
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"minio_key"}).AddRow(minioKey)
+	tests := []struct {
+		name       string
+		setupMock  func()
+		setupMinio func(*mockMinIOService)
+		wantErr    bool
+		errType    error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"minio_key"}).AddRow(minioKey)
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnRows(rows)
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.deleteFileFunc = func(ctx context.Context, bucketName, key string) error {
+					return nil
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "Avatar Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrAvatarNotFound,
+		},
+		{
+			name: "MinIO Delete Failed",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"minio_key"}).AddRow(minioKey)
+				mock.ExpectQuery("DELETE FROM avatars WHERE profile_id = \\$1 RETURNING minio_key").
+					WithArgs(profileID).
+					WillReturnRows(rows)
+			},
+			setupMinio: func(m *mockMinIOService) {
+				m.deleteFileFunc = func(ctx context.Context, bucketName, key string) error {
+					return errors.New("minio delete failed")
+				}
+			},
+			wantErr: true,
+		},
+	}
 
-		mock.ExpectQuery(quoteSQL(DELETE_AVATAR_BY_ID)).
-			WithArgs(profileID).
-			WillReturnRows(rows)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			minioMock := &mockMinIOService{}
+			if tt.setupMinio != nil {
+				tt.setupMinio(minioMock)
+			}
+			repo := NewProfileRepository(db, minioMock, "avatars")
 
-		mockMinio.EXPECT().
-			DeleteFile(gomock.Any(), repo.avatarBucket, minioKey).
-			Return(nil)
+			err := repo.DeleteAvatar(context.Background(), profileID)
 
-		err := repo.DeleteAvatar(context.Background(), profileID)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("avatar not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(DELETE_AVATAR_BY_ID)).
-			WithArgs(profileID).
-			WillReturnError(sql.ErrNoRows)
-
-		err := repo.DeleteAvatar(context.Background(), profileID)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrAvatarNotFound, err)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_ChangePassword(t *testing.T) {
-	repo, mock, _, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestChangePassword(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	userID := uuid.New()
-	newPassword := "newpassword123"
+	newPassword := "newpass123"
 
-	t.Run("success", func(t *testing.T) {
-		expectedProfile := &models.Profile{
-			ID:        userID,
-			Username:  "testuser",
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
+					AddRow(userID, "testuser", time.Now(), time.Now())
+				mock.ExpectQuery("UPDATE profiles SET password = \\$2, updated_at = now\\(\\) WHERE id = \\$1 RETURNING id, username, created_at, updated_at").
+					WithArgs(userID, sqlmock.AnyArg()).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("UPDATE profiles SET password = \\$2, updated_at = now\\(\\) WHERE id = \\$1 RETURNING id, username, created_at, updated_at").
+					WithArgs(userID, sqlmock.AnyArg()).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
 
-		rows := sqlmock.NewRows([]string{"id", "username", "created_at", "updated_at"}).
-			AddRow(expectedProfile.ID, expectedProfile.Username, expectedProfile.CreatedAt, expectedProfile.UpdatedAt)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
 
-		mock.ExpectQuery(quoteSQL(CHANGE_PASSWORD_BY_USER_ID)).
-			WithArgs(userID, sqlmock.AnyArg()).
-			WillReturnRows(rows)
+			profile, err := repo.ChangePassword(context.Background(), userID, newPassword)
 
-		profile, err := repo.ChangePassword(context.Background(), userID, newPassword)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedProfile.ID, profile.ID)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(CHANGE_PASSWORD_BY_USER_ID)).
-			WithArgs(userID, sqlmock.AnyArg()).
-			WillReturnError(sql.ErrNoRows)
-
-		profile, err := repo.ChangePassword(context.Background(), userID, newPassword)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-		assert.Nil(t, profile)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, profile)
+				assert.Equal(t, userID, profile.ID)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
 
-func TestProfileRepository_GetPassword(t *testing.T) {
-	repo, mock, _, ctrl := setupTestRepository(t)
-	defer ctrl.Finish()
-	defer repo.db.Close()
+func TestGetPassword(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
 
 	userID := uuid.New()
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 
-	t.Run("success", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"password"}).AddRow(hashedPassword)
+	tests := []struct {
+		name      string
+		setupMock func()
+		wantErr   bool
+		errType   error
+	}{
+		{
+			name: "Success",
+			setupMock: func() {
+				rows := sqlmock.NewRows([]string{"password"}).AddRow(hashedPassword)
+				mock.ExpectQuery("SELECT password FROM profiles WHERE id = \\$1").
+					WithArgs(userID).
+					WillReturnRows(rows)
+			},
+			wantErr: false,
+		},
+		{
+			name: "User Not Found",
+			setupMock: func() {
+				mock.ExpectQuery("SELECT password FROM profiles WHERE id = \\$1").
+					WithArgs(userID).
+					WillReturnError(sql.ErrNoRows)
+			},
+			wantErr: true,
+			errType: profiles.ErrUserNotExist,
+		},
+	}
 
-		mock.ExpectQuery(quoteSQL(GET_PASSWORD_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnRows(rows)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
+			repo := NewProfileRepository(db, &mockMinIOService{}, "avatars")
 
-		password, err := repo.GetPassword(context.Background(), userID)
+			password, err := repo.GetPassword(context.Background(), userID)
 
-		assert.NoError(t, err)
-		assert.Equal(t, hashedPassword, password)
-	})
-
-	t.Run("user not found", func(t *testing.T) {
-		mock.ExpectQuery(quoteSQL(GET_PASSWORD_BY_USER_ID)).
-			WithArgs(userID).
-			WillReturnError(sql.ErrNoRows)
-
-		password, err := repo.GetPassword(context.Background(), userID)
-
-		assert.Error(t, err)
-		assert.Equal(t, profiles.ErrUserNotExist, err)
-		assert.Nil(t, password)
-	})
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.errType != nil {
+					assert.ErrorIs(t, err, tt.errType)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, password)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
 }
