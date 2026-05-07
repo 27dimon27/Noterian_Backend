@@ -70,7 +70,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
 			write.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
-		case errors.Is(err, auth.ErrInvalidUsername) || errors.Is(err, auth.ErrInvalidPassword):
+		case errors.Is(err, auth.ErrInvalidUsername), errors.Is(err, auth.ErrInvalidPassword):
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
@@ -113,7 +113,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
-		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
+		case errors.Is(err, auth.ErrBadCredentials), errors.Is(err, auth.ErrUserNotExist):
 			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)

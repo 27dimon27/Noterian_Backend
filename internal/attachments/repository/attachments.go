@@ -48,7 +48,7 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, attachments.ErrAttachmentNotFound
 		}
 		return nil, err
 	}

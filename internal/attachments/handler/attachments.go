@@ -81,10 +81,10 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 
 	attachment, err := h.attachmentUsecase.GetAttachment(r.Context(), noteID, blockID, userID)
 	if err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -198,12 +198,12 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		fileToUpload,
 	)
 	if err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case attachments.ErrBlockAlreadyHasAttach:
+		case errors.Is(err, attachments.ErrBlockAlreadyHasAttach):
 			write.JSONErrorResponse(w, http.StatusConflict, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -237,6 +237,12 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 // @Security ApiKeyAuth
 // @Router /notes/{noteId}/blocks/{blockId}/attachments [delete]
 func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
+		return
+	}
+
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
@@ -261,17 +267,11 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
-		return
-	}
-
 	if err := h.attachmentUsecase.DeleteAttachment(r.Context(), noteID, blockID, userID); err != nil {
-		switch err {
-		case attachments.ErrForbidden:
+		switch {
+		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		case attachments.ErrNoteNotFound, attachments.ErrBlockNotFound, attachments.ErrAttachmentNotFound:
+		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -279,7 +279,7 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
 func getMaxSizeByMimeType(mimeType string) (int64, string, error) {
