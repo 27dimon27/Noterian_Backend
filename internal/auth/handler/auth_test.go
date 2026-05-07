@@ -55,7 +55,7 @@ func TestAuthHandler_SignupUser_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		CreateUser(gomock.Any(), "testuser", "Test1234").
+		SignupUser(gomock.Any(), "testuser", "Test1234").
 		Return(expectedUser, nil)
 
 	handler.SignupUser(w, req)
@@ -127,7 +127,7 @@ func TestAuthHandler_SignupUser_UserAlreadyExists(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		CreateUser(gomock.Any(), "existinguser", "Test1234").
+		SignupUser(gomock.Any(), "existinguser", "Test1234").
 		Return(nil, auth.ErrUserExist)
 
 	handler.SignupUser(w, req)
@@ -157,7 +157,7 @@ func TestAuthHandler_SignupUser_InvalidUsername(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		CreateUser(gomock.Any(), "invalid username!", "Test1234").
+		SignupUser(gomock.Any(), "invalid username!", "Test1234").
 		Return(nil, auth.ErrInvalidUsername)
 
 	handler.SignupUser(w, req)
@@ -182,7 +182,7 @@ func TestAuthHandler_SignupUser_InternalError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		CreateUser(gomock.Any(), "testuser", "Test1234").
+		SignupUser(gomock.Any(), "testuser", "Test1234").
 		Return(nil, errors.New("database error"))
 
 	handler.SignupUser(w, req)
@@ -213,7 +213,7 @@ func TestAuthHandler_SigninUser_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		ValidateUser(gomock.Any(), "testuser", "Test1234").
+		SigninUser(gomock.Any(), "testuser", "Test1234").
 		Return(expectedUser, nil)
 
 	handler.SigninUser(w, req)
@@ -245,7 +245,7 @@ func TestAuthHandler_SigninUser_BadCredentials(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		ValidateUser(gomock.Any(), "testuser", "wrongpassword").
+		SigninUser(gomock.Any(), "testuser", "wrongpassword").
 		Return(nil, auth.ErrBadCredentials)
 
 	handler.SigninUser(w, req)
@@ -270,7 +270,7 @@ func TestAuthHandler_SigninUser_UserNotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	mockUsecase.EXPECT().
-		ValidateUser(gomock.Any(), "nonexistent", "Test1234").
+		SigninUser(gomock.Any(), "nonexistent", "Test1234").
 		Return(nil, auth.ErrUserNotExist)
 
 	handler.SigninUser(w, req)
@@ -293,7 +293,7 @@ func TestAuthHandler_LogOutUser_Success(t *testing.T) {
 		Value: "some-token",
 	})
 
-	handler.LogOutUser(w, req)
+	handler.LogoutUser(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()

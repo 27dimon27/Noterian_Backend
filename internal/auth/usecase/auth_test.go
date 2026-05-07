@@ -32,7 +32,7 @@ func setupTestUsecase(t *testing.T) (*authUsecase, *mocks.MockUserRepository, *g
 	return usecase, mockUserRepo, ctrl
 }
 
-func TestAuthUsecase_CreateUser_Success(t *testing.T) {
+func TestAuthUsecase_SignupUser_Success(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -43,16 +43,16 @@ func TestAuthUsecase_CreateUser_Success(t *testing.T) {
 	}
 
 	mockRepo.EXPECT().
-		CreateUser(gomock.Any(), "validuser", "ValidPass123").
+		SignupUser(gomock.Any(), "validuser", "ValidPass123").
 		Return(expectedUser, nil)
 
-	user, err := usecase.CreateUser(context.Background(), "validuser", "ValidPass123")
+	user, err := usecase.SignupUser(context.Background(), "validuser", "ValidPass123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedUser, user)
 }
 
-func TestAuthUsecase_CreateUser_InvalidUsername(t *testing.T) {
+func TestAuthUsecase_SignupUser_InvalidUsername(t *testing.T) {
 	usecase, _, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -73,14 +73,14 @@ func TestAuthUsecase_CreateUser_InvalidUsername(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user, err := usecase.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := usecase.SignupUser(context.Background(), tc.username, tc.password)
 			assert.Nil(t, user)
 			assert.ErrorIs(t, err, auth.ErrInvalidUsername)
 		})
 	}
 }
 
-func TestAuthUsecase_CreateUser_ValidUsernameFormats(t *testing.T) {
+func TestAuthUsecase_SignupUser_ValidUsernameFormats(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -106,17 +106,17 @@ func TestAuthUsecase_CreateUser_ValidUsernameFormats(t *testing.T) {
 			}
 
 			mockRepo.EXPECT().
-				CreateUser(gomock.Any(), tc.username, tc.password).
+				SignupUser(gomock.Any(), tc.username, tc.password).
 				Return(expectedUser, nil)
 
-			user, err := usecase.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := usecase.SignupUser(context.Background(), tc.username, tc.password)
 			assert.NoError(t, err)
 			assert.Equal(t, expectedUser, user)
 		})
 	}
 }
 
-func TestAuthUsecase_CreateUser_InvalidPassword(t *testing.T) {
+func TestAuthUsecase_SignupUser_InvalidPassword(t *testing.T) {
 	usecase, _, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -135,14 +135,14 @@ func TestAuthUsecase_CreateUser_InvalidPassword(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user, err := usecase.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := usecase.SignupUser(context.Background(), tc.username, tc.password)
 			assert.Nil(t, user)
 			assert.ErrorIs(t, err, auth.ErrInvalidPassword)
 		})
 	}
 }
 
-func TestAuthUsecase_CreateUser_ValidPasswords(t *testing.T) {
+func TestAuthUsecase_SignupUser_ValidPasswords(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -166,31 +166,31 @@ func TestAuthUsecase_CreateUser_ValidPasswords(t *testing.T) {
 			}
 
 			mockRepo.EXPECT().
-				CreateUser(gomock.Any(), tc.username, tc.password).
+				SignupUser(gomock.Any(), tc.username, tc.password).
 				Return(expectedUser, nil)
 
-			user, err := usecase.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := usecase.SignupUser(context.Background(), tc.username, tc.password)
 			assert.NoError(t, err)
 			assert.Equal(t, expectedUser, user)
 		})
 	}
 }
 
-func TestAuthUsecase_CreateUser_RepositoryError(t *testing.T) {
+func TestAuthUsecase_SignupUser_RepositoryError(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	mockRepo.EXPECT().
-		CreateUser(gomock.Any(), "validuser", "ValidPass123").
+		SignupUser(gomock.Any(), "validuser", "ValidPass123").
 		Return(nil, errors.New("database error"))
 
-	user, err := usecase.CreateUser(context.Background(), "validuser", "ValidPass123")
+	user, err := usecase.SignupUser(context.Background(), "validuser", "ValidPass123")
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 }
 
-func TestAuthUsecase_ValidateUser_Success(t *testing.T) {
+func TestAuthUsecase_SigninUser_Success(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -203,16 +203,16 @@ func TestAuthUsecase_ValidateUser_Success(t *testing.T) {
 	}
 
 	mockRepo.EXPECT().
-		GetUserByUsername(gomock.Any(), "validuser").
+		SigninUser(gomock.Any(), "validuser").
 		Return(expectedUser, nil)
 
-	user, err := usecase.ValidateUser(context.Background(), "validuser", "ValidPass123")
+	user, err := usecase.SigninUser(context.Background(), "validuser", "ValidPass123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedUser, user)
 }
 
-func TestAuthUsecase_ValidateUser_WrongPassword(t *testing.T) {
+func TestAuthUsecase_SigninUser_WrongPassword(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
@@ -224,57 +224,57 @@ func TestAuthUsecase_ValidateUser_WrongPassword(t *testing.T) {
 	}
 
 	mockRepo.EXPECT().
-		GetUserByUsername(gomock.Any(), "validuser").
+		SigninUser(gomock.Any(), "validuser").
 		Return(user, nil)
 
-	validatedUser, err := usecase.ValidateUser(context.Background(), "validuser", "WrongPass123")
+	validatedUser, err := usecase.SigninUser(context.Background(), "validuser", "WrongPass123")
 
 	assert.Nil(t, validatedUser)
 	assert.ErrorIs(t, err, auth.ErrBadCredentials)
 }
 
-func TestAuthUsecase_ValidateUser_UserNotFound(t *testing.T) {
+func TestAuthUsecase_SigninUser_UserNotFound(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	mockRepo.EXPECT().
-		GetUserByUsername(gomock.Any(), "nonexistent").
+		SigninUser(gomock.Any(), "nonexistent").
 		Return(nil, auth.ErrUserNotExist)
 
-	user, err := usecase.ValidateUser(context.Background(), "nonexistent", "ValidPass123")
+	user, err := usecase.SigninUser(context.Background(), "nonexistent", "ValidPass123")
 
 	assert.Nil(t, user)
 	assert.ErrorIs(t, err, auth.ErrUserNotExist)
 }
 
-func TestAuthUsecase_ValidateUser_RepositoryError(t *testing.T) {
+func TestAuthUsecase_SigninUser_RepositoryError(t *testing.T) {
 	usecase, mockRepo, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
 	mockRepo.EXPECT().
-		GetUserByUsername(gomock.Any(), "validuser").
+		SigninUser(gomock.Any(), "validuser").
 		Return(nil, errors.New("database error"))
 
-	user, err := usecase.ValidateUser(context.Background(), "validuser", "ValidPass123")
+	user, err := usecase.SigninUser(context.Background(), "validuser", "ValidPass123")
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 }
 
-func TestAuthUsecase_ValidateUser_EmptyCredentials(t *testing.T) {
+func TestAuthUsecase_SigninUser_EmptyCredentials(t *testing.T) {
 	usecase, _, ctrl := setupTestUsecase(t)
 	defer ctrl.Finish()
 
-	// Note: ValidateUser doesn't validate credentials itself,
+	// Note: SigninUser doesn't validate credentials itself,
 	// it relies on the repository to handle empty values
 	mockRepo := mocks.NewMockUserRepository(ctrl)
 	usecase.userRepo = mockRepo
 
 	mockRepo.EXPECT().
-		GetUserByUsername(gomock.Any(), "").
+		SigninUser(gomock.Any(), "").
 		Return(nil, auth.ErrUserNotExist)
 
-	user, err := usecase.ValidateUser(context.Background(), "", "")
+	user, err := usecase.SigninUser(context.Background(), "", "")
 
 	assert.Nil(t, user)
 	assert.Error(t, err)

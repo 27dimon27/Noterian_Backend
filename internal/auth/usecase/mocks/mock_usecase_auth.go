@@ -41,32 +41,32 @@ func (m *MockUserRepository) EXPECT() *MockUserRepositoryMockRecorder {
 	return m.recorder
 }
 
-// CreateUser mocks base method.
-func (m *MockUserRepository) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+// SigninUser mocks base method.
+func (m *MockUserRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, username, password)
+	ret := m.ctrl.Call(m, "SigninUser", ctx, username)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateUser indicates an expected call of CreateUser.
-func (mr *MockUserRepositoryMockRecorder) CreateUser(ctx, username, password any) *gomock.Call {
+// SigninUser indicates an expected call of SigninUser.
+func (mr *MockUserRepositoryMockRecorder) SigninUser(ctx, username any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockUserRepository)(nil).CreateUser), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigninUser", reflect.TypeOf((*MockUserRepository)(nil).SigninUser), ctx, username)
 }
 
-// GetUserByUsername mocks base method.
-func (m *MockUserRepository) GetUserByUsername(ctx context.Context, username string) (*models.Profile, error) {
+// SignupUser mocks base method.
+func (m *MockUserRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserByUsername", ctx, username)
+	ret := m.ctrl.Call(m, "SignupUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetUserByUsername indicates an expected call of GetUserByUsername.
-func (mr *MockUserRepositoryMockRecorder) GetUserByUsername(ctx, username any) *gomock.Call {
+// SignupUser indicates an expected call of SignupUser.
+func (mr *MockUserRepositoryMockRecorder) SignupUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByUsername", reflect.TypeOf((*MockUserRepository)(nil).GetUserByUsername), ctx, username)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignupUser", reflect.TypeOf((*MockUserRepository)(nil).SignupUser), ctx, username, password)
 }

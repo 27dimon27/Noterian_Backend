@@ -11,8 +11,10 @@ package mocks
 
 import (
 	context "context"
+	http "net/http"
 	reflect "reflect"
 
+	config "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -41,32 +43,44 @@ func (m *MockAuthUsecase) EXPECT() *MockAuthUsecaseMockRecorder {
 	return m.recorder
 }
 
-// CreateUser mocks base method.
-func (m *MockAuthUsecase) CreateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+// Logout mocks base method.
+func (m *MockAuthUsecase) Logout(ctx context.Context, w http.ResponseWriter, jwtCfg config.JWTConfig) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateUser", ctx, username, password)
+	m.ctrl.Call(m, "Logout", ctx, w, jwtCfg)
+}
+
+// Logout indicates an expected call of Logout.
+func (mr *MockAuthUsecaseMockRecorder) Logout(ctx, w, jwtCfg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Logout", reflect.TypeOf((*MockAuthUsecase)(nil).Logout), ctx, w, jwtCfg)
+}
+
+// SigninUser mocks base method.
+func (m *MockAuthUsecase) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SigninUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// CreateUser indicates an expected call of CreateUser.
-func (mr *MockAuthUsecaseMockRecorder) CreateUser(ctx, username, password any) *gomock.Call {
+// SigninUser indicates an expected call of SigninUser.
+func (mr *MockAuthUsecaseMockRecorder) SigninUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockAuthUsecase)(nil).CreateUser), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigninUser", reflect.TypeOf((*MockAuthUsecase)(nil).SigninUser), ctx, username, password)
 }
 
-// ValidateUser mocks base method.
-func (m *MockAuthUsecase) ValidateUser(ctx context.Context, username, password string) (*models.Profile, error) {
+// SignupUser mocks base method.
+func (m *MockAuthUsecase) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateUser", ctx, username, password)
+	ret := m.ctrl.Call(m, "SignupUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ValidateUser indicates an expected call of ValidateUser.
-func (mr *MockAuthUsecaseMockRecorder) ValidateUser(ctx, username, password any) *gomock.Call {
+// SignupUser indicates an expected call of SignupUser.
+func (mr *MockAuthUsecaseMockRecorder) SignupUser(ctx, username, password any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateUser", reflect.TypeOf((*MockAuthUsecase)(nil).ValidateUser), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignupUser", reflect.TypeOf((*MockAuthUsecase)(nil).SignupUser), ctx, username, password)
 }

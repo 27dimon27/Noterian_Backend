@@ -22,7 +22,7 @@ func setupTestRepository(t *testing.T) (*userRepository, sqlmock.Sqlmock) {
 	return repo, mock
 }
 
-func TestUserRepository_CreateUser_Success(t *testing.T) {
+func TestUserRepository_SignupUser_Success(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -39,7 +39,7 @@ func TestUserRepository_CreateUser_Success(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	user, err := repo.CreateUser(context.Background(), username, password)
+	user, err := repo.SignupUser(context.Background(), username, password)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
@@ -50,7 +50,7 @@ func TestUserRepository_CreateUser_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_CreateUser_UserAlreadyExists(t *testing.T) {
+func TestUserRepository_SignupUser_UserAlreadyExists(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -62,14 +62,14 @@ func TestUserRepository_CreateUser_UserAlreadyExists(t *testing.T) {
 		WithArgs(username).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
-	user, err := repo.CreateUser(context.Background(), username, password)
+	user, err := repo.SignupUser(context.Background(), username, password)
 
 	assert.Nil(t, user)
 	assert.ErrorIs(t, err, auth.ErrUserExist)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_CreateUser_CheckExistsQueryError(t *testing.T) {
+func TestUserRepository_SignupUser_CheckExistsQueryError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -80,14 +80,14 @@ func TestUserRepository_CreateUser_CheckExistsQueryError(t *testing.T) {
 		WithArgs(username).
 		WillReturnError(sql.ErrConnDone)
 
-	user, err := repo.CreateUser(context.Background(), username, password)
+	user, err := repo.SignupUser(context.Background(), username, password)
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_CreateUser_InsertError(t *testing.T) {
+func TestUserRepository_SignupUser_InsertError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -102,14 +102,14 @@ func TestUserRepository_CreateUser_InsertError(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
 		WillReturnError(sql.ErrTxDone)
 
-	user, err := repo.CreateUser(context.Background(), username, password)
+	user, err := repo.SignupUser(context.Background(), username, password)
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_GetUserByUsername_Success(t *testing.T) {
+func TestUserRepository_SigninUser_Success(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -127,7 +127,7 @@ func TestUserRepository_GetUserByUsername_Success(t *testing.T) {
 		WithArgs(username).
 		WillReturnRows(rows)
 
-	user, err := repo.GetUserByUsername(context.Background(), username)
+	user, err := repo.SigninUser(context.Background(), username)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
@@ -140,7 +140,7 @@ func TestUserRepository_GetUserByUsername_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_GetUserByUsername_NotFound(t *testing.T) {
+func TestUserRepository_SigninUser_NotFound(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -150,14 +150,14 @@ func TestUserRepository_GetUserByUsername_NotFound(t *testing.T) {
 		WithArgs(username).
 		WillReturnError(sql.ErrNoRows)
 
-	user, err := repo.GetUserByUsername(context.Background(), username)
+	user, err := repo.SigninUser(context.Background(), username)
 
 	assert.Nil(t, user)
 	assert.ErrorIs(t, err, auth.ErrUserNotExist)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_GetUserByUsername_QueryError(t *testing.T) {
+func TestUserRepository_SigninUser_QueryError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -167,14 +167,14 @@ func TestUserRepository_GetUserByUsername_QueryError(t *testing.T) {
 		WithArgs(username).
 		WillReturnError(sql.ErrConnDone)
 
-	user, err := repo.GetUserByUsername(context.Background(), username)
+	user, err := repo.SigninUser(context.Background(), username)
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_GetUserByUsername_ScanError(t *testing.T) {
+func TestUserRepository_SigninUser_ScanError(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -188,14 +188,14 @@ func TestUserRepository_GetUserByUsername_ScanError(t *testing.T) {
 		WithArgs(username).
 		WillReturnRows(rows)
 
-	user, err := repo.GetUserByUsername(context.Background(), username)
+	user, err := repo.SigninUser(context.Background(), username)
 
 	assert.Nil(t, user)
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_GetUserByUsername_WithNullTimestamps(t *testing.T) {
+func TestUserRepository_SigninUser_WithNullTimestamps(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -212,7 +212,7 @@ func TestUserRepository_GetUserByUsername_WithNullTimestamps(t *testing.T) {
 		WithArgs(username).
 		WillReturnRows(rows)
 
-	user, err := repo.GetUserByUsername(context.Background(), username)
+	user, err := repo.SigninUser(context.Background(), username)
 
 	// Это должно вызвать ошибку сканирования, так как NULL нельзя присвоить time.Time
 	assert.Error(t, err)
@@ -220,7 +220,7 @@ func TestUserRepository_GetUserByUsername_WithNullTimestamps(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_CreateUser_WithSpecialCharacters(t *testing.T) {
+func TestUserRepository_SignupUser_WithSpecialCharacters(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -245,7 +245,7 @@ func TestUserRepository_CreateUser_WithSpecialCharacters(t *testing.T) {
 				WithArgs(sqlmock.AnyArg(), tc.username, sqlmock.AnyArg(), 1).
 				WillReturnResult(sqlmock.NewResult(1, 1))
 
-			user, err := repo.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := repo.SignupUser(context.Background(), tc.username, tc.password)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, user)
@@ -254,7 +254,7 @@ func TestUserRepository_CreateUser_WithSpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestUserRepository_ConcurrentCreateUser(t *testing.T) {
+func TestUserRepository_ConcurrentSignupUser(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -271,7 +271,7 @@ func TestUserRepository_ConcurrentCreateUser(t *testing.T) {
 			WithArgs(sqlmock.AnyArg(), username, sqlmock.AnyArg(), 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		user, err := repo.CreateUser(context.Background(), username, password)
+		user, err := repo.SignupUser(context.Background(), username, password)
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
 	}
@@ -279,7 +279,7 @@ func TestUserRepository_ConcurrentCreateUser(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestUserRepository_CreateUser_WithEmptyFields(t *testing.T) {
+func TestUserRepository_SignupUser_WithEmptyFields(t *testing.T) {
 	repo, mock := setupTestRepository(t)
 	defer repo.db.Close()
 
@@ -303,7 +303,7 @@ func TestUserRepository_CreateUser_WithEmptyFields(t *testing.T) {
 				WithArgs(sqlmock.AnyArg(), tc.username, sqlmock.AnyArg(), 1).
 				WillReturnResult(sqlmock.NewResult(1, 1))
 
-			user, err := repo.CreateUser(context.Background(), tc.username, tc.password)
+			user, err := repo.SignupUser(context.Background(), tc.username, tc.password)
 
 			// Репозиторий не валидирует поля, он просто передает их в БД
 			// Поэтому ошибки не будет, даже если поля пустые

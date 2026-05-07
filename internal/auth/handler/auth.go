@@ -18,8 +18,9 @@ import (
 //go:generate mockgen -source=auth.go -destination=mocks/mock_handler_auth.go -package=mocks
 
 type AuthUsecase interface {
-	CreateUser(ctx context.Context, username, password string) (*models.Profile, error)
-	ValidateUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
+	Logout(ctx context.Context, w http.ResponseWriter, jwtCfg config.JWTConfig)
 }
 
 type AuthHandler struct {
@@ -64,7 +65,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	user, err := h.authUsecase.CreateUser(r.Context(), signUpUser.Username, signUpUser.Password)
+	user, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
@@ -109,7 +110,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	user, err := h.authUsecase.ValidateUser(r.Context(), signInUser.Username, signInUser.Password)
+	user, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials) || errors.Is(err, auth.ErrUserNotExist):
@@ -132,9 +133,9 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 // @Failure 405 {object} map[string]string "Неверный метод"
 // @Failure 500 {object} map[string]string "Внутренняя ошибка сервера"
 // @Router /logout [post]
-func (h *AuthHandler) LogOutUser(w http.ResponseWriter, r *http.Request) {
-	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
-	w.WriteHeader(http.StatusNoContent)
+func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
+	h.authUsecase.Logout(r.Context(), w, h.jwtConfig)
+	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
 func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile) {

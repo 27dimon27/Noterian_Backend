@@ -93,7 +93,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
-	r.HandleFunc("POST /logout", authHandler.LogOutUser)
+	r.HandleFunc("POST /logout", authHandler.LogoutUser)
 
 	r.Handle("GET /notes", authMiddleware(http.HandlerFunc(noteHandler.GetNotes)))
 	r.Handle("GET /notes/{noteId}", authMiddleware(http.HandlerFunc(noteHandler.GetNote)))
