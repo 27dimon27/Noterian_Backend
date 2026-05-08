@@ -123,6 +123,7 @@ const (
 	DELETE_BLOCK_FORMATTING = `
 		DELETE FROM block_formatting 
 		WHERE block_id = $1
+		RETURNING block_id
 	`
 
 	GET_SUBNOTES_BY_NOTE = `

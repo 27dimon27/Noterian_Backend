@@ -66,7 +66,7 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrNoteNotFound
 		}
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (r *noteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*mo
 	err := r.db.QueryRowContext(ctx, "SELECT id, name FROM block_types WHERE id = $1", blockTypeID).Scan(&blockType.ID, &blockType.Name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrBlockTypeNotFound
 		}
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrBlockNotFound
 		}
 		return nil, err
 	}
@@ -291,7 +291,8 @@ func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UU
 	if direction > 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition)
 		return err
-	} else if direction < 0 {
+	}
+	if direction < 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition)
 		return err
 	}
@@ -443,24 +444,11 @@ func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid
 }
 
 func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	err := r.db.QueryRowContext(ctx, DELETE_BLOCK_FORMATTING, blockID).Scan(&blockID)
 	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			if err == nil {
-				err = rollbackErr
-			}
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notes.ErrBlockNotFound
 		}
-	}()
-
-	_, err = tx.ExecContext(ctx, DELETE_BLOCK_FORMATTING, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 

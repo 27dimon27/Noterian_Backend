@@ -59,17 +59,28 @@ func (u *noteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.
 	return notes, subnotesForNotes, nil
 }
 
-func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
+func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
 	note, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
-	return note, nil
-}
+	blocks, err := u.noteRepo.GetBlocks(ctx, note.ID)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
-func (u *noteUsecase) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
-	return u.noteRepo.GetBlocks(ctx, noteID)
+	blockIDs := make([]uuid.UUID, len(blocks))
+	for i, block := range blocks {
+		blockIDs[i] = block.ID
+	}
+
+	formattings, err := u.noteRepo.GetBlocksFormatting(ctx, blockIDs)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return note, blocks, formattings, nil
 }
 
 func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
@@ -80,17 +91,15 @@ func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models
 	return u.noteRepo.CreateNote(ctx, note)
 }
 
-func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error) {
-	if note.Title == "" {
-		return nil, notes.ErrInvalidNoteData
-	}
-
+func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error) {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	note.ID = noteID
+	if note.Title == "" {
+		return nil, notes.ErrInvalidNoteData
+	}
 
 	return u.noteRepo.UpdateNote(ctx, noteID, note)
 }
@@ -182,7 +191,7 @@ func (u *noteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID u
 		return nil, err
 	}
 
-	if newPosition < 0 || newPosition >= len(blocks) {
+	if newPosition < 0 || newPosition > len(blocks) {
 		return nil, notes.ErrInvalidPosition
 	}
 
@@ -229,7 +238,7 @@ func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UU
 	}
 
 	if blockType == nil {
-		return nil, notes.ErrInvalidBlockType
+		return nil, notes.ErrBlockTypeNotFound
 	}
 
 	if blockType.Name == "image" {
@@ -259,29 +268,6 @@ func (u *noteUsecase) ResetBlockFormatting(ctx context.Context, blockID uuid.UUI
 	}
 
 	return u.noteRepo.ResetBlockFormatting(ctx, blockID)
-}
-
-func (u *noteUsecase) GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error) {
-	blocks, err := u.noteRepo.GetBlocks(ctx, noteID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(blocks) == 0 {
-		return blocks, make(map[string]models.BlockFormatting), nil
-	}
-
-	blockIDs := make([]uuid.UUID, len(blocks))
-	for i, block := range blocks {
-		blockIDs[i] = block.ID
-	}
-
-	formattings, err := u.noteRepo.GetBlocksFormatting(ctx, blockIDs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return blocks, formattings, nil
 }
 
 func (u *noteUsecase) GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error) {

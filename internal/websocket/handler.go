@@ -55,7 +55,7 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
+	note, _, _, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
 	if err != nil {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return

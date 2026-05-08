@@ -190,13 +190,7 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
-		return
-	}
-
-	blocks, err := h.noteUsecase.GetBlocks(context.Background(), noteID)
+	note, blocks, blockFormattings, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -225,10 +219,11 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		UserID: client.UserID,
 		NoteID: client.NoteID,
 		Msg: map[string]any{
-			"note":           note,
-			"blocks":         blocks,
-			"cursors":        room.GetAllCursors(),
-			"sync_timestamp": time.Now().Unix(),
+			"note":              note,
+			"blocks":            blocks,
+			"block_formattings": blockFormattings,
+			"cursors":           room.GetAllCursors(),
+			"sync_timestamp":    time.Now().Unix(),
 		},
 	}
 }
@@ -568,7 +563,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -576,7 +571,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 
 	note.Title = newTitle
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -598,14 +593,14 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
 		return
 	}
 
 	note.IsPublic = isPublic
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
 	if err != nil {
 		return
 	}
@@ -690,7 +685,7 @@ func (h *Hub) isNoteOwner(noteID string, userID string) bool {
 	noteUUID, _ := uuid.Parse(noteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
 	if err != nil || note == nil {
 		return false
 	}
