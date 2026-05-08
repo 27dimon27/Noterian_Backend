@@ -12,8 +12,10 @@ package mocks
 import (
 	context "context"
 	io "io"
+	http "net/http"
 	reflect "reflect"
 
+	config "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
@@ -73,17 +75,17 @@ func (mr *MockProfileUsecaseMockRecorder) DeleteAvatar(ctx, profileID any) *gomo
 }
 
 // DeleteProfile mocks base method.
-func (m *MockProfileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+func (m *MockProfileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteProfile", ctx, userID)
+	ret := m.ctrl.Call(m, "DeleteProfile", ctx, userID, w, jwtCfg)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteProfile indicates an expected call of DeleteProfile.
-func (mr *MockProfileUsecaseMockRecorder) DeleteProfile(ctx, userID any) *gomock.Call {
+func (mr *MockProfileUsecaseMockRecorder) DeleteProfile(ctx, userID, w, jwtCfg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProfile", reflect.TypeOf((*MockProfileUsecase)(nil).DeleteProfile), ctx, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProfile", reflect.TypeOf((*MockProfileUsecase)(nil).DeleteProfile), ctx, userID, w, jwtCfg)
 }
 
 // GetAvatar mocks base method.

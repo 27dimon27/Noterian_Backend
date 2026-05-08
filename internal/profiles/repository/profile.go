@@ -105,7 +105,7 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, profiles.ErrAvatarNotFound
 		}
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 
 		newExpiry := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
 
-		err = r.UpdateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
+		err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
 		if err != nil {
 			return nil, err
 		}
@@ -129,23 +129,6 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 	}
 
 	return avatar, nil
-}
-
-func (r *profileRepository) UpdateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
-	var returnedURL string
-	var returnedExpiresAt time.Time
-	var returnedUpdatedAt time.Time
-
-	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
-		&returnedURL,
-		&returnedExpiresAt,
-		&returnedUpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *profileRepository) UploadAvatar(
@@ -261,4 +244,21 @@ func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) (
 	}
 
 	return password, nil
+}
+
+func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
+	var returnedURL string
+	var returnedExpiresAt time.Time
+	var returnedUpdatedAt time.Time
+
+	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
+		&returnedURL,
+		&returnedExpiresAt,
+		&returnedUpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

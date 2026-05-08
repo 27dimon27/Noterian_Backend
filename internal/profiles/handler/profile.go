@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
@@ -23,7 +22,7 @@ import (
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
-	DeleteProfile(ctx context.Context, userID uuid.UUID) error
+	DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
 	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
@@ -61,6 +60,10 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.profileUsecase.GetProfile(r.Context(), userID)
 	if err != nil {
+		if errors.Is(err, profiles.ErrUserNotExist) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -106,11 +109,12 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.profileUsecase.UpdateProfile(r.Context(), userID, updateProfile)
 	if err != nil {
-		if errors.Is(err, profiles.ErrInvalidProfileData) {
+		switch {
+		case errors.Is(err, profiles.ErrInvalidProfileData), errors.Is(err, profiles.ErrUsernameExists), errors.Is(err, profiles.ErrUserNotExist):
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
-			return
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -136,13 +140,18 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.profileUsecase.DeleteProfile(r.Context(), userID); err != nil {
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+	err := h.profileUsecase.DeleteProfile(r.Context(), userID, w, h.jwtConfig)
+	if err != nil {
+		switch {
+		case errors.Is(err, profiles.ErrUserNotExist):
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
 		return
 	}
 
-	auth.DeleteCookie(w, h.jwtConfig.CookieName, h.jwtConfig.Secure)
-	w.WriteHeader(http.StatusNoContent)
+	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
 // GetAvatar godoc
@@ -165,8 +174,8 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 
 	avatar, err := h.profileUsecase.GetAvatar(r.Context(), userID)
 	if err != nil {
-		switch err {
-		case profiles.ErrAvatarNotFound:
+		switch {
+		case errors.Is(err, profiles.ErrAvatarNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -263,8 +272,8 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.profileUsecase.DeleteAvatar(r.Context(), userID); err != nil {
-		switch err {
-		case profiles.ErrAvatarNotFound:
+		switch {
+		case errors.Is(err, profiles.ErrAvatarNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
@@ -272,7 +281,7 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
 // ChangePassword godoc
@@ -295,6 +304,12 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	}
 	defer r.Body.Close()
 
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		return
+	}
+
 	var dtoUpdatePassword dto.UpdatePassword
 
 	if err := body.GetBody(r, &dtoUpdatePassword); err != nil {
@@ -302,19 +317,13 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
-		return
-	}
-
 	updatedProfile, err := h.profileUsecase.ChangePassword(r.Context(), userID, dtoUpdatePassword.OldPassword, dtoUpdatePassword.NewPassword)
 	if err != nil {
-		switch err {
-		case profiles.ErrUserNotExist:
+		switch {
+		case errors.Is(err, profiles.ErrUserNotExist):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case profiles.ErrWrongPassword:
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		case errors.Is(err, profiles.ErrWrongPassword), errors.Is(err, profiles.ErrInvalidPasswordData):
+			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}

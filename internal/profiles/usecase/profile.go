@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/go-playground/validator/v10"
@@ -74,8 +76,15 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 	return updatedProfile, nil
 }
 
-func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
-	return u.profileRepo.DeleteProfile(ctx, userID)
+func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
+	err := u.profileRepo.DeleteProfile(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	profiles.DeleteCookie(w, jwtCfg.CookieName, jwtCfg.Secure)
+
+	return nil
 }
 
 func (u *profileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {

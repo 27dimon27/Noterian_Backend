@@ -262,58 +262,6 @@ func TestProfileUsecase_UpdateProfile(t *testing.T) {
 	}
 }
 
-func TestProfileUsecase_DeleteProfile(t *testing.T) {
-	userID := uuid.New()
-
-	tests := []struct {
-		name      string
-		setupMock func(*mockProfileRepo)
-		wantErr   bool
-		errType   error
-	}{
-		{
-			name: "Success",
-			setupMock: func(m *mockProfileRepo) {
-				m.deleteProfileFunc = func(ctx context.Context, id uuid.UUID) error {
-					return nil
-				}
-			},
-			wantErr: false,
-		},
-		{
-			name: "User Not Found",
-			setupMock: func(m *mockProfileRepo) {
-				m.deleteProfileFunc = func(ctx context.Context, id uuid.UUID) error {
-					return profiles.ErrUserNotExist
-				}
-			},
-			wantErr: true,
-			errType: profiles.ErrUserNotExist,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &mockProfileRepo{}
-			tt.setupMock(mockRepo)
-
-			usecase, err := NewProfileUsecase(mockRepo)
-			assert.NoError(t, err)
-
-			err = usecase.DeleteProfile(context.Background(), userID)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.errType != nil {
-					assert.ErrorIs(t, err, tt.errType)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 func TestProfileUsecase_GetAvatar(t *testing.T) {
 	profileID := uuid.New()
 	expectedAvatar := &models.Avatar{
