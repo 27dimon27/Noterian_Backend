@@ -33,6 +33,8 @@ type NoteUsecase interface {
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
 	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
+	CheckNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
+	CheckBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, error)
 }
 
 type NoteHandler struct {

@@ -17,30 +17,30 @@ type AttachmentRepository interface {
 	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
 }
 
-type NoteRepository interface {
-	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
-	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
+type NoteUsecase interface {
+	CheckNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
+	CheckBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, error)
 }
 
 type attachmentUsecase struct {
 	attachmentRepo AttachmentRepository
-	noteRepo       NoteRepository
+	noteUsecase    NoteUsecase
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteUsecase NoteUsecase) *attachmentUsecase {
 	return &attachmentUsecase{
 		attachmentRepo: attachmentRepo,
-		noteRepo:       noteRepo,
+		noteUsecase:    noteUsecase,
 	}
 }
 
 func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	_, err := u.noteUsecase.CheckNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	_, err = u.noteUsecase.CheckBlockAccess(ctx, noteID, blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,12 +67,12 @@ func (u *attachmentUsecase) UploadAttachment(
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Attachment, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	_, err := u.noteUsecase.CheckNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	_, err = u.noteUsecase.CheckBlockAccess(ctx, noteID, blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +86,12 @@ func (u *attachmentUsecase) UploadAttachment(
 }
 
 func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	_, err := u.noteUsecase.CheckNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	_, err = u.noteUsecase.CheckBlockAccess(ctx, noteID, blockID)
 	if err != nil {
 		return err
 	}
@@ -101,38 +101,4 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 	}
 
 	return nil
-}
-
-func (u *attachmentUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
-	note, err := u.noteRepo.GetNote(ctx, noteID)
-	if err != nil {
-		return nil, err
-	}
-
-	if note == nil {
-		return nil, attachments.ErrNoteNotFound
-	}
-
-	if note.UserID != userID {
-		return nil, attachments.ErrForbidden
-	}
-
-	return note, nil
-}
-
-func (u *attachmentUsecase) checkBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, error) {
-	block, err := u.noteRepo.GetBlock(ctx, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	if block == nil {
-		return nil, attachments.ErrBlockNotFound
-	}
-
-	if block.NoteID != noteID {
-		return nil, attachments.ErrForbidden
-	}
-
-	return block, nil
 }

@@ -55,7 +55,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteUsecase)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
