@@ -29,11 +29,11 @@ type ProfileRepository interface {
 }
 
 type profileUsecase struct {
-	profileRepo ProfileRepository
-	validate    *validator.Validate
+	profileRepository ProfileRepository
+	validate          *validator.Validate
 }
 
-func NewProfileUsecase(profileRepo ProfileRepository) (*profileUsecase, error) {
+func NewProfileUsecase(profileRepository ProfileRepository) (*profileUsecase, error) {
 	validate := validator.New()
 	err := initValidator(validate)
 	if err != nil {
@@ -41,13 +41,13 @@ func NewProfileUsecase(profileRepo ProfileRepository) (*profileUsecase, error) {
 	}
 
 	return &profileUsecase{
-		profileRepo: profileRepo,
-		validate:    validate,
+		profileRepository: profileRepository,
+		validate:          validate,
 	}, nil
 }
 
 func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
-	profile, err := u.profileRepo.GetProfile(ctx, userID)
+	profile, err := u.profileRepository.GetProfile(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		return nil, profiles.ErrInvalidProfileData
 	}
 
-	_, err := u.profileRepo.GetProfileByUsername(ctx, profile.Username)
+	_, err := u.profileRepository.GetProfileByUsername(ctx, profile.Username)
 	if err == nil {
 		return nil, profiles.ErrUsernameExists
 	}
@@ -68,7 +68,7 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		return nil, err
 	}
 
-	updatedProfile, err := u.profileRepo.UpdateProfile(ctx, userID, profile)
+	updatedProfile, err := u.profileRepository.UpdateProfile(ctx, userID, profile)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 }
 
 func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
-	err := u.profileRepo.DeleteProfile(ctx, userID)
+	err := u.profileRepository.DeleteProfile(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w 
 }
 
 func (u *profileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
-	avatar, err := u.profileRepo.GetAvatar(ctx, profileID)
+	avatar, err := u.profileRepository.GetAvatar(ctx, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (u *profileUsecase) UploadAvatar(ctx context.Context,
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Avatar, error) {
-	avatar, err := u.profileRepo.UploadAvatar(ctx, profileID, fileName, fileSize, mimeType, fileReader)
+	avatar, err := u.profileRepository.UploadAvatar(ctx, profileID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (u *profileUsecase) UploadAvatar(ctx context.Context,
 }
 
 func (u *profileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
-	if err := u.profileRepo.DeleteAvatar(ctx, profileID); err != nil {
+	if err := u.profileRepository.DeleteAvatar(ctx, profileID); err != nil {
 		return err
 	}
 	return nil
@@ -126,7 +126,7 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		return nil, profiles.ErrInvalidPasswordData
 	}
 
-	password, err := u.profileRepo.GetPassword(ctx, userID)
+	password, err := u.profileRepository.GetPassword(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		return nil, profiles.ErrWrongPassword
 	}
 
-	updatedProfile, err := u.profileRepo.ChangePassword(ctx, userID, newPassword)
+	updatedProfile, err := u.profileRepository.ChangePassword(ctx, userID, newPassword)
 	if err != nil {
 		return nil, err
 	}

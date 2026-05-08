@@ -6,19 +6,18 @@ import (
 	"net/http"
 
 	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
-	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 
 	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
-	attachmentsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
+	attachmentsRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
 	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
 
 	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
-	notesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
+	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
 	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler"
-	profilesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
+	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -32,30 +31,25 @@ import (
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
-	userRepo := authRepo.NewAuthRepository(db)
-
-	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
-	if err != nil {
-		return nil, err
-	}
-
-	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
-
-	noteRepo := notesRepo.NewNoteRepository(db)
-	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
+	noteRepository := notesRepository.NewNoteRepository(db)
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 
-	profileRepo := profilesRepo.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
-
-	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepo)
+	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
 	if err != nil {
 		return nil, err
 	}
-
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
-	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteUsecase)
+	authUsecase, err := authUsecase.NewAuthUsecase(profileRepository, cfg.JWT)
+	if err != nil {
+		return nil, err
+	}
+	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
+
+	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRepository)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 
 	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
