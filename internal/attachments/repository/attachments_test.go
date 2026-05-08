@@ -204,7 +204,7 @@ func TestAttachmentRepository_UpdateAttachmentURL(t *testing.T) {
 			repo := NewAttachmentRepository(db, nil, "test-bucket")
 			tt.setupMock()
 
-			err := repo.UpdateAttachmentURL(context.Background(), attachmentID, newURL, expiresAt)
+			err := repo.updateAttachmentURL(context.Background(), attachmentID, newURL, expiresAt)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)

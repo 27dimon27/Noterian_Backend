@@ -61,7 +61,7 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 
 		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
 
-		err = r.UpdateAttachmentURL(ctx, attachment.ID, newURL, newExpiry)
+		err = r.updateAttachmentURL(ctx, attachment.ID, newURL, newExpiry)
 		if err != nil {
 			return nil, err
 		}
@@ -72,23 +72,6 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 	}
 
 	return attachment, nil
-}
-
-func (r *AttachmentRepository) UpdateAttachmentURL(ctx context.Context, attachmentID uuid.UUID, url string, expiresAt time.Time) error {
-	var returnedURL string
-	var returnedExpiresAt time.Time
-	var returnedUpdatedAt time.Time
-
-	err := r.db.QueryRowContext(ctx, UPDATE_ATTACHMENT_URL, attachmentID, url, expiresAt).Scan(
-		&returnedURL,
-		&returnedExpiresAt,
-		&returnedUpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *AttachmentRepository) UploadAttachment(
@@ -169,6 +152,23 @@ func (r *AttachmentRepository) DeleteAttachment(ctx context.Context, blockID uui
 	}
 
 	if err := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *AttachmentRepository) updateAttachmentURL(ctx context.Context, attachmentID uuid.UUID, url string, expiresAt time.Time) error {
+	var returnedURL string
+	var returnedExpiresAt time.Time
+	var returnedUpdatedAt time.Time
+
+	err := r.db.QueryRowContext(ctx, UPDATE_ATTACHMENT_URL, attachmentID, url, expiresAt).Scan(
+		&returnedURL,
+		&returnedExpiresAt,
+		&returnedUpdatedAt,
+	)
+	if err != nil {
 		return err
 	}
 
