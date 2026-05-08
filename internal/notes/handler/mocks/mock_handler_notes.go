@@ -159,44 +159,15 @@ func (mr *MockNoteUsecaseMockRecorder) GetBlockFormatting(ctx, blockID, noteID, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlockFormatting", reflect.TypeOf((*MockNoteUsecase)(nil).GetBlockFormatting), ctx, blockID, noteID, userID)
 }
 
-// GetBlocks mocks base method.
-func (m *MockNoteUsecase) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBlocks", ctx, noteID)
-	ret0, _ := ret[0].([]models.Block)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetBlocks indicates an expected call of GetBlocks.
-func (mr *MockNoteUsecaseMockRecorder) GetBlocks(ctx, noteID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlocks", reflect.TypeOf((*MockNoteUsecase)(nil).GetBlocks), ctx, noteID)
-}
-
-// GetBlocksWithFormatting mocks base method.
-func (m *MockNoteUsecase) GetBlocksWithFormatting(ctx context.Context, noteID uuid.UUID) ([]models.Block, map[string]models.BlockFormatting, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBlocksWithFormatting", ctx, noteID)
-	ret0, _ := ret[0].([]models.Block)
-	ret1, _ := ret[1].(map[string]models.BlockFormatting)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// GetBlocksWithFormatting indicates an expected call of GetBlocksWithFormatting.
-func (mr *MockNoteUsecaseMockRecorder) GetBlocksWithFormatting(ctx, noteID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBlocksWithFormatting", reflect.TypeOf((*MockNoteUsecase)(nil).GetBlocksWithFormatting), ctx, noteID)
-}
-
 // GetNote mocks base method.
-func (m *MockNoteUsecase) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, error) {
+func (m *MockNoteUsecase) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNote", ctx, noteID, userID)
 	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].([]models.Block)
+	ret2, _ := ret[2].(map[string]models.BlockFormatting)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // GetNote indicates an expected call of GetNote.
@@ -297,16 +268,16 @@ func (mr *MockNoteUsecaseMockRecorder) UpdateBlockFormatting(ctx, blockID, noteI
 }
 
 // UpdateNote mocks base method.
-func (m *MockNoteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error) {
+func (m *MockNoteUsecase) UpdateNote(ctx context.Context, noteID, userID uuid.UUID, note models.Note) (*models.Note, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateNote", ctx, noteID, note, userID)
+	ret := m.ctrl.Call(m, "UpdateNote", ctx, noteID, userID, note)
 	ret0, _ := ret[0].(*models.Note)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateNote indicates an expected call of UpdateNote.
-func (mr *MockNoteUsecaseMockRecorder) UpdateNote(ctx, noteID, note, userID any) *gomock.Call {
+func (mr *MockNoteUsecaseMockRecorder) UpdateNote(ctx, noteID, userID, note any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateNote", reflect.TypeOf((*MockNoteUsecase)(nil).UpdateNote), ctx, noteID, note, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateNote", reflect.TypeOf((*MockNoteUsecase)(nil).UpdateNote), ctx, noteID, userID, note)
 }
