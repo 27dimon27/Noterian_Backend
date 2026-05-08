@@ -13,18 +13,18 @@ import (
 
 //go:generate mockgen -source=auth.go -destination=mocks/mock_usecase_auth.go -package=mocks
 
-type UserRepository interface {
+type AuthRepository interface {
 	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
 	SigninUser(ctx context.Context, username string) (*models.Profile, error)
 }
 
 type authUsecase struct {
-	userRepo  UserRepository
+	authRepo  AuthRepository
 	jwtConfig config.JWTConfig
 	validate  *validator.Validate
 }
 
-func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (*authUsecase, error) {
+func NewAuthUsecase(authRepo AuthRepository, jwtConfig config.JWTConfig) (*authUsecase, error) {
 	validate := validator.New()
 	err := initValidator(validate)
 	if err != nil {
@@ -32,7 +32,7 @@ func NewAuthUsecase(userRepo UserRepository, jwtConfig config.JWTConfig) (*authU
 	}
 
 	return &authUsecase{
-		userRepo:  userRepo,
+		authRepo:  authRepo,
 		jwtConfig: jwtConfig,
 		validate:  validate,
 	}, nil
@@ -47,7 +47,7 @@ func (u *authUsecase) SignupUser(ctx context.Context, username, password string)
 		return nil, auth.ErrInvalidPassword
 	}
 
-	user, err := u.userRepo.SignupUser(ctx, username, password)
+	user, err := u.authRepo.SignupUser(ctx, username, password)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (u *authUsecase) SignupUser(ctx context.Context, username, password string)
 }
 
 func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
-	user, err := u.userRepo.SigninUser(ctx, username)
+	user, err := u.authRepo.SigninUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}

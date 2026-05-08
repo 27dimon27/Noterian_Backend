@@ -11,17 +11,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type userRepository struct {
+type authRepository struct {
 	db *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) *userRepository {
-	return &userRepository{
+func NewAuthRepository(db *sql.DB) *authRepository {
+	return &authRepository{
 		db: db,
 	}
 }
 
-func (r *userRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (r *authRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
 	if err != nil {
@@ -51,7 +51,7 @@ func (r *userRepository) SignupUser(ctx context.Context, username, password stri
 	return user, nil
 }
 
-func (r *userRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
+func (r *authRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
 	user := &models.Profile{}
 
 	err := r.db.QueryRowContext(ctx, GET_USER_BY_USERNAME, username).Scan(

@@ -32,7 +32,7 @@ import (
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
-	userRepo := authRepo.NewUserRepository(db)
+	userRepo := authRepo.NewAuthRepository(db)
 
 	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
 	if err != nil {

@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestRepository(t *testing.T) (*userRepository, sqlmock.Sqlmock) {
+func setupTestRepository(t *testing.T) (*authRepository, sqlmock.Sqlmock) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 
-	repo := NewUserRepository(db)
+	repo := NewAuthRepository(db)
 	return repo, mock
 }
 

@@ -268,7 +268,7 @@ func TestAuthUsecase_SigninUser_EmptyCredentials(t *testing.T) {
 	// Note: SigninUser doesn't validate credentials itself,
 	// it relies on the repository to handle empty values
 	mockRepo := mocks.NewMockUserRepository(ctrl)
-	usecase.userRepo = mockRepo
+	usecase.authRepo = mockRepo
 
 	mockRepo.EXPECT().
 		SigninUser(gomock.Any(), "").
