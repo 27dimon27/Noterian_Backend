@@ -712,6 +712,12 @@ func (h *NoteHandler) GetSubnotes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
+	if r.Body == nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
+		return
+	}
+	defer r.Body.Close()
+
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
 		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)

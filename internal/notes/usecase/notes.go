@@ -31,13 +31,20 @@ type NoteRepository interface {
 	GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error)
 }
 
-type noteUsecase struct {
-	noteRepository NoteRepository
+type AttachmentRepository interface {
+	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
+	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
 }
 
-func NewNoteUsecase(noteRepository NoteRepository) *noteUsecase {
+type noteUsecase struct {
+	noteRepository       NoteRepository
+	attachmentRepository AttachmentRepository
+}
+
+func NewNoteUsecase(noteRepository NoteRepository, attachmentRepository AttachmentRepository) *noteUsecase {
 	return &noteUsecase{
-		noteRepository: noteRepository,
+		noteRepository:       noteRepository,
+		attachmentRepository: attachmentRepository,
 	}
 }
 
@@ -73,6 +80,15 @@ func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid
 	blockIDs := make([]uuid.UUID, len(blocks))
 	for i, block := range blocks {
 		blockIDs[i] = block.ID
+
+		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
+			attachment, err := u.attachmentRepository.GetAttachment(ctx, block.ID)
+			if err != nil {
+				continue
+			}
+
+			blocks[i].Content = attachment.AttachURL
+		}
 	}
 
 	formattings, err := u.noteRepository.GetBlocksFormatting(ctx, blockIDs)
@@ -108,6 +124,20 @@ func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID u
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return err
+	}
+
+	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
+	if err != nil {
+		return err
+	}
+
+	for _, block := range blocks {
+		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
+			err = u.attachmentRepository.DeleteAttachment(ctx, block.ID)
+			if err != nil {
+				continue
+			}
+		}
 	}
 
 	return u.noteRepository.DeleteNote(ctx, noteID)
@@ -205,6 +235,11 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 	}
 
 	block, err := u.checkBlockAccess(ctx, noteID, blockID)
+	if err != nil {
+		return err
+	}
+
+	err = u.attachmentRepository.DeleteAttachment(ctx, blockID)
 	if err != nil {
 		return err
 	}
@@ -316,6 +351,20 @@ func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subno
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return err
+	}
+
+	blocks, err := u.noteRepository.GetBlocks(ctx, subnoteID)
+	if err != nil {
+		return err
+	}
+
+	for _, block := range blocks {
+		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
+			err = u.attachmentRepository.DeleteAttachment(ctx, block.ID)
+			if err != nil {
+				continue
+			}
+		}
 	}
 
 	err = u.noteRepository.DeleteNote(ctx, subnoteID)

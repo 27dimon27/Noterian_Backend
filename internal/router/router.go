@@ -31,26 +31,25 @@ import (
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
+	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
 	noteRepository := notesRepository.NewNoteRepository(db)
-	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository)
-	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
-
 	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
-	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
-	if err != nil {
-		return nil, err
-	}
-	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRepository)
 	authUsecase, err := authUsecase.NewAuthUsecase(profileRepository, cfg.JWT)
 	if err != nil {
 		return nil, err
 	}
-	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRepository)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
+	if err != nil {
+		return nil, err
+	}
 
-	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRepository)
 	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
+	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
+	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
 	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
 	go wsHub.Run(context.Background())

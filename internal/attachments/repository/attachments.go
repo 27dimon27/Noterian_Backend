@@ -83,7 +83,7 @@ func (r *AttachmentRepository) UploadAttachment(
 	fileReader io.Reader,
 ) (*models.Attachment, error) {
 	existingAttach, err := r.GetAttachment(ctx, blockID)
-	if err != nil {
+	if err != nil && !errors.Is(err, attachments.ErrAttachmentNotFound) {
 		return nil, err
 	}
 

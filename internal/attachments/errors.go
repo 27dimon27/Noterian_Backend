@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrAttachmentNotFound    = errors.New("Вложнение не найдено")
+	ErrAttachmentNotFound    = errors.New("Вложение не найдено")
 	ErrBlockAlreadyHasAttach = errors.New("Блок уже содержит вложение")
 	ErrInvalidMimeType       = errors.New("Неподдерживаемый MIME-тип файла")
 	ErrFileTooLarge          = errors.New("Слишком большой файл")
