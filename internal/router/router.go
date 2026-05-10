@@ -109,7 +109,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
 
-	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile))) // добавить аву в ответ
+	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
 	r.Handle("PUT /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
 	r.Handle("DELETE /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
 

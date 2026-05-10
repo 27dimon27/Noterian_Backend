@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/dto"
@@ -19,7 +20,7 @@ import (
 
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
 }
 
@@ -101,16 +102,16 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	blockIDStr := r.PathValue("blockId")
-	if blockIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrBlockIDRequired)
-		return
-	}
-
-	blockID, err := uuid.Parse(blockIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidBlockID)
-		return
+	positionStr := r.URL.Query().Get("position")
+	var position int
+	var hasPosition bool
+	if positionStr != "" {
+		position, err = strconv.Atoi(positionStr)
+		if err != nil {
+			write.JSONErrorResponse(w, http.StatusBadRequest, errors.New("invalid position parameter"))
+			return
+		}
+		hasPosition = true
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, attachments.MAX_VIDEO_SIZE)
@@ -157,12 +158,13 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	attachment, err := h.attachmentUsecase.UploadAttachment(
 		r.Context(),
 		noteID,
-		blockID,
 		userID,
 		fileHeader.Filename,
 		fileHeader.Size,
 		mimeType,
 		fileToUpload,
+		hasPosition,
+		position,
 	)
 	if err != nil {
 		switch {

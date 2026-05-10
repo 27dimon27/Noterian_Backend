@@ -20,6 +20,10 @@ type AttachmentRepository interface {
 type NoteRepository interface {
 	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
 	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
+	CreateBlock(ctx context.Context, block models.Block) (*models.Block, error)
+	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
+	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error
+	DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error)
 }
 
 type attachmentUsecase struct {
@@ -60,25 +64,57 @@ func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID,
 func (u *attachmentUsecase) UploadAttachment(
 	ctx context.Context,
 	noteID uuid.UUID,
-	blockID uuid.UUID,
 	userID uuid.UUID,
 	fileName string,
 	fileSize int64,
 	mimeType string,
 	fileReader io.Reader,
+	hasPosition bool,
+	position int,
 ) (*models.Attachment, error) {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	blockTypeID, err := u.getBlockTypeByMimeType(mimeType)
 	if err != nil {
 		return nil, err
 	}
 
-	attachment, err := u.attachmentRepository.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
+	var blockPosition int
+	if hasPosition {
+		blockPosition = position
+	} else {
+		blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
+		if err != nil {
+			return nil, err
+		}
+		blockPosition = len(blocks)
+	}
+
+	block := models.Block{
+		NoteID:      noteID,
+		BlockTypeID: blockTypeID,
+		Position:    blockPosition,
+		Content:     "",
+	}
+
+	err = u.noteRepository.ShiftBlockPositions(ctx, noteID, blockPosition, 1)
 	if err != nil {
+		return nil, err
+	}
+
+	createdBlock, err := u.noteRepository.CreateBlock(ctx, block)
+	if err != nil {
+		_ = u.noteRepository.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
+		return nil, err
+	}
+
+	attachment, err := u.attachmentRepository.UploadAttachment(ctx, createdBlock.ID, fileName, fileSize, mimeType, fileReader)
+	if err != nil {
+		_, _ = u.noteRepository.DeleteBlock(ctx, createdBlock.ID)
+		_ = u.noteRepository.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
 		return nil, err
 	}
 
@@ -91,7 +127,7 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 		return err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	block, err := u.checkBlockAccess(ctx, noteID, blockID)
 	if err != nil {
 		return err
 	}
@@ -100,7 +136,12 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 		return err
 	}
 
-	return nil
+	_, err = u.noteRepository.DeleteBlock(ctx, blockID)
+	if err != nil {
+		return err
+	}
+
+	return u.noteRepository.ShiftBlockPositions(ctx, noteID, block.Position, -1)
 }
 
 func (u *attachmentUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
@@ -135,4 +176,20 @@ func (u *attachmentUsecase) checkBlockAccess(ctx context.Context, noteID uuid.UU
 	}
 
 	return block, nil
+}
+
+func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, error) {
+	if attachments.AllowedMimeTypesForImage[mimeType] {
+		return 2, nil
+	}
+	if attachments.AllowedMimeTypesForGIF[mimeType] {
+		return 2, nil
+	}
+	if attachments.AllowedMimeTypesForAudio[mimeType] {
+		return 6, nil
+	}
+	if attachments.AllowedMimeTypesForVideo[mimeType] {
+		return 7, nil
+	}
+	return 0, attachments.ErrInvalidMimeType
 }
