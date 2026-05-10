@@ -11,6 +11,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/google/uuid"
@@ -108,7 +109,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	if positionStr != "" {
 		position, err = strconv.Atoi(positionStr)
 		if err != nil {
-			write.JSONErrorResponse(w, http.StatusBadRequest, errors.New("invalid position parameter"))
+			write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidPosition)
 			return
 		}
 		hasPosition = true

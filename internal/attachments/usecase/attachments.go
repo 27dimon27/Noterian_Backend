@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/google/uuid"
 )
 
@@ -82,14 +83,18 @@ func (u *attachmentUsecase) UploadAttachment(
 		return nil, err
 	}
 
+	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
 	var blockPosition int
 	if hasPosition {
+		if position < 0 || position > len(blocks) {
+			return nil, notes.ErrInvalidPosition
+		}
 		blockPosition = position
 	} else {
-		blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
-		if err != nil {
-			return nil, err
-		}
 		blockPosition = len(blocks)
 	}
 
