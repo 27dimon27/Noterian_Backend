@@ -27,7 +27,6 @@ type NoteRepository interface {
 	DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error)
 	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error
 	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
-	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error)
 }
 
@@ -55,13 +54,13 @@ func (u *noteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.
 	}
 
 	subnotesForNotes := make(map[string][]models.Note)
-	for _, note := range notes {
-		subnotes, err := u.noteRepository.GetSubnotes(ctx, note.ID)
-		if err != nil {
-			return nil, nil, err
-		}
-		subnotesForNotes[note.ID.String()] = subnotes
-	}
+	// for _, note := range notes {
+	// 	subnotes, err := u.noteRepository.GetSubnotes(ctx, note.ID)
+	// 	if err != nil {
+	// 		return nil, nil, err
+	// 	}
+	// 	subnotesForNotes[note.ID.String()] = subnotes
+	// }
 
 	return notes, subnotesForNotes, nil
 }
@@ -173,20 +172,6 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 	return u.noteRepository.CreateBlock(ctx, block)
 }
 
-func (u *noteUsecase) GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	return block, nil
-}
-
 func (u *noteUsecase) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error) {
 	_, err := u.checkNoteAccess(ctx, noteID, userID)
 	if err != nil {
@@ -239,9 +224,11 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 		return err
 	}
 
-	err = u.attachmentRepository.DeleteAttachment(ctx, blockID)
-	if err != nil {
-		return err
+	if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
+		err = u.attachmentRepository.DeleteAttachment(ctx, blockID)
+		if err != nil {
+			return err
+		}
 	}
 
 	blockNoteID, err := u.noteRepository.DeleteBlock(ctx, blockID)
@@ -289,34 +276,6 @@ func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UU
 	}
 
 	return u.noteRepository.UpdateBlockFormatting(ctx, blockID, formattingRange)
-}
-
-func (u *noteUsecase) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	return u.noteRepository.ResetBlockFormatting(ctx, blockID)
-}
-
-func (u *noteUsecase) GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	return u.noteRepository.GetBlockFormatting(ctx, blockID)
 }
 
 func (u *noteUsecase) GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error) {

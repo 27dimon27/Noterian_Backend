@@ -57,18 +57,6 @@ const (
 		RETURNING id, note_id, block_type_id, position, content, created_at, updated_at
 	`
 
-	GET_BLOCK_BY_POSITION = `
-		SELECT id, note_id, block_type_id, position, content, created_at, updated_at 
-		FROM blocks 
-		WHERE note_id = $1 AND position = $2
-	`
-
-	GET_MAX_BLOCK_POSITION = `
-		SELECT COALESCE(MAX(position), -1) 
-		FROM blocks 
-		WHERE note_id = $1
-	`
-
 	UPDATE_BLOCK_POSITION = `
 		UPDATE blocks SET position = $2, updated_at = now() 
 		WHERE id = $1 

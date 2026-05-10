@@ -52,6 +52,13 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 		return nil, err
 	}
 
+	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	profile.Avatar = avatar.AvatarURL
+
 	return profile, nil
 }
 
@@ -77,7 +84,12 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 }
 
 func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
-	err := u.profileRepository.DeleteProfile(ctx, userID)
+	err := u.profileRepository.DeleteAvatar(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	err = u.profileRepository.DeleteProfile(ctx, userID)
 	if err != nil {
 		return err
 	}

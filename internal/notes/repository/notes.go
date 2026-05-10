@@ -443,18 +443,6 @@ func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid
 	return r.GetBlockFormatting(ctx, blockID)
 }
 
-func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
-	err := r.db.QueryRowContext(ctx, DELETE_BLOCK_FORMATTING, blockID).Scan(&blockID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notes.ErrBlockNotFound
-		}
-		return nil, err
-	}
-
-	return r.GetBlockFormatting(ctx, blockID)
-}
-
 func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

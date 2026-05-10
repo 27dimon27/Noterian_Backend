@@ -23,13 +23,10 @@ type NoteUsecase interface {
 	UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
-	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
 	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
 	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
-	ResetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
-	GetBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
 	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
@@ -288,55 +285,6 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
-func (h *NoteHandler) GetBlock(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
-		return
-	}
-
-	noteIDStr := r.PathValue("noteId")
-	if noteIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
-		return
-	}
-
-	noteID, err := uuid.Parse(noteIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
-		return
-	}
-
-	blockIDStr := r.PathValue("blockId")
-	if blockIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBlockIDRequired)
-		return
-	}
-
-	blockID, err := uuid.Parse(blockIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockID)
-		return
-	}
-
-	block, err := h.noteUsecase.GetBlock(r.Context(), blockID, noteID, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, notes.ErrNoteNotFound), errors.Is(err, notes.ErrBlockNotFound):
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case errors.Is(err, notes.ErrForbidden):
-			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		default:
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
-		}
-		return
-	}
-
-	response := dto.ToBlockDTO(*block)
-
-	write.JSONResponse(w, http.StatusOK, response)
-}
-
 func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -572,104 +520,6 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 	}
 
 	response := dto.ToBlockFormattingDTO(*updatedFormatting)
-
-	write.JSONResponse(w, http.StatusOK, response)
-}
-
-func (h *NoteHandler) ResetBlockFormatting(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
-		return
-	}
-
-	noteIDStr := r.PathValue("noteId")
-	if noteIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
-		return
-	}
-
-	noteID, err := uuid.Parse(noteIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
-		return
-	}
-
-	blockIDStr := r.PathValue("blockId")
-	if blockIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBlockIDRequired)
-		return
-	}
-
-	blockID, err := uuid.Parse(blockIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockID)
-		return
-	}
-
-	updatedFormatting, err := h.noteUsecase.ResetBlockFormatting(r.Context(), blockID, noteID, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, notes.ErrNoteNotFound), errors.Is(err, notes.ErrBlockNotFound):
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case errors.Is(err, notes.ErrForbidden):
-			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		default:
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
-		}
-		return
-	}
-
-	response := dto.ToBlockFormattingDTO(*updatedFormatting)
-
-	write.JSONResponse(w, http.StatusOK, response)
-}
-
-func (h *NoteHandler) GetBlockFormatting(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
-	if !ok {
-		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
-		return
-	}
-
-	noteIDStr := r.PathValue("noteId")
-	if noteIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
-		return
-	}
-
-	noteID, err := uuid.Parse(noteIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
-		return
-	}
-
-	blockIDStr := r.PathValue("blockId")
-	if blockIDStr == "" {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBlockIDRequired)
-		return
-	}
-
-	blockID, err := uuid.Parse(blockIDStr)
-	if err != nil {
-		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidBlockID)
-		return
-	}
-
-	formatting, err := h.noteUsecase.GetBlockFormatting(r.Context(), blockID, noteID, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, notes.ErrNoteNotFound), errors.Is(err, notes.ErrBlockNotFound):
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case errors.Is(err, notes.ErrForbidden):
-			write.JSONErrorResponse(w, http.StatusForbidden, err)
-		default:
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
-		}
-		return
-	}
-
-	response := dto.ToBlockFormattingDTO(*formatting)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
