@@ -22,7 +22,7 @@ import (
 type ProfileUsecase interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
-	DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error
+	DeleteProfile(ctx context.Context, userID uuid.UUID) error
 	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
 	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
@@ -108,7 +108,7 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.profileUsecase.DeleteProfile(r.Context(), userID, w, h.jwtConfig)
+	err := h.profileUsecase.DeleteProfile(r.Context(), userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrUserNotExist):
@@ -118,6 +118,16 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     h.jwtConfig.CookieName,
+		Value:    "",
+		HttpOnly: true,
+		Secure:   h.jwtConfig.Secure,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+		Path:     "/",
+	})
 
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }

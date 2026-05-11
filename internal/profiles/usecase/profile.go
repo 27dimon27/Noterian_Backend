@@ -14,8 +14,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:generate mockgen -source=profile.go -destination=mocks/mock_usecase_profile.go -package=mocks
-
 type ProfileRepository interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
 	GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error)
@@ -26,6 +24,8 @@ type ProfileRepository interface {
 	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
 	ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error)
 	GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error)
+	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
+	SigninUser(ctx context.Context, username string) (*models.Profile, error)
 }
 
 type profileUsecase struct {
@@ -53,11 +53,31 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 	}
 
 	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, err
+	}
+
+	if avatar != nil {
+		profile.Avatar = avatar.AvatarURL
+	}
+
+	return profile, nil
+}
+
+func (u *profileUsecase) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+	profile, err := u.profileRepository.GetProfileByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 
-	profile.Avatar = avatar.AvatarURL
+	avatar, err := u.profileRepository.GetAvatar(ctx, profile.ID)
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, err
+	}
+
+	if avatar != nil {
+		profile.Avatar = avatar.AvatarURL
+	}
 
 	return profile, nil
 }
@@ -67,11 +87,11 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		return nil, profiles.ErrInvalidProfileData
 	}
 
-	_, err := u.profileRepository.GetProfileByUsername(ctx, profile.Username)
-	if err == nil {
+	existingProfile, err := u.profileRepository.GetProfileByUsername(ctx, profile.Username)
+	if err == nil && existingProfile.ID != userID {
 		return nil, profiles.ErrUsernameExists
 	}
-	if !errors.Is(err, profiles.ErrUserNotExist) {
+	if !errors.Is(err, profiles.ErrUserNotExist) && err != nil {
 		return nil, err
 	}
 
@@ -80,16 +100,34 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		return nil, err
 	}
 
+	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, err
+	}
+
+	if avatar != nil {
+		updatedProfile.Avatar = avatar.AvatarURL
+	}
+
 	return updatedProfile, nil
 }
 
-func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
+func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
 	err := u.profileRepository.DeleteAvatar(ctx, userID)
-	if err != nil {
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
 		return err
 	}
 
 	err = u.profileRepository.DeleteProfile(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *profileUsecase) DeleteProfileWithCookie(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) error {
+	err := u.DeleteProfile(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -138,12 +176,12 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		return nil, profiles.ErrInvalidPasswordData
 	}
 
-	password, err := u.profileRepository.GetPassword(ctx, userID)
+	passwordHash, err := u.profileRepository.GetPassword(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword(password, []byte(oldPassword))
+	err = bcrypt.CompareHashAndPassword(passwordHash, []byte(oldPassword))
 	if err != nil {
 		return nil, profiles.ErrWrongPassword
 	}
@@ -153,5 +191,48 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		return nil, err
 	}
 
-	return updatedProfile, err
+	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, err
+	}
+
+	if avatar != nil {
+		updatedProfile.Avatar = avatar.AvatarURL
+	}
+
+	return updatedProfile, nil
+}
+
+func (u *profileUsecase) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+	passwordHash, err := u.profileRepository.GetPassword(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return passwordHash, nil
+}
+
+func (u *profileUsecase) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+	if err := u.validate.Var(username, "required,username"); err != nil {
+		return nil, profiles.ErrInvalidProfileData
+	}
+
+	if err := u.validate.Var(password, "required,password"); err != nil {
+		return nil, profiles.ErrInvalidProfileData
+	}
+
+	profile, err := u.profileRepository.SignupUser(ctx, username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+func (u *profileUsecase) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
+	profile, err := u.profileRepository.SigninUser(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	return profile, nil
 }

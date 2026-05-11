@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package attachments;
+
+option go_package = "internal/attachments/grpc/gen";
+
+service AttachmentService {
+    rpc GetAttachment(GetAttachmentRequest) returns (AttachmentResponse);
+    rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+}
+
+message GetAttachmentRequest {
+    string block_id = 1;
+}
+
+message DeleteAttachmentRequest {
+    string block_id = 1;
+}
+
+message DeleteAttachmentResponse {}
+
+message AttachmentResponse {
+    string id = 1;
+    string block_id = 2;
+    string minio_key = 3;
+    string attach_url = 4;
+    int64 url_expires_at = 5;
+    int64 created_at = 6;
+    int64 updated_at = 7;
+}
