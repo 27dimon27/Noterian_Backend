@@ -247,23 +247,6 @@ func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) (
 	return password, nil
 }
 
-func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
-	var returnedURL string
-	var returnedExpiresAt time.Time
-	var returnedUpdatedAt time.Time
-
-	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
-		&returnedURL,
-		&returnedExpiresAt,
-		&returnedUpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (r *profileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
@@ -308,4 +291,21 @@ func (r *profileRepository) SigninUser(ctx context.Context, username string) (*m
 	}
 
 	return user, nil
+}
+
+func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
+	var returnedURL string
+	var returnedExpiresAt time.Time
+	var returnedUpdatedAt time.Time
+
+	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
+		&returnedURL,
+		&returnedExpiresAt,
+		&returnedUpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
