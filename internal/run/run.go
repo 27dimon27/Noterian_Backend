@@ -12,6 +12,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/router"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func Run() error {
@@ -45,8 +47,31 @@ func Run() error {
 
 	log.Info("Connected to MinIO successfully")
 
+	attachmentsConn, err := grpc.Dial(cfg.Services.AttachmentsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Error("Failed to connect to attachments service", "error", err)
+		return err
+	}
+	defer attachmentsConn.Close()
+
+	notesConn, err := grpc.Dial(cfg.Services.NotesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Error("Failed to connect to notes service", "error", err)
+		return err
+	}
+	defer notesConn.Close()
+
+	profilesConn, err := grpc.Dial(cfg.Services.ProfilesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Error("Failed to connect to profiles service", "error", err)
+		return err
+	}
+	defer profilesConn.Close()
+
+	log.Info("Connected to gRPC services successfully")
+
 	addr := ":" + cfg.Server.Port
-	srvRouter, err := router.New(cfg, database, minioService)
+	srvRouter, err := router.New(cfg, database, minioService, attachmentsConn, notesConn, profilesConn)
 	if err != nil {
 		log.Error("Failed to init router", "error", err)
 		return err

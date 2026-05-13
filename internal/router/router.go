@@ -5,17 +5,24 @@ import (
 	"database/sql"
 	"net/http"
 
-	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
-	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
-
+	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
+	attachmentsGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
 	attachmentsRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
 	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
+	"google.golang.org/grpc"
 
+	authGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
+	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
+	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
+
+	notesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
+	notesGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
 	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
 	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
+	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
 	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler"
 	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
@@ -30,17 +37,25 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 )
 
-func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
+func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
 	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
 	noteRepository := notesRepository.NewNoteRepository(db)
 	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRepository)
-	authUsecase, err := authUsecase.NewAuthUsecase(profileRepository, cfg.JWT)
+	attachmentGrpcClient := attachmentsgrpc.NewAttachmentServiceClient(attachmentsConn)
+	noteGrpcClient := notesgrpc.NewNoteServiceClient(notesConn)
+	profileGrpcClient := profilesgrpc.NewProfileServiceClient(profilesConn)
+
+	attachmentRemoteRepository := notesGrpcClient.NewAttachmentRepositoryClient(attachmentGrpcClient)
+	noteRemoteRepository := attachmentsGrpcClient.NewNoteRepositoryClient(noteGrpcClient)
+	profileRemoteRepository := authGrpcClient.NewProfileRepositoryClient(profileGrpcClient)
+
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository)
+	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT)
 	if err != nil {
 		return nil, err
 	}
-	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRepository)
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRemoteRepository)
 	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
 	if err != nil {
 		return nil, err

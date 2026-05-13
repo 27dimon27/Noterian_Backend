@@ -25,6 +25,12 @@ const (
 	DEFAULT_MINIO_USE_SSL            = false
 	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
 	DEFAULT_MINIO_AVATARS_BUCKET     = "avatars"
+	DEFAULT_ATTACHMENTS_PORT         = "50051"
+	DEFAULT_NOTES_PORT               = "50052"
+	DEFAULT_PROFILES_PORT            = "50053"
+	DEFAULT_ATTACHMENTS_ADDR         = "localhost:50051"
+	DEFAULT_NOTES_ADDR               = "localhost:50052"
+	DEFAULT_PROFILES_ADDR            = "localhost:50053"
 )
 
 type JWTConfig struct {
@@ -69,12 +75,22 @@ type MinIOConfig struct {
 	AvatarsBucket     string
 }
 
+type ServicesConfig struct {
+	AttachmentsPort string
+	NotesPort       string
+	ProfilesPort    string
+	AttachmentsAddr string
+	NotesAddr       string
+	ProfilesAddr    string
+}
+
 type Config struct {
-	JWT    JWTConfig
-	Server ServerConfig
-	DB     DBConfig
-	CSRF   CSRFConfig
-	MinIO  MinIOConfig
+	JWT      JWTConfig
+	Server   ServerConfig
+	DB       DBConfig
+	CSRF     CSRFConfig
+	MinIO    MinIOConfig
+	Services ServicesConfig
 }
 
 func Load() *Config {
@@ -175,6 +191,36 @@ func Load() *Config {
 		avatarsBucket = DEFAULT_MINIO_AVATARS_BUCKET
 	}
 
+	attachmentsPort := os.Getenv("ATTACHMENTS_PORT")
+	if attachmentsPort == "" {
+		attachmentsPort = DEFAULT_ATTACHMENTS_PORT
+	}
+
+	notesPort := os.Getenv("NOTES_PORT")
+	if notesPort == "" {
+		notesPort = DEFAULT_NOTES_PORT
+	}
+
+	profilesPort := os.Getenv("PROFILES_PORT")
+	if profilesPort == "" {
+		profilesPort = DEFAULT_PROFILES_PORT
+	}
+
+	attachmentsAddr := os.Getenv("ATTACHMENTS_ADDR")
+	if attachmentsAddr == "" {
+		attachmentsAddr = DEFAULT_ATTACHMENTS_ADDR
+	}
+
+	notesAddr := os.Getenv("NOTES_ADDR")
+	if notesAddr == "" {
+		notesAddr = DEFAULT_NOTES_ADDR
+	}
+
+	profilesAddr := os.Getenv("PROFILES_ADDR")
+	if profilesAddr == "" {
+		profilesAddr = DEFAULT_PROFILES_ADDR
+	}
+
 	secure := os.Getenv("IS_SECURE") == "true"
 
 	return &Config{
@@ -214,6 +260,14 @@ func Load() *Config {
 			UseSSL:            useSSL,
 			AttachmentsBucket: attachmentsBucket,
 			AvatarsBucket:     avatarsBucket,
+		},
+		Services: ServicesConfig{
+			AttachmentsPort: attachmentsPort,
+			NotesPort:       notesPort,
+			ProfilesPort:    profilesPort,
+			AttachmentsAddr: attachmentsAddr,
+			NotesAddr:       notesAddr,
+			ProfilesAddr:    profilesAddr,
 		},
 	}
 }

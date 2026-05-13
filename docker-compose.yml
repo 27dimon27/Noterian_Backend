@@ -47,19 +47,71 @@ services:
     networks:
       - noterian_network
 
-  backend:
+  attachments:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.attachments
     restart: unless-stopped
     env_file: ".env"
     expose:
-      - "${SERVER_PORT}"
+      - "${ATTACHMENTS_PORT}"
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      - noterian_network
+
+  notes:
+    build:
+      context: .
+      dockerfile: Dockerfile.notes
+    restart: unless-stopped
+    env_file: ".env"
+    expose:
+      - "${NOTES_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  profiles:
+    build:
+      context: .
+      dockerfile: Dockerfile.profiles
+    restart: unless-stopped
+    env_file: ".env"
+    expose:
+      - "${PROFILES_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  router:
+    build:
+      context: .
+      dockerfile: Dockerfile.router
+    restart: unless-stopped
+    env_file: ".env"
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      attachments:
+        condition: service_started
+      notes:
+        condition: service_started
+      profiles:
+        condition: service_started
     networks:
       - noterian_network
 

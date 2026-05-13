@@ -24,6 +24,7 @@ message ProfileResponse {
     string id = 1;
     string username = 2;
     string avatar_url = 3;
-    google.protobuf.Timestamp created_at = 4;
-    google.protobuf.Timestamp updated_at = 5;
+    string password = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
 }
