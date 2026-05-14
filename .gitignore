@@ -1,7 +1,6 @@
 # env file
 .env
 
-main
 noterian
 
 *.out

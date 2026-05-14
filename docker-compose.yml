@@ -50,7 +50,7 @@ services:
   attachments:
     build:
       context: .
-      dockerfile: Dockerfile.attachments
+      dockerfile: /cmd/attachments/Dockerfile.attachments
     restart: unless-stopped
     env_file: ".env"
     expose:
@@ -66,7 +66,7 @@ services:
   notes:
     build:
       context: .
-      dockerfile: Dockerfile.notes
+      dockerfile: /cmd/notes/Dockerfile.notes
     restart: unless-stopped
     env_file: ".env"
     expose:
@@ -80,7 +80,7 @@ services:
   profiles:
     build:
       context: .
-      dockerfile: Dockerfile.profiles
+      dockerfile: /cmd/profiles/Dockerfile.profiles
     restart: unless-stopped
     env_file: ".env"
     expose:
@@ -93,14 +93,14 @@ services:
     networks:
       - noterian_network
 
-  router:
+  main:
     build:
       context: .
-      dockerfile: Dockerfile.router
+      dockerfile: /cmd/main/Dockerfile.main
     restart: unless-stopped
     env_file: ".env"
-    ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
+    expose:
+      - "${SERVER_PORT}"
     depends_on:
       postgres:
         condition: service_healthy

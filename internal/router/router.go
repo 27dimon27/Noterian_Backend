@@ -121,7 +121,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 
 	// для обратной совместимости
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(http.HandlerFunc(attachmentHandler.GetAttachment)))
-	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
+	r.Handle("POST /notes/{noteId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
 
 	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
