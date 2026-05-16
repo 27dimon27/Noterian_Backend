@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -28,7 +29,7 @@ type NoteUsecase interface {
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
 	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
-	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
+	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note, hasPosition bool, position int) (*models.Note, uuid.UUID, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
 }
 
@@ -586,6 +587,18 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	positionStr := r.URL.Query().Get("position")
+	var position int
+	var hasPosition bool
+	if positionStr != "" {
+		position, err = strconv.Atoi(positionStr)
+		if err != nil {
+			write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidPosition)
+			return
+		}
+		hasPosition = true
+	}
+
 	var subnoteCreationRequest dto.NoteRequest
 
 	if err := body.GetBody(r, &subnoteCreationRequest); err != nil {
@@ -598,7 +611,7 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 
 	note := dto.FromNoteRequestDTO(subnoteCreationRequest)
 
-	createdNote, err := h.noteUsecase.CreateSubnote(r.Context(), noteID, userID, note)
+	createdNote, blockID, err := h.noteUsecase.CreateSubnote(r.Context(), noteID, userID, note, hasPosition, position)
 	if err != nil {
 		switch {
 		case errors.Is(err, notes.ErrNoteNotFound):
@@ -611,7 +624,7 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.ToNoteDTO(createdNote)
+	response := dto.ToSubnoteDTO(*createdNote, blockID)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
