@@ -130,8 +130,8 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 		}
 	}
 
-	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID, note.IsPublic).Scan(
-		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
+	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID, note.IsPublic, note.IsFavorite).Scan(
+		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -151,12 +151,13 @@ func (r *noteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note 
 
 	updatedNote := &models.Note{}
 
-	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.IsPublic).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.IsPublic, note.IsFavorite).Scan(
 		&updatedNote.ID,
 		&updatedNote.UserID,
 		&updatedNote.Title,
 		&updatedNote.ParentID,
 		&updatedNote.IsPublic,
+		&updatedNote.IsFavorite,
 		&updatedNote.CreatedAt,
 		&updatedNote.UpdatedAt,
 	)

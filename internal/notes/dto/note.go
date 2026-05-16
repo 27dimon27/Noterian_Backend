@@ -8,13 +8,14 @@ import (
 )
 
 type Note struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Title     string     `json:"title"`
-	ParentID  *uuid.UUID `json:"parent_id,omitempty"`
-	IsPublic  bool       `json:"is_public"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Title      string     `json:"title"`
+	ParentID   *uuid.UUID `json:"parent_id,omitempty"`
+	IsPublic   bool       `json:"is_public"`
+	IsFavorite bool       `json:"is_favorite"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type Subnote struct {
@@ -24,13 +25,14 @@ type Subnote struct {
 
 func ToNoteDTO(note *models.Note) Note {
 	return Note{
-		ID:        note.ID,
-		UserID:    note.UserID,
-		Title:     note.Title,
-		ParentID:  note.ParentID,
-		IsPublic:  note.IsPublic,
-		CreatedAt: note.CreatedAt,
-		UpdatedAt: note.UpdatedAt,
+		ID:         note.ID,
+		UserID:     note.UserID,
+		Title:      note.Title,
+		ParentID:   note.ParentID,
+		IsPublic:   note.IsPublic,
+		IsFavorite: note.IsFavorite,
+		CreatedAt:  note.CreatedAt,
+		UpdatedAt:  note.UpdatedAt,
 	}
 }
 

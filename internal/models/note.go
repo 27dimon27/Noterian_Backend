@@ -8,11 +8,12 @@ import (
 
 // swagger:model Note
 type Note struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Title     string     `json:"title"`
-	ParentID  *uuid.UUID `json:"parent_id"`
-	IsPublic  bool       `json:"is_public"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Title      string     `json:"title"`
+	ParentID   *uuid.UUID `json:"parent_id"`
+	IsPublic   bool       `json:"is_public"`
+	IsFavorite bool       `json:"is_favorite"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
