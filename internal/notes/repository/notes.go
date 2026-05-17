@@ -34,7 +34,7 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 		var note models.Note
 		var parentID sql.NullString
 
-		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt)
+		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +62,7 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 	var parentID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, GET_NOTE_BY_ID, noteID).Scan(
-		&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
+		&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -456,7 +456,7 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 	for rows.Next() {
 		var subnote models.Note
 
-		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.CreatedAt, &subnote.UpdatedAt)
+		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.IsPublic, &subnote.IsFavorite, &subnote.CreatedAt, &subnote.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
