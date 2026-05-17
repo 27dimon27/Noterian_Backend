@@ -11,10 +11,14 @@ service AttachmentService {
 
 message GetAttachmentRequest {
     string block_id = 1;
+    string note_id = 2;
+    string user_id = 3;
 }
 
 message DeleteAttachmentRequest {
     string block_id = 1;
+    string note_id = 2;
+    string user_id = 3;
 }
 
 message DeleteAttachmentResponse {}

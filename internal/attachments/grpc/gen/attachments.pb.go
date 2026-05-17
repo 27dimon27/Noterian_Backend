@@ -24,6 +24,8 @@ const (
 type GetAttachmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -65,9 +67,25 @@ func (x *GetAttachmentRequest) GetBlockId() string {
 	return ""
 }
 
+func (x *GetAttachmentRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *GetAttachmentRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type DeleteAttachmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -105,6 +123,20 @@ func (*DeleteAttachmentRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteAttachmentRequest) GetBlockId() string {
 	if x != nil {
 		return x.BlockId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *DeleteAttachmentRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
@@ -241,11 +273,15 @@ var File_proto_attachments_proto protoreflect.FileDescriptor
 
 const file_proto_attachments_proto_rawDesc = "" +
 	"\n" +
-	"\x17proto/attachments.proto\x12\vattachments\"1\n" +
+	"\x17proto/attachments.proto\x12\vattachments\"c\n" +
 	"\x14GetAttachmentRequest\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\tR\ablockId\"4\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\"f\n" +
 	"\x17DeleteAttachmentRequest\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\tR\ablockId\"\x1a\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\"\x1a\n" +
 	"\x18DeleteAttachmentResponse\"\xdf\x01\n" +
 	"\x12AttachmentResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +

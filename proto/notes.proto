@@ -18,18 +18,23 @@ service NoteService {
 
 message GetNoteRequest {
     string note_id = 1;
+    string user_id = 2;
 }
 
 message GetBlockRequest {
     string block_id = 1;
+    string note_id = 2;
+    string user_id = 3;
 }
 
 message GetBlocksRequest {
     string note_id = 1;
+    string user_id = 2;
 }
 
 message CreateBlockRequest {
-    BlockResponse block = 1;
+    string user_id = 1;
+    BlockResponse block = 2;
 }
 
 message ShiftBlockPositionsRequest {
@@ -40,6 +45,8 @@ message ShiftBlockPositionsRequest {
 
 message DeleteBlockRequest {
     string block_id = 1;
+    string note_id = 2;
+    string user_id = 3;
 }
 
 message DeleteBlockResponse {

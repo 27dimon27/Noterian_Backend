@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	_ "github.com/lib/pq"
@@ -30,6 +31,18 @@ func NewPostgresConnection(cfg config.DBConfig) (*sql.DB, error) {
 
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
+
+	if cfg.OpenConnsMaxLifetime > 0 {
+		db.SetConnMaxLifetime(time.Duration(cfg.OpenConnsMaxLifetime) * time.Second)
+	} else {
+		db.SetConnMaxLifetime(1 * time.Hour)
+	}
+
+	if cfg.IdleConnsMaxLifetime > 0 {
+		db.SetConnMaxIdleTime(time.Duration(cfg.IdleConnsMaxLifetime) * time.Second)
+	} else {
+		db.SetConnMaxIdleTime(30 * time.Minute)
+	}
 
 	return db, nil
 }

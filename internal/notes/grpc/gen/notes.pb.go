@@ -26,6 +26,7 @@ const (
 type GetNoteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,9 +68,18 @@ func (x *GetNoteRequest) GetNoteId() string {
 	return ""
 }
 
+func (x *GetNoteRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type GetBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -111,9 +121,24 @@ func (x *GetBlockRequest) GetBlockId() string {
 	return ""
 }
 
+func (x *GetBlockRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *GetBlockRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type GetBlocksRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -155,9 +180,17 @@ func (x *GetBlocksRequest) GetNoteId() string {
 	return ""
 }
 
+func (x *GetBlocksRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type CreateBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Block         *BlockResponse         `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Block         *BlockResponse         `protobuf:"bytes,2,opt,name=block,proto3" json:"block,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -190,6 +223,13 @@ func (x *CreateBlockRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateBlockRequest.ProtoReflect.Descriptor instead.
 func (*CreateBlockRequest) Descriptor() ([]byte, []int) {
 	return file_proto_notes_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CreateBlockRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 func (x *CreateBlockRequest) GetBlock() *BlockResponse {
@@ -262,6 +302,8 @@ func (x *ShiftBlockPositionsRequest) GetDirection() int32 {
 type DeleteBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -299,6 +341,20 @@ func (*DeleteBlockRequest) Descriptor() ([]byte, []int) {
 func (x *DeleteBlockRequest) GetBlockId() string {
 	if x != nil {
 		return x.BlockId
+	}
+	return ""
+}
+
+func (x *DeleteBlockRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *DeleteBlockRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
@@ -579,21 +635,28 @@ var File_proto_notes_proto protoreflect.FileDescriptor
 
 const file_proto_notes_proto_rawDesc = "" +
 	"\n" +
-	"\x11proto/notes.proto\x12\x05notes\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\")\n" +
+	"\x11proto/notes.proto\x12\x05notes\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"B\n" +
 	"\x0eGetNoteRequest\x12\x17\n" +
-	"\anote_id\x18\x01 \x01(\tR\x06noteId\",\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"^\n" +
 	"\x0fGetBlockRequest\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\tR\ablockId\"+\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\"D\n" +
 	"\x10GetBlocksRequest\x12\x17\n" +
-	"\anote_id\x18\x01 \x01(\tR\x06noteId\"@\n" +
-	"\x12CreateBlockRequest\x12*\n" +
-	"\x05block\x18\x01 \x01(\v2\x14.notes.BlockResponseR\x05block\"x\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"Y\n" +
+	"\x12CreateBlockRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12*\n" +
+	"\x05block\x18\x02 \x01(\v2\x14.notes.BlockResponseR\x05block\"x\n" +
 	"\x1aShiftBlockPositionsRequest\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12#\n" +
 	"\rfrom_position\x18\x02 \x01(\x05R\ffromPosition\x12\x1c\n" +
-	"\tdirection\x18\x03 \x01(\x05R\tdirection\"/\n" +
+	"\tdirection\x18\x03 \x01(\x05R\tdirection\"a\n" +
 	"\x12DeleteBlockRequest\x12\x19\n" +
-	"\bblock_id\x18\x01 \x01(\tR\ablockId\".\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\".\n" +
 	"\x13DeleteBlockResponse\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\"\x90\x02\n" +
 	"\fNoteResponse\x12\x0e\n" +

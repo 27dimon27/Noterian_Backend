@@ -7,23 +7,23 @@ import (
 
 	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	attachmentsGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
-	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
+	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http"
 	attachmentsRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
 	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
 	"google.golang.org/grpc"
 
 	authGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
-	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
+	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler/http"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 
 	notesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
 	notesGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
-	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
+	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/http"
 	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
 	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
-	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler"
+	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http"
 	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 

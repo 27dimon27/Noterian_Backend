@@ -8,29 +8,31 @@ import (
 )
 
 const (
-	DEFAULT_JWT_COOKIE_NAME          = "NoterianJWTCookie"
-	DEFAULT_JWT_COOKIE_TIME          = 3600
-	DEFAULT_SERVER_PORT              = "8000"
-	DEFAULT_SERVER_READ_TIMEOUT      = 15
-	DEFAULT_SERVER_WRITE_TIMEOUT     = 15
-	DEFAULT_SERVER_IDLE_TIMEOUT      = 15
-	DEFAULT_SERVER_SHUTDOWN_TIMEOUT  = 5
-	DEFAULT_DB_PORT                  = "5432"
-	DEFAULT_DB_MAX_OPEN_CONNECTIONS  = 25
-	DEFAULT_DB_MAX_IDLE_CONNECTIONS  = 5
-	DEFAULT_CSRF_COOKIE_NAME         = "NoterianCSRFCookie"
-	DEFAULT_CSRF_COOKIE_TIME         = 3600
-	DEFAULT_CSRF_HEADER_NAME         = "X-CSRF-Token"
-	DEFAULT_MINIO_ENDPOINT           = "minio:9000"
-	DEFAULT_MINIO_USE_SSL            = false
-	DEFAULT_MINIO_ATTACHMENTS_BUCKET = "attachments"
-	DEFAULT_MINIO_AVATARS_BUCKET     = "avatars"
-	DEFAULT_ATTACHMENTS_PORT         = "50051"
-	DEFAULT_NOTES_PORT               = "50052"
-	DEFAULT_PROFILES_PORT            = "50053"
-	DEFAULT_ATTACHMENTS_ADDR         = "localhost:50051"
-	DEFAULT_NOTES_ADDR               = "localhost:50052"
-	DEFAULT_PROFILES_ADDR            = "localhost:50053"
+	DEFAULT_JWT_COOKIE_NAME                  = "NoterianJWTCookie"
+	DEFAULT_JWT_COOKIE_TIME                  = 3600
+	DEFAULT_SERVER_PORT                      = "8000"
+	DEFAULT_SERVER_READ_TIMEOUT              = 15
+	DEFAULT_SERVER_WRITE_TIMEOUT             = 15
+	DEFAULT_SERVER_IDLE_TIMEOUT              = 15
+	DEFAULT_SERVER_SHUTDOWN_TIMEOUT          = 5
+	DEFAULT_DB_PORT                          = "5432"
+	DEFAULT_DB_MAX_OPEN_CONNECTIONS          = 25
+	DEFAULT_DB_MAX_IDLE_CONNECTIONS          = 5
+	DEFAULT_DB_OPEN_CONNECTIONS_MAX_LIFETIME = 3600
+	DEFAULT_DB_IDLE_CONNECTIONS_MAX_LIFETIME = 1800
+	DEFAULT_CSRF_COOKIE_NAME                 = "NoterianCSRFCookie"
+	DEFAULT_CSRF_COOKIE_TIME                 = 3600
+	DEFAULT_CSRF_HEADER_NAME                 = "X-CSRF-Token"
+	DEFAULT_MINIO_ENDPOINT                   = "minio:9000"
+	DEFAULT_MINIO_USE_SSL                    = false
+	DEFAULT_MINIO_ATTACHMENTS_BUCKET         = "attachments"
+	DEFAULT_MINIO_AVATARS_BUCKET             = "avatars"
+	DEFAULT_ATTACHMENTS_PORT                 = "50051"
+	DEFAULT_NOTES_PORT                       = "50052"
+	DEFAULT_PROFILES_PORT                    = "50053"
+	DEFAULT_ATTACHMENTS_ADDR                 = "localhost:50051"
+	DEFAULT_NOTES_ADDR                       = "localhost:50052"
+	DEFAULT_PROFILES_ADDR                    = "localhost:50053"
 )
 
 type JWTConfig struct {
@@ -49,14 +51,16 @@ type ServerConfig struct {
 }
 
 type DBConfig struct {
-	Host         string
-	Port         string
-	User         string
-	Password     string
-	Name         string
-	SSLMode      string
-	MaxOpenConns int
-	MaxIdleConns int
+	Host                 string
+	Port                 string
+	User                 string
+	Password             string
+	Name                 string
+	SSLMode              string
+	MaxOpenConns         int
+	MaxIdleConns         int
+	OpenConnsMaxLifetime int
+	IdleConnsMaxLifetime int
 }
 
 type CSRFConfig struct {
@@ -154,6 +158,16 @@ func Load() *Config {
 		dbMaxIdleConns = DEFAULT_DB_MAX_IDLE_CONNECTIONS
 	}
 
+	dbOpenConnsMaxLifetime, err := strconv.Atoi(os.Getenv("DB_OPEN_CONNECTIONS_MAX_LIFETIME"))
+	if err != nil {
+		dbMaxIdleConns = DEFAULT_DB_OPEN_CONNECTIONS_MAX_LIFETIME
+	}
+
+	dbIdleConnsMaxLifetime, err := strconv.Atoi(os.Getenv("DB_IDLE_CONNECTIONS_MAX_LIFETIME"))
+	if err != nil {
+		dbMaxIdleConns = DEFAULT_DB_IDLE_CONNECTIONS_MAX_LIFETIME
+	}
+
 	csrfCookieName := os.Getenv("CSRF_COOKIE_NAME")
 	if csrfCookieName == "" {
 		csrfCookieName = DEFAULT_CSRF_COOKIE_NAME
@@ -238,14 +252,16 @@ func Load() *Config {
 			ShutdownTimeout: serverShutdownTimeout,
 		},
 		DB: DBConfig{
-			Host:         os.Getenv("DB_HOST"),
-			Port:         os.Getenv("DB_PORT"),
-			User:         os.Getenv("DB_USER"),
-			Password:     os.Getenv("DB_PASSWORD"),
-			Name:         os.Getenv("DB_NAME"),
-			SSLMode:      os.Getenv("DB_SSL_MODE"),
-			MaxOpenConns: dbMaxOpenConns,
-			MaxIdleConns: dbMaxIdleConns,
+			Host:                 os.Getenv("DB_HOST"),
+			Port:                 os.Getenv("DB_PORT"),
+			User:                 os.Getenv("DB_APP_USER"),
+			Password:             os.Getenv("DB_APP_PASSWORD"),
+			Name:                 os.Getenv("DB_NAME"),
+			SSLMode:              os.Getenv("DB_SSL_MODE"),
+			MaxOpenConns:         dbMaxOpenConns,
+			MaxIdleConns:         dbMaxIdleConns,
+			OpenConnsMaxLifetime: dbOpenConnsMaxLifetime,
+			IdleConnsMaxLifetime: dbIdleConnsMaxLifetime,
 		},
 		CSRF: CSRFConfig{
 			CookieName: csrfCookieName,

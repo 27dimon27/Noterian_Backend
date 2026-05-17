@@ -6,8 +6,9 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
-	profilesgrpcserver "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpcserver"
+	profilesgrpcserver "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/grpc"
 	profilesrepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
+	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
 	"google.golang.org/grpc"
@@ -36,7 +37,12 @@ func main() {
 	log.Info("Connected to MinIO successfully")
 
 	repo := profilesrepository.NewProfileRepository(database, minioService, cfg.MinIO.AvatarsBucket)
-	server := profilesgrpcserver.NewServer(repo)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(repo)
+	if err != nil {
+		log.Error("Failed to create profile usecase", "error", err)
+		return
+	}
+	server := profilesgrpcserver.NewServer(profileUsecase)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Services.ProfilesPort)
 	if err != nil {
