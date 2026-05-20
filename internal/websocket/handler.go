@@ -10,6 +10,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	MAX_FILE_SIZE = 50 * 1024 * 1024
+)
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
@@ -141,7 +145,7 @@ func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 		conn.Close()
 	}()
 
-	conn.SetReadLimit(4096)
+	conn.SetReadLimit(MAX_FILE_SIZE)
 	err := conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	if err != nil {
 		log.Printf("Failed to set read deadline: %v", err)

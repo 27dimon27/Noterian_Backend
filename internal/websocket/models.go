@@ -27,6 +27,8 @@ const (
 	MsgUpdateNotePublic MessageType = "update_note_public"
 	MsgDeleteNote       MessageType = "delete_note"
 
+	MsgUploadAttachment MessageType = "upload_attachment"
+
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
 )
@@ -118,6 +120,27 @@ type MoveBlockOperation struct {
 	Timestamp   int64  `json:"timestamp"`
 }
 
+type UploadAttachmentOperation struct {
+	ID          string `json:"id"`
+	FileName    string `json:"fileName"`
+	FileSize    int64  `json:"fileSize"`
+	MimeType    string `json:"mimeType"`
+	FileData    []byte `json:"fileData"`
+	HasPosition bool   `json:"hasPosition"`
+	Position    int    `json:"position"`
+	UserID      string `json:"userId"`
+	Timestamp   int64  `json:"timestamp"`
+}
+
+type AttachmentResponse struct {
+	ID           string `json:"id"`
+	BlockID      string `json:"blockId"`
+	AttachURL    string `json:"attachUrl"`
+	URLExpiresAt int64  `json:"urlExpiresAt"`
+	CreatedAt    int64  `json:"createdAt"`
+	UpdatedAt    int64  `json:"updatedAt"`
+}
+
 type BroadcastMessage struct {
 	NoteID  string
 	Message WebSocketMessage
@@ -137,4 +160,8 @@ type NoteUsecaseInterface interface {
 
 type ProfileUsecaseInterface interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+}
+
+type AttachmentUsecaseInterface interface {
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error)
 }

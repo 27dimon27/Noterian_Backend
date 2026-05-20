@@ -70,7 +70,11 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
-	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
+	attachmentAdapter := websocket.NewAttachmentUsecaseAdapter(
+		attachmentUsecase.UploadAttachment,
+	)
+
+	wsHub := websocket.NewHub(noteUsecase, profileUsecase, attachmentAdapter)
 	go wsHub.Run(context.Background())
 
 	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)

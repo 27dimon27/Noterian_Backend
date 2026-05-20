@@ -12,24 +12,26 @@ import (
 )
 
 type Hub struct {
-	mu             sync.RWMutex
-	rooms          map[string]*NoteRoom
-	register       chan *ClientInfo
-	unregister     chan *ClientInfo
-	broadcast      chan *BroadcastMessage
-	noteUsecase    NoteUsecaseInterface
-	profileUsecase ProfileUsecaseInterface
-	storage        *BatchStorage
+	mu                sync.RWMutex
+	rooms             map[string]*NoteRoom
+	register          chan *ClientInfo
+	unregister        chan *ClientInfo
+	broadcast         chan *BroadcastMessage
+	noteUsecase       NoteUsecaseInterface
+	profileUsecase    ProfileUsecaseInterface
+	attachmentUsecase AttachmentUsecaseInterface
+	storage           *BatchStorage
 }
 
-func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface) *Hub {
+func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface, attachmentUsecase AttachmentUsecaseInterface) *Hub {
 	hub := &Hub{
-		rooms:          make(map[string]*NoteRoom),
-		register:       make(chan *ClientInfo, 256),
-		unregister:     make(chan *ClientInfo, 256),
-		broadcast:      make(chan *BroadcastMessage, 512),
-		noteUsecase:    noteUsecase,
-		profileUsecase: profileUsecase,
+		rooms:             make(map[string]*NoteRoom),
+		register:          make(chan *ClientInfo, 256),
+		unregister:        make(chan *ClientInfo, 256),
+		broadcast:         make(chan *BroadcastMessage, 512),
+		noteUsecase:       noteUsecase,
+		profileUsecase:    profileUsecase,
+		attachmentUsecase: attachmentUsecase,
 	}
 
 	hub.storage = NewBatchStorage(hub)
@@ -290,6 +292,12 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 		var isPublic bool
 		if err := mapToStruct(msg.Msg, &isPublic); err == nil {
 			h.handleUpdateNotePublic(room, userID, isPublic)
+		}
+
+	case MsgUploadAttachment:
+		var op UploadAttachmentOperation
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleUploadAttachment(room, userID, &op)
 		}
 
 	case MsgDeleteNote:
@@ -622,6 +630,49 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 			room.RemoveClient(c.UserID)
 		}
 	}
+}
+
+func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAttachmentOperation) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	attachment, err := h.attachmentUsecase.UploadAttachment(
+		context.Background(),
+		noteID,
+		userUUID,
+		op.FileName,
+		op.FileSize,
+		op.MimeType,
+		op.FileData,
+		op.HasPosition,
+		op.Position,
+	)
+	if err != nil {
+		log.Printf("Failed to upload attachment: %v", err)
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type:     MsgUploadAttachment,
+		UserID:   userID,
+		UserName: client.UserName,
+		Msg:      attachment,
+	}, "")
 }
 
 func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
