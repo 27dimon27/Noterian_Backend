@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
 	"github.com/google/uuid"
 )
 
@@ -30,20 +31,15 @@ type NoteRepository interface {
 	GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error)
 }
 
-type AttachmentRepository interface {
-	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
-	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
-}
-
 type noteUsecase struct {
-	noteRepository       NoteRepository
-	attachmentRepository AttachmentRepository
+	noteRepository    NoteRepository
+	attachmentsClient grpcclient.AttachmentsServiceClient
 }
 
-func NewNoteUsecase(noteRepository NoteRepository, attachmentRepository AttachmentRepository) *noteUsecase {
+func NewNoteUsecase(noteRepository NoteRepository, attachmentsClient grpcclient.AttachmentsServiceClient) *noteUsecase {
 	return &noteUsecase{
-		noteRepository:       noteRepository,
-		attachmentRepository: attachmentRepository,
+		noteRepository:    noteRepository,
+		attachmentsClient: attachmentsClient,
 	}
 }
 
@@ -72,12 +68,11 @@ func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid
 		blockIDs[i] = block.ID
 
 		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
-			attachment, err := u.attachmentRepository.GetAttachment(ctx, block.ID)
+			attachment, err := u.attachmentsClient.GetAttachment(ctx, block.ID, noteID, userID)
 			if err != nil {
 				continue
 			}
-
-			blocks[i].Content = attachment.AttachURL
+			blocks[i].Content = attachment.AttachUrl
 		}
 	}
 
@@ -123,7 +118,7 @@ func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID u
 
 	for _, block := range blocks {
 		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
-			err = u.attachmentRepository.DeleteAttachment(ctx, block.ID)
+			err = u.attachmentsClient.DeleteAttachment(ctx, block.ID, noteID, userID)
 			if err != nil {
 				continue
 			}
@@ -216,7 +211,7 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 	}
 
 	if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
-		err = u.attachmentRepository.DeleteAttachment(ctx, blockID)
+		err = u.attachmentsClient.DeleteAttachment(ctx, blockID, noteID, userID)
 		if err != nil {
 			return err
 		}
@@ -336,14 +331,14 @@ func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subno
 		return err
 	}
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, subnoteID)
+	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
 	if err != nil {
 		return err
 	}
 
 	for _, block := range blocks {
 		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
-			err = u.attachmentRepository.DeleteAttachment(ctx, block.ID)
+			err = u.attachmentsClient.DeleteAttachment(ctx, block.ID, noteID, userID)
 			if err != nil {
 				continue
 			}
@@ -355,6 +350,22 @@ func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subno
 		return err
 	}
 
+	return nil
+}
+
+func (u *noteUsecase) GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.Block, error) {
+	block, err := u.noteRepository.GetBlock(ctx, blockID)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (u *noteUsecase) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+	err := u.noteRepository.ShiftBlockPositions(ctx, noteID, fromPosition, 1)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

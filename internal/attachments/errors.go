@@ -22,6 +22,7 @@ var (
 	ErrInvalidUserID         = errors.New("Невалидный UserID")
 	ErrForbidden             = errors.New("Доступ запрещен")
 	ErrFailedToGenerateURL   = errors.New("Не удалось сгенерировать ссылку")
+	ErrInvalidPosition       = errors.New("Невалидная позиция")
 	ErrSpecificFileTooLarge  = map[string]error{
 		"IMAGE": fmt.Errorf("Слишком большой файл фотографии, максимальный размер - %d МБ", MAX_IMAGE_SIZE/MB_CONST),
 		"GIF":   fmt.Errorf("Слишком большой файл GIF, максимальный размер - %d МБ", MAX_GIF_SIZE/MB_CONST),

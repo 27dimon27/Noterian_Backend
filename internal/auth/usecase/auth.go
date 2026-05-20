@@ -5,70 +5,68 @@ import (
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:generate mockgen -source=auth.go -destination=mocks/mock_usecase_auth.go -package=mocks
-
-type ProfileRepository interface {
-	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
-	SigninUser(ctx context.Context, username string) (*models.Profile, error)
-}
-
 type authUsecase struct {
-	profileRepository ProfileRepository
-	jwtConfig         config.JWTConfig
-	validate          *validator.Validate
+	profilesClient grpcclient.ProfilesServiceClient
+	jwtConfig      config.JWTConfig
+	validate       *validator.Validate
 }
 
-func NewAuthUsecase(profileRepository ProfileRepository, jwtConfig config.JWTConfig) (*authUsecase, error) {
+func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig config.JWTConfig) (*authUsecase, error) {
 	validate := validator.New()
-	err := initValidator(validate)
-	if err != nil {
+	if err := initValidator(validate); err != nil {
 		return nil, err
 	}
 
 	return &authUsecase{
-		profileRepository: profileRepository,
-		jwtConfig:         jwtConfig,
-		validate:          validate,
+		profilesClient: profilesClient,
+		jwtConfig:      jwtConfig,
+		validate:       validate,
 	}, nil
 }
 
-func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (userID string, err error) {
 	if err := u.validate.Var(username, "required,username"); err != nil {
-		return nil, auth.ErrInvalidUsername
+		return "", auth.ErrInvalidUsername
 	}
 
 	if err := u.validate.Var(password, "required,password"); err != nil {
-		return nil, auth.ErrInvalidPassword
+		return "", auth.ErrInvalidPassword
 	}
 
-	user, err := u.profileRepository.SignupUser(ctx, username, password)
+	userUUID, err := u.profilesClient.SignupUser(ctx, username, password)
 	if err != nil {
-		return nil, err
+		if err == auth.ErrUserExist {
+			return "", auth.ErrUserExist
+		}
+		return "", err
 	}
 
-	return user, nil
+	return userUUID.String(), nil
 }
 
-func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*models.Profile, error) {
-	user, err := u.profileRepository.SigninUser(ctx, username)
+func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (userID string, err error) {
+	userUUID, passwordHash, err := u.profilesClient.SigninUser(ctx, username)
 	if err != nil {
-		return nil, err
+		if err == auth.ErrUserNotExist {
+			return "", auth.ErrUserNotExist
+		}
+		return "", err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
-		return nil, auth.ErrBadCredentials
+		return "", auth.ErrBadCredentials
 	}
 
-	return user, nil
+	return userUUID.String(), nil
 }
 
-func (u *authUsecase) Logout(ctx context.Context, w http.ResponseWriter, jwtCfg config.JWTConfig) {
-	auth.DeleteCookie(w, jwtCfg.CookieName, jwtCfg.Secure)
+func (u *authUsecase) Logout(ctx context.Context, w http.ResponseWriter) {
+	auth.DeleteCookie(w, u.jwtConfig.CookieName, u.jwtConfig.Secure)
 }

@@ -220,19 +220,9 @@ func (u *profileUsecase) SignupUser(ctx context.Context, username, password stri
 		return nil, profiles.ErrInvalidProfileData
 	}
 
-	profile, err := u.profileRepository.SignupUser(ctx, username, password)
-	if err != nil {
-		return nil, err
-	}
-
-	return profile, nil
+	return u.profileRepository.SignupUser(ctx, username, password)
 }
 
 func (u *profileUsecase) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
-	profile, err := u.profileRepository.SigninUser(ctx, username)
-	if err != nil {
-		return nil, err
-	}
-
-	return profile, nil
+	return u.profileRepository.SigninUser(ctx, username)
 }

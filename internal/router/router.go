@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"net/http"
 
-	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	attachmentsGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http"
 	attachmentsRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
@@ -16,13 +15,11 @@ import (
 	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler/http"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 
-	notesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
 	notesGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
 	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/http"
 	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
-	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
 	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http"
 	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
@@ -42,13 +39,20 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	noteRepository := notesRepository.NewNoteRepository(db)
 	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 
-	attachmentGrpcClient := attachmentsgrpc.NewAttachmentServiceClient(attachmentsConn)
-	noteGrpcClient := notesgrpc.NewNoteServiceClient(notesConn)
-	profileGrpcClient := profilesgrpc.NewProfileServiceClient(profilesConn)
+	attachmentRemoteRepository, err := notesGrpcClient.NewAttachmentsServiceClient(cfg.Services.AttachmentsAddr)
+	if err != nil {
+		return nil, err
+	}
 
-	attachmentRemoteRepository := notesGrpcClient.NewAttachmentRepositoryClient(attachmentGrpcClient)
-	noteRemoteRepository := attachmentsGrpcClient.NewNoteRepositoryClient(noteGrpcClient)
-	profileRemoteRepository := authGrpcClient.NewProfileRepositoryClient(profileGrpcClient)
+	noteRemoteRepository, err := attachmentsGrpcClient.NewNotesServiceClient(cfg.Services.NotesAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	profileRemoteRepository, err := authGrpcClient.NewProfilesServiceClient(cfg.Services.ProfilesAddr)
+	if err != nil {
+		return nil, err
+	}
 
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository)
 	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT)

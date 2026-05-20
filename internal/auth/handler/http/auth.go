@@ -9,18 +9,15 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
-//go:generate mockgen -source=auth.go -destination=mocks/mock_handler_auth.go -package=mocks
-
 type AuthUsecase interface {
-	SignupUser(ctx context.Context, username, password string) (*models.Profile, error)
-	SigninUser(ctx context.Context, username, password string) (*models.Profile, error)
-	Logout(ctx context.Context, w http.ResponseWriter, jwtCfg config.JWTConfig)
+	SignupUser(ctx context.Context, username, password string) (userID string, err error)
+	SigninUser(ctx context.Context, username, password string) (userID string, err error)
+	Logout(ctx context.Context, w http.ResponseWriter)
 }
 
 type AuthHandler struct {
@@ -52,7 +49,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	user, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
+	userID, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
@@ -65,7 +62,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, user)
+	h.saveUserCookie(w, userID, signUpUser.Username)
 }
 
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +82,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	user, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
+	userID, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials), errors.Is(err, auth.ErrUserNotExist):
@@ -96,16 +93,16 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, user)
+	h.saveUserCookie(w, userID, signInUser.Username)
 }
 
 func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
-	h.authUsecase.Logout(r.Context(), w, h.jwtConfig)
+	h.authUsecase.Logout(r.Context(), w)
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile) {
-	token, err := jwt.GenerateToken(user.ID.String(), h.jwtConfig.CookieTime, h.jwtConfig.Secret)
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, userID, username string) {
+	token, err := jwt.GenerateToken(userID, h.jwtConfig.CookieTime, h.jwtConfig.Secret)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
 		return
@@ -119,11 +116,10 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, user *models.Profile
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(h.jwtConfig.CookieTime.Seconds()),
 		Path:     "/",
-		Domain:   "",
 	})
 
 	write.JSONResponse(w, http.StatusOK, dto.UserResponse{
-		ID:       user.ID.String(),
-		Username: user.Username,
+		ID:       userID,
+		Username: username,
 	})
 }

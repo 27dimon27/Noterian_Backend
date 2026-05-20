@@ -4,12 +4,12 @@ import (
 	"net"
 
 	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	attachmentsgrpcserver "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/grpc"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
 	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
-	notesrepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
 	"google.golang.org/grpc"
@@ -37,9 +37,15 @@ func main() {
 
 	log.Info("Connected to MinIO successfully")
 
+	notesClient, err := grpcclient.NewNotesServiceClient(cfg.Services.NotesAddr)
+	if err != nil {
+		log.Error("Failed to create notes service client", "error", err)
+		return
+	}
+	defer notesClient.Close()
+
 	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket)
-	noteRepo := notesrepository.NewNoteRepository(database)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, noteRepo)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, notesClient)
 	server := attachmentsgrpcserver.NewServer(attachmentUsecase)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Services.AttachmentsPort)

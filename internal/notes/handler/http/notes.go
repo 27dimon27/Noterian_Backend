@@ -31,6 +31,7 @@ type NoteUsecase interface {
 	GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, error)
 	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note, hasPosition bool, position int) (*models.Note, uuid.UUID, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
+	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error
 }
 
 type NoteHandler struct {

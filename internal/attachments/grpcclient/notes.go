@@ -3,100 +3,73 @@ package grpcclient
 import (
 	"context"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
-	notesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
+	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
 )
 
-type NoteRepositoryClient struct {
-	client notesgrpc.NoteServiceClient
+type NotesServiceClient interface {
+	GetNote(ctx context.Context, noteID, userID uuid.UUID) (*notesgen.NoteResponse, error)
+	GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error)
+	GetBlocks(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error)
+	CreateBlock(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error)
+	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error
+	DeleteBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (uuid.UUID, error)
+	Close() error
 }
 
-func NewNoteRepositoryClient(client notesgrpc.NoteServiceClient) *NoteRepositoryClient {
-	return &NoteRepositoryClient{client: client}
+type notesServiceClient struct {
+	client notesgen.NoteServiceClient
+	conn   *grpc.ClientConn
 }
 
-func (c *NoteRepositoryClient) GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
-	resp, err := c.client.GetNote(ctx, &notesgrpc.GetNoteRequest{NoteId: noteID.String()})
+func NewNotesServiceClient(addr string) (NotesServiceClient, error) {
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
 	}
 
-	return &models.Note{
-		ID:        uuid.MustParse(resp.GetId()),
-		UserID:    uuid.MustParse(resp.GetUserId()),
-		Title:     resp.GetTitle(),
-		IsPublic:  resp.GetIsPublic(),
-		CreatedAt: resp.GetCreatedAt().AsTime(),
-		UpdatedAt: resp.GetUpdatedAt().AsTime(),
+	return &notesServiceClient{
+		client: notesgen.NewNoteServiceClient(conn),
+		conn:   conn,
 	}, nil
 }
 
-func (c *NoteRepositoryClient) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
-	resp, err := c.client.GetBlock(ctx, &notesgrpc.GetBlockRequest{BlockId: blockID.String()})
+func (c *notesServiceClient) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*notesgen.NoteResponse, error) {
+	return c.client.GetNote(ctx, &notesgen.GetNoteRequest{
+		NoteId: noteID.String(),
+		UserId: userID.String(),
+	})
+}
+
+func (c *notesServiceClient) GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error) {
+	return c.client.GetBlock(ctx, &notesgen.GetBlockRequest{
+		BlockId: blockID.String(),
+		NoteId:  noteID.String(),
+		UserId:  userID.String(),
+	})
+}
+
+func (c *notesServiceClient) GetBlocks(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error) {
+	resp, err := c.client.GetBlocks(ctx, &notesgen.GetBlocksRequest{
+		NoteId: noteID.String(),
+		UserId: userID.String(),
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	return &models.Block{
-		ID:          uuid.MustParse(resp.GetId()),
-		NoteID:      uuid.MustParse(resp.GetNoteId()),
-		BlockTypeID: int(resp.GetBlockTypeId()),
-		Position:    int(resp.GetPosition()),
-		Content:     resp.GetContent(),
-		CreatedAt:   resp.GetCreatedAt().AsTime(),
-		UpdatedAt:   resp.GetUpdatedAt().AsTime(),
-	}, nil
+	return resp.Blocks, nil
 }
 
-func (c *NoteRepositoryClient) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
-	resp, err := c.client.GetBlocks(ctx, &notesgrpc.GetBlocksRequest{NoteId: noteID.String()})
-	if err != nil {
-		return nil, err
-	}
-
-	blocks := make([]models.Block, 0, len(resp.GetBlocks()))
-	for _, item := range resp.GetBlocks() {
-		blocks = append(blocks, models.Block{
-			ID:          uuid.MustParse(item.GetId()),
-			NoteID:      uuid.MustParse(item.GetNoteId()),
-			BlockTypeID: int(item.GetBlockTypeId()),
-			Position:    int(item.GetPosition()),
-			Content:     item.GetContent(),
-			CreatedAt:   item.GetCreatedAt().AsTime(),
-			UpdatedAt:   item.GetUpdatedAt().AsTime(),
-		})
-	}
-
-	return blocks, nil
+func (c *notesServiceClient) CreateBlock(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error) {
+	return c.client.CreateBlock(ctx, &notesgen.CreateBlockRequest{
+		UserId: userID.String(),
+		Block:  block,
+	})
 }
 
-func (c *NoteRepositoryClient) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
-	resp, err := c.client.CreateBlock(ctx, &notesgrpc.CreateBlockRequest{Block: &notesgrpc.BlockResponse{
-		NoteId:      block.NoteID.String(),
-		BlockTypeId: int32(block.BlockTypeID),
-		Position:    int32(block.Position),
-		Content:     block.Content,
-	}})
-	if err != nil {
-		return nil, err
-	}
-
-	createdBlock := &models.Block{
-		ID:          uuid.MustParse(resp.GetId()),
-		NoteID:      uuid.MustParse(resp.GetNoteId()),
-		BlockTypeID: int(resp.GetBlockTypeId()),
-		Position:    int(resp.GetPosition()),
-		Content:     resp.GetContent(),
-		CreatedAt:   resp.GetCreatedAt().AsTime(),
-		UpdatedAt:   resp.GetUpdatedAt().AsTime(),
-	}
-
-	return createdBlock, nil
-}
-
-func (c *NoteRepositoryClient) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error {
-	_, err := c.client.ShiftBlockPositions(ctx, &notesgrpc.ShiftBlockPositionsRequest{
+func (c *notesServiceClient) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+	_, err := c.client.ShiftBlockPositions(ctx, &notesgen.ShiftBlockPositionsRequest{
 		NoteId:       noteID.String(),
 		FromPosition: int32(fromPosition),
 		Direction:    int32(direction),
@@ -104,16 +77,18 @@ func (c *NoteRepositoryClient) ShiftBlockPositions(ctx context.Context, noteID u
 	return err
 }
 
-func (c *NoteRepositoryClient) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error) {
-	resp, err := c.client.DeleteBlock(ctx, &notesgrpc.DeleteBlockRequest{BlockId: blockID.String()})
+func (c *notesServiceClient) DeleteBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (uuid.UUID, error) {
+	resp, err := c.client.DeleteBlock(ctx, &notesgen.DeleteBlockRequest{
+		BlockId: blockID.String(),
+		NoteId:  noteID.String(),
+		UserId:  userID.String(),
+	})
 	if err != nil {
-		return nil, err
+		return uuid.Nil, err
 	}
+	return uuid.Parse(resp.NoteId)
+}
 
-	noteID, err := uuid.Parse(resp.GetNoteId())
-	if err != nil {
-		return nil, err
-	}
-
-	return &noteID, nil
+func (c *notesServiceClient) Close() error {
+	return c.conn.Close()
 }
