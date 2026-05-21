@@ -284,7 +284,7 @@ func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID,
 		return nil, uuid.Nil, err
 	}
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, note.ID)
+	blocks, err := u.noteRepository.GetBlocks(ctx, parentNoteID)
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
@@ -300,20 +300,20 @@ func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID,
 	}
 
 	block := models.Block{
-		NoteID:      note.ID,
+		NoteID:      parentNoteID,
 		BlockTypeID: 5, // пока константа подзаметки, потом вынести в перменные
 		Position:    blockPosition,
 		Content:     "",
 	}
 
-	err = u.noteRepository.ShiftBlockPositions(ctx, note.ID, blockPosition, 1)
+	err = u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, 1)
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
 
 	createdBlock, err := u.noteRepository.CreateBlock(ctx, block)
 	if err != nil {
-		_ = u.noteRepository.ShiftBlockPositions(ctx, note.ID, blockPosition, -1)
+		_ = u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, -1)
 		return nil, uuid.Nil, err
 	}
 
