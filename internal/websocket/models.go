@@ -2,10 +2,51 @@ package websocket
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 )
+
+const (
+	MAX_IMAGE_SIZE = 5 * 1024 * 1024
+	MAX_GIF_SIZE   = 15 * 1024 * 1024
+	MAX_AUDIO_SIZE = 30 * 1024 * 1024
+	MAX_VIDEO_SIZE = 50 * 1024 * 1024
+)
+
+var ErrInvalidMimeType = errors.New("Неподдерживаемый MIME-тип файла")
+
+var AllowedMimeTypesForImage = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+}
+
+var AllowedMimeTypesForGIF = map[string]bool{
+	"image/gif": true,
+}
+
+var AllowedMimeTypesForAudio = map[string]bool{
+	"audio/mpeg":  true,
+	"audio/mp4":   true,
+	"audio/ogg":   true,
+	"audio/wav":   true,
+	"audio/webm":  true,
+	"audio/flac":  true,
+	"audio/x-m4a": true,
+	"audio/aac":   true,
+	"audio/opus":  true,
+}
+
+var AllowedMimeTypesForVideo = map[string]bool{
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/ogg":       true,
+	"video/quicktime": true,
+	"video/x-msvideo": true,
+	"video/mpeg":      true,
+}
 
 type MessageType string
 
@@ -121,10 +162,10 @@ type MoveBlockOperation struct {
 }
 
 type UploadAttachmentOperation struct {
-	ID          string `json:"id"`
-	FileName    string `json:"fileName"`
-	FileSize    int64  `json:"fileSize"`
-	MimeType    string `json:"mimeType"`
+	ID       string `json:"id"`
+	FileName string `json:"fileName"`
+	// FileSize    int64  `json:"fileSize"`
+	// MimeType    string `json:"mimeType"`
 	FileData    []byte `json:"fileData"`
 	HasPosition bool   `json:"hasPosition"`
 	Position    int    `json:"position"`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -650,13 +651,31 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 		return
 	}
 
+	buffer := make([]byte, 512)
+	copy(buffer, op.FileData)
+
+	mimeType := http.DetectContentType(buffer)
+
+	maxSize, err := getMaxSizeByMimeType(mimeType)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid MIME-type of file", client)
+		return
+	}
+
+	fileSize := int64(len(op.FileData))
+
+	if fileSize > maxSize {
+		client.Send <- h.errorMessage("File too large", client)
+		return
+	}
+
 	attachment, err := h.attachmentUsecase.UploadAttachment(
 		context.Background(),
 		noteID,
 		userUUID,
 		op.FileName,
-		op.FileSize,
-		op.MimeType,
+		fileSize,
+		mimeType,
 		op.FileData,
 		op.HasPosition,
 		op.Position,
@@ -809,4 +828,20 @@ func mapToStruct(data any, target any) error {
 		return err
 	}
 	return json.Unmarshal(jsonBytes, target)
+}
+
+func getMaxSizeByMimeType(mimeType string) (int64, error) {
+	if AllowedMimeTypesForImage[mimeType] {
+		return MAX_IMAGE_SIZE, nil
+	}
+	if AllowedMimeTypesForGIF[mimeType] {
+		return MAX_GIF_SIZE, nil
+	}
+	if AllowedMimeTypesForAudio[mimeType] {
+		return MAX_AUDIO_SIZE, nil
+	}
+	if AllowedMimeTypesForVideo[mimeType] {
+		return MAX_VIDEO_SIZE, nil
+	}
+	return 0, ErrInvalidMimeType
 }
