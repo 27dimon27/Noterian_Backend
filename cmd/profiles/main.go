@@ -5,12 +5,12 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
-	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/grpc/gen"
 	profilesgrpcserver "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/grpc"
 	profilesrepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/profiles/grpc/gen"
 	"google.golang.org/grpc"
 )
 

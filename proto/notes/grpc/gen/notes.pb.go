@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: proto/notes.proto
+// source: proto/notes/notes.proto
 
 package gen
 
@@ -33,7 +33,7 @@ type GetNoteRequest struct {
 
 func (x *GetNoteRequest) Reset() {
 	*x = GetNoteRequest{}
-	mi := &file_proto_notes_proto_msgTypes[0]
+	mi := &file_proto_notes_notes_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *GetNoteRequest) String() string {
 func (*GetNoteRequest) ProtoMessage() {}
 
 func (x *GetNoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[0]
+	mi := &file_proto_notes_notes_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *GetNoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNoteRequest.ProtoReflect.Descriptor instead.
 func (*GetNoteRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{0}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetNoteRequest) GetNoteId() string {
@@ -86,7 +86,7 @@ type GetBlockRequest struct {
 
 func (x *GetBlockRequest) Reset() {
 	*x = GetBlockRequest{}
-	mi := &file_proto_notes_proto_msgTypes[1]
+	mi := &file_proto_notes_notes_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -98,7 +98,7 @@ func (x *GetBlockRequest) String() string {
 func (*GetBlockRequest) ProtoMessage() {}
 
 func (x *GetBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[1]
+	mi := &file_proto_notes_notes_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -111,7 +111,7 @@ func (x *GetBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlockRequest.ProtoReflect.Descriptor instead.
 func (*GetBlockRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{1}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetBlockRequest) GetBlockId() string {
@@ -145,7 +145,7 @@ type GetBlocksRequest struct {
 
 func (x *GetBlocksRequest) Reset() {
 	*x = GetBlocksRequest{}
-	mi := &file_proto_notes_proto_msgTypes[2]
+	mi := &file_proto_notes_notes_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -157,7 +157,7 @@ func (x *GetBlocksRequest) String() string {
 func (*GetBlocksRequest) ProtoMessage() {}
 
 func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[2]
+	mi := &file_proto_notes_notes_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,7 +170,7 @@ func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksRequest.ProtoReflect.Descriptor instead.
 func (*GetBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{2}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetBlocksRequest) GetNoteId() string {
@@ -197,7 +197,7 @@ type CreateBlockRequest struct {
 
 func (x *CreateBlockRequest) Reset() {
 	*x = CreateBlockRequest{}
-	mi := &file_proto_notes_proto_msgTypes[3]
+	mi := &file_proto_notes_notes_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -209,7 +209,7 @@ func (x *CreateBlockRequest) String() string {
 func (*CreateBlockRequest) ProtoMessage() {}
 
 func (x *CreateBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[3]
+	mi := &file_proto_notes_notes_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -222,7 +222,7 @@ func (x *CreateBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBlockRequest.ProtoReflect.Descriptor instead.
 func (*CreateBlockRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{3}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateBlockRequest) GetUserId() string {
@@ -250,7 +250,7 @@ type ShiftBlockPositionsRequest struct {
 
 func (x *ShiftBlockPositionsRequest) Reset() {
 	*x = ShiftBlockPositionsRequest{}
-	mi := &file_proto_notes_proto_msgTypes[4]
+	mi := &file_proto_notes_notes_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -262,7 +262,7 @@ func (x *ShiftBlockPositionsRequest) String() string {
 func (*ShiftBlockPositionsRequest) ProtoMessage() {}
 
 func (x *ShiftBlockPositionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[4]
+	mi := &file_proto_notes_notes_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -275,7 +275,7 @@ func (x *ShiftBlockPositionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShiftBlockPositionsRequest.ProtoReflect.Descriptor instead.
 func (*ShiftBlockPositionsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{4}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ShiftBlockPositionsRequest) GetNoteId() string {
@@ -310,7 +310,7 @@ type DeleteBlockRequest struct {
 
 func (x *DeleteBlockRequest) Reset() {
 	*x = DeleteBlockRequest{}
-	mi := &file_proto_notes_proto_msgTypes[5]
+	mi := &file_proto_notes_notes_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +322,7 @@ func (x *DeleteBlockRequest) String() string {
 func (*DeleteBlockRequest) ProtoMessage() {}
 
 func (x *DeleteBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[5]
+	mi := &file_proto_notes_notes_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,7 +335,7 @@ func (x *DeleteBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBlockRequest.ProtoReflect.Descriptor instead.
 func (*DeleteBlockRequest) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{5}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeleteBlockRequest) GetBlockId() string {
@@ -368,7 +368,7 @@ type DeleteBlockResponse struct {
 
 func (x *DeleteBlockResponse) Reset() {
 	*x = DeleteBlockResponse{}
-	mi := &file_proto_notes_proto_msgTypes[6]
+	mi := &file_proto_notes_notes_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -380,7 +380,7 @@ func (x *DeleteBlockResponse) String() string {
 func (*DeleteBlockResponse) ProtoMessage() {}
 
 func (x *DeleteBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[6]
+	mi := &file_proto_notes_notes_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -393,7 +393,7 @@ func (x *DeleteBlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBlockResponse.ProtoReflect.Descriptor instead.
 func (*DeleteBlockResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{6}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DeleteBlockResponse) GetNoteId() string {
@@ -418,7 +418,7 @@ type NoteResponse struct {
 
 func (x *NoteResponse) Reset() {
 	*x = NoteResponse{}
-	mi := &file_proto_notes_proto_msgTypes[7]
+	mi := &file_proto_notes_notes_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +430,7 @@ func (x *NoteResponse) String() string {
 func (*NoteResponse) ProtoMessage() {}
 
 func (x *NoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[7]
+	mi := &file_proto_notes_notes_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +443,7 @@ func (x *NoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NoteResponse.ProtoReflect.Descriptor instead.
 func (*NoteResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{7}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *NoteResponse) GetId() string {
@@ -510,7 +510,7 @@ type BlockResponse struct {
 
 func (x *BlockResponse) Reset() {
 	*x = BlockResponse{}
-	mi := &file_proto_notes_proto_msgTypes[8]
+	mi := &file_proto_notes_notes_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +522,7 @@ func (x *BlockResponse) String() string {
 func (*BlockResponse) ProtoMessage() {}
 
 func (x *BlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[8]
+	mi := &file_proto_notes_notes_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +535,7 @@ func (x *BlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockResponse.ProtoReflect.Descriptor instead.
 func (*BlockResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{8}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BlockResponse) GetId() string {
@@ -596,7 +596,7 @@ type GetBlocksResponse struct {
 
 func (x *GetBlocksResponse) Reset() {
 	*x = GetBlocksResponse{}
-	mi := &file_proto_notes_proto_msgTypes[9]
+	mi := &file_proto_notes_notes_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +608,7 @@ func (x *GetBlocksResponse) String() string {
 func (*GetBlocksResponse) ProtoMessage() {}
 
 func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_notes_proto_msgTypes[9]
+	mi := &file_proto_notes_notes_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +621,7 @@ func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksResponse.ProtoReflect.Descriptor instead.
 func (*GetBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_proto_notes_proto_rawDescGZIP(), []int{9}
+	return file_proto_notes_notes_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetBlocksResponse) GetBlocks() []*BlockResponse {
@@ -631,11 +631,11 @@ func (x *GetBlocksResponse) GetBlocks() []*BlockResponse {
 	return nil
 }
 
-var File_proto_notes_proto protoreflect.FileDescriptor
+var File_proto_notes_notes_proto protoreflect.FileDescriptor
 
-const file_proto_notes_proto_rawDesc = "" +
+const file_proto_notes_notes_proto_rawDesc = "" +
 	"\n" +
-	"\x11proto/notes.proto\x12\x05notes\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"B\n" +
+	"\x17proto/notes/notes.proto\x12\x05notes\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\"B\n" +
 	"\x0eGetNoteRequest\x12\x17\n" +
 	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"^\n" +
@@ -689,22 +689,22 @@ const file_proto_notes_proto_rawDesc = "" +
 	"\tGetBlocks\x12\x17.notes.GetBlocksRequest\x1a\x18.notes.GetBlocksResponse\x12>\n" +
 	"\vCreateBlock\x12\x19.notes.CreateBlockRequest\x1a\x14.notes.BlockResponse\x12P\n" +
 	"\x13ShiftBlockPositions\x12!.notes.ShiftBlockPositionsRequest\x1a\x16.google.protobuf.Empty\x12D\n" +
-	"\vDeleteBlock\x12\x19.notes.DeleteBlockRequest\x1a\x1a.notes.DeleteBlockResponseB\x19Z\x17internal/notes/grpc/genb\x06proto3"
+	"\vDeleteBlock\x12\x19.notes.DeleteBlockRequest\x1a\x1a.notes.DeleteBlockResponseB\x16Z\x14proto/notes/grpc/genb\x06proto3"
 
 var (
-	file_proto_notes_proto_rawDescOnce sync.Once
-	file_proto_notes_proto_rawDescData []byte
+	file_proto_notes_notes_proto_rawDescOnce sync.Once
+	file_proto_notes_notes_proto_rawDescData []byte
 )
 
-func file_proto_notes_proto_rawDescGZIP() []byte {
-	file_proto_notes_proto_rawDescOnce.Do(func() {
-		file_proto_notes_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_notes_proto_rawDesc), len(file_proto_notes_proto_rawDesc)))
+func file_proto_notes_notes_proto_rawDescGZIP() []byte {
+	file_proto_notes_notes_proto_rawDescOnce.Do(func() {
+		file_proto_notes_notes_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_notes_notes_proto_rawDesc), len(file_proto_notes_notes_proto_rawDesc)))
 	})
-	return file_proto_notes_proto_rawDescData
+	return file_proto_notes_notes_proto_rawDescData
 }
 
-var file_proto_notes_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
-var file_proto_notes_proto_goTypes = []any{
+var file_proto_notes_notes_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_proto_notes_notes_proto_goTypes = []any{
 	(*GetNoteRequest)(nil),             // 0: notes.GetNoteRequest
 	(*GetBlockRequest)(nil),            // 1: notes.GetBlockRequest
 	(*GetBlocksRequest)(nil),           // 2: notes.GetBlocksRequest
@@ -718,7 +718,7 @@ var file_proto_notes_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),      // 10: google.protobuf.Timestamp
 	(*emptypb.Empty)(nil),              // 11: google.protobuf.Empty
 }
-var file_proto_notes_proto_depIdxs = []int32{
+var file_proto_notes_notes_proto_depIdxs = []int32{
 	8,  // 0: notes.CreateBlockRequest.block:type_name -> notes.BlockResponse
 	10, // 1: notes.NoteResponse.created_at:type_name -> google.protobuf.Timestamp
 	10, // 2: notes.NoteResponse.updated_at:type_name -> google.protobuf.Timestamp
@@ -744,27 +744,27 @@ var file_proto_notes_proto_depIdxs = []int32{
 	0,  // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_proto_notes_proto_init() }
-func file_proto_notes_proto_init() {
-	if File_proto_notes_proto != nil {
+func init() { file_proto_notes_notes_proto_init() }
+func file_proto_notes_notes_proto_init() {
+	if File_proto_notes_notes_proto != nil {
 		return
 	}
-	file_proto_notes_proto_msgTypes[7].OneofWrappers = []any{}
+	file_proto_notes_notes_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_notes_proto_rawDesc), len(file_proto_notes_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_notes_notes_proto_rawDesc), len(file_proto_notes_notes_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_notes_proto_goTypes,
-		DependencyIndexes: file_proto_notes_proto_depIdxs,
-		MessageInfos:      file_proto_notes_proto_msgTypes,
+		GoTypes:           file_proto_notes_notes_proto_goTypes,
+		DependencyIndexes: file_proto_notes_notes_proto_depIdxs,
+		MessageInfos:      file_proto_notes_notes_proto_msgTypes,
 	}.Build()
-	File_proto_notes_proto = out.File
-	file_proto_notes_proto_goTypes = nil
-	file_proto_notes_proto_depIdxs = nil
+	File_proto_notes_notes_proto = out.File
+	file_proto_notes_notes_proto_goTypes = nil
+	file_proto_notes_notes_proto_depIdxs = nil
 }

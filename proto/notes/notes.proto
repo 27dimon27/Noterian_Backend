@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package notes;
 
-option go_package = "internal/notes/grpc/gen";
+option go_package = "proto/notes/grpc/gen";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";

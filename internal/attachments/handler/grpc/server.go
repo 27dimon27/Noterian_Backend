@@ -3,8 +3,8 @@ package grpc
 import (
 	"context"
 
-	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

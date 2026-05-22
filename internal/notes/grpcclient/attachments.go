@@ -3,7 +3,7 @@ package grpcclient
 import (
 	"context"
 
-	attachmentsgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
+	attachmentsgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: proto/profiles.proto
+// source: proto/profiles/profiles.proto
 
 package gen
 
@@ -32,7 +32,7 @@ type SignupUserRequest struct {
 
 func (x *SignupUserRequest) Reset() {
 	*x = SignupUserRequest{}
-	mi := &file_proto_profiles_proto_msgTypes[0]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *SignupUserRequest) String() string {
 func (*SignupUserRequest) ProtoMessage() {}
 
 func (x *SignupUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_profiles_proto_msgTypes[0]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *SignupUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignupUserRequest.ProtoReflect.Descriptor instead.
 func (*SignupUserRequest) Descriptor() ([]byte, []int) {
-	return file_proto_profiles_proto_rawDescGZIP(), []int{0}
+	return file_proto_profiles_profiles_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *SignupUserRequest) GetUsername() string {
@@ -83,7 +83,7 @@ type SigninUserRequest struct {
 
 func (x *SigninUserRequest) Reset() {
 	*x = SigninUserRequest{}
-	mi := &file_proto_profiles_proto_msgTypes[1]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -95,7 +95,7 @@ func (x *SigninUserRequest) String() string {
 func (*SigninUserRequest) ProtoMessage() {}
 
 func (x *SigninUserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_profiles_proto_msgTypes[1]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -108,7 +108,7 @@ func (x *SigninUserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SigninUserRequest.ProtoReflect.Descriptor instead.
 func (*SigninUserRequest) Descriptor() ([]byte, []int) {
-	return file_proto_profiles_proto_rawDescGZIP(), []int{1}
+	return file_proto_profiles_profiles_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SigninUserRequest) GetUsername() string {
@@ -132,7 +132,7 @@ type ProfileResponse struct {
 
 func (x *ProfileResponse) Reset() {
 	*x = ProfileResponse{}
-	mi := &file_proto_profiles_proto_msgTypes[2]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -144,7 +144,7 @@ func (x *ProfileResponse) String() string {
 func (*ProfileResponse) ProtoMessage() {}
 
 func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_profiles_proto_msgTypes[2]
+	mi := &file_proto_profiles_profiles_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -157,7 +157,7 @@ func (x *ProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileResponse.ProtoReflect.Descriptor instead.
 func (*ProfileResponse) Descriptor() ([]byte, []int) {
-	return file_proto_profiles_proto_rawDescGZIP(), []int{2}
+	return file_proto_profiles_profiles_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ProfileResponse) GetId() string {
@@ -202,11 +202,11 @@ func (x *ProfileResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-var File_proto_profiles_proto protoreflect.FileDescriptor
+var File_proto_profiles_profiles_proto protoreflect.FileDescriptor
 
-const file_proto_profiles_proto_rawDesc = "" +
+const file_proto_profiles_profiles_proto_rawDesc = "" +
 	"\n" +
-	"\x14proto/profiles.proto\x12\bprofiles\x1a\x1fgoogle/protobuf/timestamp.proto\"K\n" +
+	"\x1dproto/profiles/profiles.proto\x12\bprofiles\x1a\x1fgoogle/protobuf/timestamp.proto\"K\n" +
 	"\x11SignupUserRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"/\n" +
@@ -226,28 +226,28 @@ const file_proto_profiles_proto_rawDesc = "" +
 	"\n" +
 	"SignupUser\x12\x1b.profiles.SignupUserRequest\x1a\x19.profiles.ProfileResponse\x12D\n" +
 	"\n" +
-	"SigninUser\x12\x1b.profiles.SigninUserRequest\x1a\x19.profiles.ProfileResponseB\x1cZ\x1ainternal/profiles/grpc/genb\x06proto3"
+	"SigninUser\x12\x1b.profiles.SigninUserRequest\x1a\x19.profiles.ProfileResponseB\x19Z\x17proto/profiles/grpc/genb\x06proto3"
 
 var (
-	file_proto_profiles_proto_rawDescOnce sync.Once
-	file_proto_profiles_proto_rawDescData []byte
+	file_proto_profiles_profiles_proto_rawDescOnce sync.Once
+	file_proto_profiles_profiles_proto_rawDescData []byte
 )
 
-func file_proto_profiles_proto_rawDescGZIP() []byte {
-	file_proto_profiles_proto_rawDescOnce.Do(func() {
-		file_proto_profiles_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_profiles_proto_rawDesc), len(file_proto_profiles_proto_rawDesc)))
+func file_proto_profiles_profiles_proto_rawDescGZIP() []byte {
+	file_proto_profiles_profiles_proto_rawDescOnce.Do(func() {
+		file_proto_profiles_profiles_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_profiles_profiles_proto_rawDesc), len(file_proto_profiles_profiles_proto_rawDesc)))
 	})
-	return file_proto_profiles_proto_rawDescData
+	return file_proto_profiles_profiles_proto_rawDescData
 }
 
-var file_proto_profiles_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_proto_profiles_proto_goTypes = []any{
+var file_proto_profiles_profiles_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_proto_profiles_profiles_proto_goTypes = []any{
 	(*SignupUserRequest)(nil),     // 0: profiles.SignupUserRequest
 	(*SigninUserRequest)(nil),     // 1: profiles.SigninUserRequest
 	(*ProfileResponse)(nil),       // 2: profiles.ProfileResponse
 	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
-var file_proto_profiles_proto_depIdxs = []int32{
+var file_proto_profiles_profiles_proto_depIdxs = []int32{
 	3, // 0: profiles.ProfileResponse.created_at:type_name -> google.protobuf.Timestamp
 	3, // 1: profiles.ProfileResponse.updated_at:type_name -> google.protobuf.Timestamp
 	0, // 2: profiles.ProfileService.SignupUser:input_type -> profiles.SignupUserRequest
@@ -261,26 +261,26 @@ var file_proto_profiles_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_proto_profiles_proto_init() }
-func file_proto_profiles_proto_init() {
-	if File_proto_profiles_proto != nil {
+func init() { file_proto_profiles_profiles_proto_init() }
+func file_proto_profiles_profiles_proto_init() {
+	if File_proto_profiles_profiles_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_profiles_proto_rawDesc), len(file_proto_profiles_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_profiles_profiles_proto_rawDesc), len(file_proto_profiles_profiles_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_profiles_proto_goTypes,
-		DependencyIndexes: file_proto_profiles_proto_depIdxs,
-		MessageInfos:      file_proto_profiles_proto_msgTypes,
+		GoTypes:           file_proto_profiles_profiles_proto_goTypes,
+		DependencyIndexes: file_proto_profiles_profiles_proto_depIdxs,
+		MessageInfos:      file_proto_profiles_profiles_proto_msgTypes,
 	}.Build()
-	File_proto_profiles_proto = out.File
-	file_proto_profiles_proto_goTypes = nil
-	file_proto_profiles_proto_depIdxs = nil
+	File_proto_profiles_profiles_proto = out.File
+	file_proto_profiles_profiles_proto_goTypes = nil
+	file_proto_profiles_profiles_proto_depIdxs = nil
 }

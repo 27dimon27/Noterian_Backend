@@ -3,7 +3,6 @@ package main
 import (
 	"net"
 
-	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpc/gen"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	attachmentsgrpcserver "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/grpc"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
@@ -12,6 +11,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/db"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/storage/minio"
+	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"google.golang.org/grpc"
 )
 

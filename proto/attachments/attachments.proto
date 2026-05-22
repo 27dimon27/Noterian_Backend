@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package attachments;
 
-option go_package = "internal/attachments/grpc/gen";
+option go_package = "proto/attachments/grpc/gen";
 
 service AttachmentService {
     rpc GetAttachment(GetAttachmentRequest) returns (AttachmentResponse);

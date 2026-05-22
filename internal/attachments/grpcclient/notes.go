@@ -3,7 +3,7 @@ package grpcclient
 import (
 	"context"
 
-	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpc/gen"
+	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
