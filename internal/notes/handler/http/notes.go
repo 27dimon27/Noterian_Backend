@@ -44,6 +44,16 @@ func NewNoteHandler(noteUsecase NoteUsecase) *NoteHandler {
 	}
 }
 
+// GetNotes godoc
+// @Summary      Список заметок пользователя
+// @Description  Возвращает все заметки текущего пользователя.
+// @Tags         notes
+// @Produce      json
+// @Success      200  {object}  dto.NotesResponse
+// @Failure      401  {object}  map[string]string  "Неавторизован"
+// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /notes [get]
 func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -62,6 +72,20 @@ func (h *NoteHandler) GetNotes(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// GetNote godoc
+// @Summary      Получить заметку
+// @Description  Возвращает заметку c блоками и форматированиями.
+// @Tags         notes
+// @Produce      json
+// @Param        noteId  path      string  true  "UUID заметки"
+// @Success      200     {object}  dto.NoteResponse
+// @Failure      400     {object}  map[string]string  "Некорректный noteId"
+// @Failure      401     {object}  map[string]string  "Неавторизован"
+// @Failure      403     {object}  map[string]string  "Доступ запрещён"
+// @Failure      404     {object}  map[string]string  "Заметка не найдена"
+// @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /notes/{noteId} [get]
 func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -104,6 +128,19 @@ func (h *NoteHandler) GetNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// CreateNote godoc
+// @Summary      Создать заметку
+// @Tags         notes
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.NoteRequest  true  "Параметры заметки"
+// @Success      201      {object}  dto.Note
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes [post]
 func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -144,6 +181,22 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// UpdateNote godoc
+// @Summary      Обновить заметку
+// @Tags         notes
+// @Accept       json
+// @Produce      json
+// @Param        noteId   path      string           true  "UUID заметки"
+// @Param        request  body      dto.NoteRequest  true  "Новые данные заметки"
+// @Success      200      {object}  dto.Note
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка не найдена"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId} [put]
 func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -198,6 +251,20 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteNote godoc
+// @Summary      Удалить заметку
+// @Tags         notes
+// @Produce      json
+// @Param        noteId  path  string  true  "UUID заметки"
+// @Success      204     "Заметка удалена"
+// @Failure      400     {object}  map[string]string  "Некорректный noteId"
+// @Failure      401     {object}  map[string]string  "Неавторизован"
+// @Failure      403     {object}  map[string]string  "Доступ запрещён"
+// @Failure      404     {object}  map[string]string  "Заметка не найдена"
+// @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId} [delete]
 func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -233,6 +300,22 @@ func (h *NoteHandler) DeleteNote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
+// CreateBlock godoc
+// @Summary      Создать блок заметки
+// @Tags         blocks
+// @Accept       json
+// @Produce      json
+// @Param        noteId   path      string             true  "UUID заметки"
+// @Param        request  body      dto.BlockRequest   true  "Параметры блока"
+// @Success      201      {object}  dto.Block
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка не найдена"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks [post]
 func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -287,6 +370,23 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// UpdateBlockContent godoc
+// @Summary      Обновить содержимое блока
+// @Tags         blocks
+// @Accept       json
+// @Produce      json
+// @Param        noteId   path      string                         true  "UUID заметки"
+// @Param        blockId  path      string                         true  "UUID блока"
+// @Param        request  body      dto.UpdateBlockContentRequest  true  "Новое содержимое"
+// @Success      200      {object}  dto.Block
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка или блок не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks/{blockId}/content [put]
 func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -349,6 +449,23 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// MoveBlock godoc
+// @Summary      Переместить блок
+// @Tags         blocks
+// @Accept       json
+// @Produce      json
+// @Param        noteId   path      string                true  "UUID заметки"
+// @Param        blockId  path      string                true  "UUID блока"
+// @Param        request  body      dto.MoveBlockRequest  true  "Новая позиция блока"
+// @Success      200      {object}  dto.Block
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка или блок не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks/{blockId}/move [put]
 func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -413,6 +530,21 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteBlock godoc
+// @Summary      Удалить блок
+// @Tags         blocks
+// @Produce      json
+// @Param        noteId   path  string  true  "UUID заметки"
+// @Param        blockId  path  string  true  "UUID блока"
+// @Success      204      "Блок удалён"
+// @Failure      400      {object}  map[string]string  "Некорректный noteId/blockId"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка или блок не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks/{blockId} [delete]
 func (h *NoteHandler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -460,6 +592,23 @@ func (h *NoteHandler) DeleteBlock(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
+// UpdateBlockFormatting godoc
+// @Summary      Обновить форматирование блока
+// @Tags         blocks
+// @Accept       json
+// @Produce      json
+// @Param        noteId   path      string               true  "UUID заметки"
+// @Param        blockId  path      string               true  "UUID блока"
+// @Param        request  body      dto.FormattingRange  true  "Диапазон форматирования"
+// @Success      200      {object}  dto.BlockFormatting
+// @Failure      400      {object}  map[string]string  "Некорректные данные форматирования"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка, блок или тип блока не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks/{blockId}/formatting [put]
 func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -526,6 +675,19 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// GetSubnotes godoc
+// @Summary      Список подзаметок
+// @Tags         subnotes
+// @Produce      json
+// @Param        noteId  path      string  true  "UUID родительской заметки"
+// @Success      200     {array}   dto.Note
+// @Failure      400     {object}  map[string]string  "Некорректный noteId"
+// @Failure      401     {object}  map[string]string  "Неавторизован"
+// @Failure      403     {object}  map[string]string  "Доступ запрещён"
+// @Failure      404     {object}  map[string]string  "Заметка не найдена"
+// @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /notes/{noteId}/subnote [get]
 func (h *NoteHandler) GetSubnotes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -563,6 +725,23 @@ func (h *NoteHandler) GetSubnotes(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// CreateSubnote godoc
+// @Summary      Создать подзаметку
+// @Tags         subnotes
+// @Accept       json
+// @Produce      json
+// @Param        noteId    path      string           true   "UUID родительской заметки"
+// @Param        position  query     int              false  "Позиция вставки блока-ссылки в родительскую заметку"
+// @Param        request   body      dto.NoteRequest  true   "Параметры подзаметки"
+// @Success      200       {object}  dto.Subnote
+// @Failure      400       {object}  map[string]string  "Некорректные данные"
+// @Failure      401       {object}  map[string]string  "Неавторизован"
+// @Failure      403       {object}  map[string]string  "Доступ запрещён"
+// @Failure      404       {object}  map[string]string  "Родительская заметка не найдена"
+// @Failure      500       {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/subnote [post]
 func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
@@ -630,6 +809,21 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteSubnote godoc
+// @Summary      Удалить подзаметку
+// @Tags         subnotes
+// @Produce      json
+// @Param        noteId     path  string  true  "UUID родительской заметки"
+// @Param        subnoteId  path  string  true  "UUID подзаметки"
+// @Success      204        "Подзаметка удалена"
+// @Failure      400        {object}  map[string]string  "Некорректные идентификаторы"
+// @Failure      401        {object}  map[string]string  "Неавторизован"
+// @Failure      403        {object}  map[string]string  "Доступ запрещён"
+// @Failure      404        {object}  map[string]string  "Заметка не найдена"
+// @Failure      500        {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/subnote/{subnoteId} [delete]
 func (h *NoteHandler) DeleteSubnote(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {

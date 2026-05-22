@@ -2,7 +2,7 @@ basePath: /
 consumes:
 - application/json
 definitions:
-  dto.Attachment:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment:
     properties:
       attach_url:
         type: string
@@ -19,24 +19,34 @@ definitions:
       url_expires_at:
         type: string
     type: object
-  dto.Avatar:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignInUser:
     properties:
-      avatarURL:
+      password:
         type: string
-      createdAt:
+      username:
         type: string
+    required:
+    - password
+    - username
+    type: object
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignUpUser:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse:
+    properties:
       id:
         type: string
-      minioKey:
-        type: string
-      profileID:
-        type: string
-      updatedAt:
-        type: string
-      urlexpiresAt:
+      username:
         type: string
     type: object
-  dto.Block:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block:
     properties:
       block_type_id:
         type: integer
@@ -53,16 +63,16 @@ definitions:
       updated_at:
         type: string
     type: object
-  dto.BlockFormatting:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting:
     properties:
       block_id:
         type: string
       ranges:
         items:
-          $ref: '#/definitions/dto.FormattingRange'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange'
         type: array
     type: object
-  dto.BlockRequest:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockRequest:
     properties:
       block_type_id:
         type: integer
@@ -73,7 +83,7 @@ definitions:
       position:
         type: integer
     type: object
-  dto.BlockWithFormatting:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockWithFormatting:
     properties:
       block_type_id:
         type: integer
@@ -82,7 +92,7 @@ definitions:
       created_at:
         type: string
       formatting:
-        $ref: '#/definitions/dto.BlockFormatting'
+        $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting'
       id:
         type: string
       note_id:
@@ -92,7 +102,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  dto.FormattingRange:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange:
     properties:
       bold:
         type: boolean
@@ -110,17 +120,21 @@ definitions:
       underline:
         type: boolean
     type: object
-  dto.MoveBlockRequest:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.MoveBlockRequest:
     properties:
       new_position:
         type: integer
     type: object
-  dto.Note:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note:
     properties:
       created_at:
         type: string
       id:
         type: string
+      is_favorite:
+        type: boolean
+      is_public:
+        type: boolean
       parent_id:
         type: string
       title:
@@ -130,33 +144,68 @@ definitions:
       user_id:
         type: string
     type: object
-  dto.NoteRequest:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest:
     properties:
+      is_favorite:
+        type: boolean
+      is_public:
+        type: boolean
       parent_id:
         type: string
       title:
         type: string
     type: object
-  dto.NoteResponse:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteResponse:
     properties:
       blocks:
         items:
-          $ref: '#/definitions/dto.BlockWithFormatting'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockWithFormatting'
         type: array
       note:
-        $ref: '#/definitions/dto.Note'
+        $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
     type: object
-  dto.NotesResponse:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NotesResponse:
     properties:
       notes:
         items:
-          $ref: '#/definitions/dto.Note'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
         type: array
       total:
         type: integer
     type: object
-  dto.Profile:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Subnote:
     properties:
+      block_id:
+        type: string
+      note:
+        $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
+    type: object
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.UpdateBlockContentRequest:
+    properties:
+      content:
+        type: string
+    type: object
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar:
+    properties:
+      avatarURL:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: string
+      minioKey:
+        type: string
+      profileID:
+        type: string
+      updatedAt:
+        type: string
+      urlexpiresAt:
+        type: string
+    type: object
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile:
+    properties:
+      avatar:
+        type: string
       created_at:
         type: string
       id:
@@ -166,56 +215,27 @@ definitions:
       username:
         type: string
     type: object
-  dto.SignInUser:
-    properties:
-      password:
-        type: string
-      username:
-        type: string
-    required:
-    - password
-    - username
-    type: object
-  dto.SignUpUser:
-    properties:
-      password:
-        type: string
-      username:
-        type: string
-    required:
-    - password
-    - username
-    type: object
-  dto.UpdateBlockContentRequest:
-    properties:
-      content:
-        type: string
-    type: object
-  dto.UpdatePassword:
+  github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.UpdatePassword:
     properties:
       new_password:
         type: string
       old_password:
         type: string
     type: object
-  dto.UserResponse:
-    properties:
-      id:
-        type: string
-      username:
-        type: string
-    type: object
 host: localhost:8000
 info:
   contact: {}
-  description: API for note-taking application
+  description: |-
+    API for the Noterian note-taking application.
+    Authentication is performed via a JWT-cookie set by /signup and /signin.
+    State-changing endpoints additionally require an X-CSRF-Token header (obtain it from /csrf-token).
   title: WHITECROWSOFT API
   version: "1.0"
 paths:
-  /csrf/token:
+  /csrf-token:
     get:
-      consumes:
-      - application/json
+      description: Возвращает CSRF-токен в теле и Set-Cookie. Используется во всех
+        методах, изменяющих состояние (POST/PUT/DELETE), через заголовок X-CSRF-Token.
       produces:
       - application/json
       responses:
@@ -236,6 +256,7 @@ paths:
       - csrf
   /logout:
     post:
+      description: Сбрасывает JWT-cookie текущей сессии.
       produces:
       - application/json
       responses:
@@ -247,8 +268,29 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "405":
-          description: Неверный метод
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Выход пользователя
+      tags:
+      - auth
+  /notes:
+    get:
+      description: Возвращает все заметки текущего пользователя.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NotesResponse'
+        "401":
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
@@ -259,83 +301,56 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Выход пользователя
-      tags:
-      - auth
-  /notes:
-    get:
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of notes retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.NotesResponse'
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
       security:
       - ApiKeyAuth: []
-      summary: Получение всех заметок для пользователя
+      summary: Список заметок пользователя
       tags:
       - notes
     post:
       consumes:
       - application/json
       parameters:
-      - description: Note creation data
+      - description: Параметры заметки
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.NoteRequest'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest'
       produces:
       - application/json
       responses:
         "201":
-          description: Note created successfully
+          description: Created
           schema:
-            $ref: '#/definitions/dto.Note'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
         "400":
-          description: Invalid request body or note data
+          description: Некорректные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Создание заметки
+      - CsrfToken: []
+      summary: Создать заметку
       tags:
       - notes
   /notes/{noteId}:
     delete:
-      consumes:
-      - application/json
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
@@ -344,47 +359,47 @@ paths:
       - application/json
       responses:
         "204":
-          description: Note deleted successfully (no content)
+          description: Заметка удалена
         "400":
-          description: Invalid note ID format
+          description: Некорректный noteId
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note not found
+          description: Заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Удаление заметки
+      - CsrfToken: []
+      summary: Удалить заметку
       tags:
       - notes
     get:
-      consumes:
-      - application/json
+      description: Возвращает заметку c блоками и форматированиями.
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
@@ -393,396 +408,119 @@ paths:
       - application/json
       responses:
         "200":
-          description: Note retrieved successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.NoteResponse'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteResponse'
         "400":
-          description: Invalid note ID format
+          description: Некорректный noteId
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note not found
+          description: Заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Получение заметки по ID
+      summary: Получить заметку
       tags:
       - notes
     put:
       consumes:
       - application/json
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
         type: string
-      - description: Note update data
+      - description: Новые данные заметки
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.NoteRequest'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Note updated successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Note'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
         "400":
-          description: Invalid request body, note ID, or note data
+          description: Некорректные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note not found
+          description: Заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление заметки
+      - CsrfToken: []
+      summary: Обновить заметку
       tags:
       - notes
-  /notes/{noteId}/blocks:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Note ID (UUID format)
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: Block creation data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.BlockRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Block created successfully
-          schema:
-            $ref: '#/definitions/dto.Block'
-        "400":
-          description: Invalid request body, note ID, block data, or block type
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden - user does not have access to this note
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Note not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Создание блока в заметке
-      tags:
-      - blocks
-  /notes/{noteId}/blocks/{blockId}:
-    delete:
-      consumes:
-      - application/json
-      parameters:
-      - description: Note ID (UUID format)
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: Block ID (UUID format)
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Block deleted successfully (no content)
-        "400":
-          description: Invalid note ID or block ID format
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden - user does not have access to this note
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Note or block not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Удаление блока
-      tags:
-      - blocks
-    get:
-      consumes:
-      - application/json
-      parameters:
-      - description: Note ID (UUID format)
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: Block ID (UUID format)
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Block retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.Block'
-        "400":
-          description: Invalid note ID or block ID format
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden - user does not have access to this note
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Note or block not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Получение блока
-      tags:
-      - blocks
-  /notes/{noteId}/blocks/{blockId}/attachments:
-    delete:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID заметки
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: ID блока
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Вложение успешно удалено
-        "400":
-          description: Невалидный NoteID или BlockID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Невалидный UserID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ запрещен
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Заметка, блок или вложение не найдены
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Удаление вложения
-      tags:
-      - attachments
-    get:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID заметки
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: ID блока
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Информация о вложении
-          schema:
-            $ref: '#/definitions/dto.Attachment'
-        "400":
-          description: Невалидный NoteID или BlockID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Невалидный UserID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Доступ запрещен
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Заметка, блок или вложение не найдены
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Внутренняя ошибка сервера
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Получение вложения
-      tags:
-      - attachments
+  /notes/{noteId}/attachments:
     post:
       consumes:
       - multipart/form-data
+      description: Загружает файл в MinIO и создаёт блок-аттач в заметке. Поддерживает
+        image, gif, audio, video.
       parameters:
-      - description: ID заметки
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
         type: string
-      - description: ID блока
-        in: path
-        name: blockId
-        required: true
-        type: string
-      - description: Файл для загрузки (JPEG, PNG, WEBP, макс. 100MB)
+      - description: Позиция вставки блока
+        in: query
+        name: position
+        type: integer
+      - description: Файл вложения
         in: formData
         name: file
         required: true
@@ -791,23 +529,23 @@ paths:
       - application/json
       responses:
         "201":
-          description: Информация о загруженном вложении
+          description: Created
           schema:
-            $ref: '#/definitions/dto.Attachment'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment'
         "400":
-          description: Невалидный NoteID/BlockID или неподдерживаемый MIME-тип
+          description: Недопустимый mime-type или позиция
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Невалидный UserID
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Доступ запрещен
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
@@ -819,7 +557,7 @@ paths:
               type: string
             type: object
         "409":
-          description: Блок уже содержит вложение
+          description: У блока уже есть аттач
           schema:
             additionalProperties:
               type: string
@@ -838,7 +576,229 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Загрузка вложения
+      - CsrfToken: []
+      summary: Загрузить аттач в заметку
+      tags:
+      - attachments
+  /notes/{noteId}/blocks:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: Параметры блока
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block'
+        "400":
+          description: Некорректные данные
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Заметка не найдена
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Создать блок заметки
+      tags:
+      - blocks
+  /notes/{noteId}/blocks/{blockId}:
+    delete:
+      parameters:
+      - description: UUID заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: UUID блока
+        in: path
+        name: blockId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Блок удалён
+        "400":
+          description: Некорректный noteId/blockId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Заметка или блок не найдены
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Удалить блок
+      tags:
+      - blocks
+  /notes/{noteId}/blocks/{blockId}/attachments:
+    delete:
+      parameters:
+      - description: UUID заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: UUID блока
+        in: path
+        name: blockId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Аттач удалён
+        "400":
+          description: Некорректный noteId/blockId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Заметка, блок или аттач не найдены
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Удалить аттач
+      tags:
+      - attachments
+    get:
+      parameters:
+      - description: UUID заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: UUID блока
+        in: path
+        name: blockId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment'
+        "400":
+          description: Некорректный noteId/blockId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Заметка, блок или аттач не найдены
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Получить аттач блока
       tags:
       - attachments
   /notes/{noteId}/blocks/{blockId}/content:
@@ -846,238 +806,127 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
         type: string
-      - description: Block ID (UUID format)
+      - description: UUID блока
         in: path
         name: blockId
         required: true
         type: string
-      - description: New block content
+      - description: Новое содержимое
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UpdateBlockContentRequest'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.UpdateBlockContentRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Block content updated successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Block'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block'
         "400":
-          description: Invalid request body, note ID, block ID, or block data
+          description: Некорректные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note or block not found
+          description: Заметка или блок не найдены
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление контента блока
+      - CsrfToken: []
+      summary: Обновить содержимое блока
       tags:
       - blocks
   /notes/{noteId}/blocks/{blockId}/formatting:
-    delete:
-      consumes:
-      - application/json
-      parameters:
-      - description: Note ID (UUID format)
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: Block ID (UUID format)
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: All formatting reset successfully
-          schema:
-            $ref: '#/definitions/dto.BlockFormatting'
-        "400":
-          description: Invalid note ID or block ID format
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden - user does not have access to this note
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Note or block not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Сброс форматирования блока
-      tags:
-      - blocks
-    get:
-      consumes:
-      - application/json
-      parameters:
-      - description: Note ID (UUID format)
-        in: path
-        name: noteId
-        required: true
-        type: string
-      - description: Block ID (UUID format)
-        in: path
-        name: blockId
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Block formatting retrieved successfully
-          schema:
-            $ref: '#/definitions/dto.BlockFormatting'
-        "400":
-          description: Invalid note ID or block ID format
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Unauthorized - missing or invalid token
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "403":
-          description: Forbidden - user does not have access to this note
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Note or block not found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Получение форматирования блока
-      tags:
-      - blocks
     put:
       consumes:
       - application/json
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
         type: string
-      - description: Block ID (UUID format)
+      - description: UUID блока
         in: path
         name: blockId
         required: true
         type: string
-      - description: Formatting range and styles to apply
+      - description: Диапазон форматирования
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.FormattingRange'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange'
       produces:
       - application/json
       responses:
         "200":
-          description: Formatting updated successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.BlockFormatting'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting'
         "400":
-          description: Invalid request body, note ID, block ID, formatting data, or
-            formatting not supported for this block type
+          description: Некорректные данные форматирования
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note or block not found
+          description: Заметка, блок или тип блока не найдены
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление форматирования блока
+      - CsrfToken: []
+      summary: Обновить форматирование блока
       tags:
       - blocks
   /notes/{noteId}/blocks/{blockId}/move:
@@ -1085,227 +934,405 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: Note ID (UUID format)
+      - description: UUID заметки
         in: path
         name: noteId
         required: true
         type: string
-      - description: Block ID (UUID format)
+      - description: UUID блока
         in: path
         name: blockId
         required: true
         type: string
-      - description: New position data
+      - description: Новая позиция блока
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.MoveBlockRequest'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.MoveBlockRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Block moved successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Block'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block'
         "400":
-          description: Invalid request body, note ID, block ID, or position
+          description: Некорректные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - missing or invalid token
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "403":
-          description: Forbidden - user does not have access to this note
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Note or block not found
+          description: Заметка или блок не найдены
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Перемещение блока
+      - CsrfToken: []
+      summary: Переместить блок
       tags:
       - blocks
-  /profile:
-    delete:
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: Profile deleted successfully
-        "401":
-          description: Unauthorized - Invalid UserID
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Удаление профиля пользователя
-      tags:
-      - profiles
+  /notes/{noteId}/subnote:
     get:
-      consumes:
-      - application/json
+      parameters:
+      - description: UUID родительской заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: Profile retrieved successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Profile'
+            items:
+              $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note'
+            type: array
+        "400":
+          description: Некорректный noteId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Получение профиля пользователя
+      summary: Список подзаметок
       tags:
-      - profiles
-    put:
+      - subnotes
+    post:
       consumes:
       - application/json
       parameters:
-      - description: Profile update data
+      - description: UUID родительской заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: Позиция вставки блока-ссылки в родительскую заметку
+        in: query
+        name: position
+        type: integer
+      - description: Параметры подзаметки
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.Profile'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Profile updated successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Profile'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Subnote'
         "400":
-          description: Bad request - Invalid profile data or missing body
+          description: Некорректные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Родительская заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Обновление профиля пользователя
+      - CsrfToken: []
+      summary: Создать подзаметку
       tags:
-      - profiles
-  /profile/avatar:
+      - subnotes
+  /notes/{noteId}/subnote/{subnoteId}:
     delete:
-      consumes:
-      - application/json
+      parameters:
+      - description: UUID родительской заметки
+        in: path
+        name: noteId
+        required: true
+        type: string
+      - description: UUID подзаметки
+        in: path
+        name: subnoteId
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "204":
-          description: Avatar deleted successfully
+          description: Подзаметка удалена
+        "400":
+          description: Некорректные идентификаторы
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Доступ запрещён
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Avatar not found
+          description: Заметка не найдена
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Удаление аватара профиля
+      - CsrfToken: []
+      summary: Удалить подзаметку
       tags:
-      - avatars
-    get:
-      consumes:
+      - subnotes
+  /profile:
+    delete:
+      description: Удаляет профиль текущего пользователя и сбрасывает сессионную cookie.
+      produces:
       - application/json
+      responses:
+        "204":
+          description: Профиль удалён
+        "400":
+          description: Пользователь не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Удалить аккаунт
+      tags:
+      - profile
+    get:
       produces:
       - application/json
       responses:
         "200":
-          description: Avatar retrieved successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Avatar'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile'
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: Avatar not found
+          description: Пользователь не найден
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Получение аватара профиля
+      summary: Профиль текущего пользователя
       tags:
-      - avatars
+      - profile
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Новые данные профиля
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile'
+        "400":
+          description: Некорректные данные
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Обновить профиль
+      tags:
+      - profile
+  /profile/avatar:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Аватар удалён
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Аватар не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - CsrfToken: []
+      summary: Удалить аватар
+      tags:
+      - profile
+    get:
+      description: Возвращает аватар текущего пользователя со ссылкой на MinIO.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar'
+        "401":
+          description: Неавторизован
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Аватар не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Получить аватар
+      tags:
+      - profile
     post:
       consumes:
       - multipart/form-data
       parameters:
-      - description: Avatar image file (JPEG, PNG, or WEBP)
+      - description: Файл изображения
         in: formData
         name: file
         required: true
@@ -1314,105 +1341,108 @@ paths:
       - application/json
       responses:
         "201":
-          description: Avatar uploaded successfully
+          description: Created
           schema:
-            $ref: '#/definitions/dto.Avatar'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar'
         "400":
-          description: Bad request - Invalid MIME type
+          description: Недопустимый mime-type
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "413":
-          description: File too large (max 100MB)
+          description: Файл слишком большой
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Загрузка аватара профиля
+      - CsrfToken: []
+      summary: Загрузить аватар
       tags:
-      - avatars
+      - profile
   /profile/password:
     put:
       consumes:
       - application/json
       parameters:
-      - description: Old and new password data
+      - description: Старый и новый пароли
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UpdatePassword'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.UpdatePassword'
       produces:
       - application/json
       responses:
         "200":
-          description: Password changed successfully
+          description: OK
           schema:
-            $ref: '#/definitions/dto.Profile'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile'
         "400":
-          description: Bad request - Invalid password data or missing body
+          description: Некорректные данные или неверный старый пароль
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
-          description: Unauthorized - Invalid UserID
+          description: Неавторизован
           schema:
             additionalProperties:
               type: string
             type: object
         "404":
-          description: User not found or wrong password
+          description: Пользователь не найден
           schema:
             additionalProperties:
               type: string
             type: object
         "500":
-          description: Internal server error
+          description: Внутренняя ошибка сервера
           schema:
             additionalProperties:
               type: string
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Смена пароля профиля
+      - CsrfToken: []
+      summary: Сменить пароль
       tags:
-      - profiles
+      - profile
   /signin:
     post:
       consumes:
       - application/json
+      description: Проверяет учётные данные и устанавливает JWT-cookie сессии.
       parameters:
-      - description: Данные для входа
+      - description: Учётные данные
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.SignInUser'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignInUser'
       produces:
       - application/json
       responses:
         "200":
-          description: Успешный вход
+          description: Аутентификация успешна, в Set-Cookie возвращается JWT
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse'
         "400":
-          description: Невалидный ввод
+          description: Некорректные входные данные
           schema:
             additionalProperties:
               type: string
@@ -1424,7 +1454,7 @@ paths:
               type: string
             type: object
         "405":
-          description: Неверный метод
+          description: Пустое тело запроса
           schema:
             additionalProperties:
               type: string
@@ -1435,41 +1465,36 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Вход пользователя
+      summary: Аутентификация пользователя
       tags:
       - auth
   /signup:
     post:
       consumes:
       - application/json
+      description: Создаёт нового пользователя и устанавливает JWT-cookie сессии.
       parameters:
-      - description: Данные для регистрации
+      - description: Данные регистрации
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.SignUpUser'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignUpUser'
       produces:
       - application/json
       responses:
         "200":
-          description: Успешная регистрация
+          description: Пользователь создан, в Set-Cookie возвращается JWT
           schema:
-            $ref: '#/definitions/dto.UserResponse'
+            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse'
         "400":
-          description: Невалидный ввод или невалидные username/password
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "401":
-          description: Неавторизован
+          description: Некорректные входные данные
           schema:
             additionalProperties:
               type: string
             type: object
         "405":
-          description: Неверный метод
+          description: Пустое тело запроса
           schema:
             additionalProperties:
               type: string
@@ -1486,19 +1511,38 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Регистрация пользователя
+      summary: Регистрация нового пользователя
       tags:
       - auth
 produces:
 - application/json
+schemes:
+- http
+- https
 securityDefinitions:
   ApiKeyAuth:
-    description: JWT token stored in cookie
+    description: JWT-токен сессии, выставляется сервером после /signup или /signin.
     in: cookie
     name: token
     type: apiKey
   CsrfToken:
+    description: CSRF-токен, полученный из /csrf-token. Требуется для POST/PUT/DELETE.
     in: header
     name: X-CSRF-Token
     type: apiKey
 swagger: "2.0"
+tags:
+- description: Регистрация, вход и выход пользователя
+  name: auth
+- description: Выдача CSRF-токена
+  name: csrf
+- description: Управление заметками
+  name: notes
+- description: Подзаметки
+  name: subnotes
+- description: Блоки внутри заметки
+  name: blocks
+- description: Аттачи (изображения, gif, аудио, видео)
+  name: attachments
+- description: Профиль и аватар пользователя
+  name: profile
