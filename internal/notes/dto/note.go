@@ -15,6 +15,7 @@ type Note struct {
 	IsPublic   bool       `json:"is_public"`
 	IsFavorite bool       `json:"is_favorite"`
 	Icon       string     `json:"icon"`
+	HeaderURL  string     `json:"header_url"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
@@ -33,6 +34,7 @@ func ToNoteDTO(note *models.Note) Note {
 		IsPublic:   note.IsPublic,
 		IsFavorite: note.IsFavorite,
 		Icon:       note.Icon,
+		HeaderURL:  note.HeaderURL,
 		CreatedAt:  note.CreatedAt,
 		UpdatedAt:  note.UpdatedAt,
 	}

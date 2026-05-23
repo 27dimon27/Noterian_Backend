@@ -7,6 +7,8 @@ option go_package = "proto/attachments/grpc/gen";
 service AttachmentService {
     rpc GetAttachment(GetAttachmentRequest) returns (AttachmentResponse);
     rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+    rpc GetHeader(GetHeaderRequest) returns (HeaderResponse);
+    rpc DeleteHeader(DeleteHeaderRequest) returns (DeleteHeaderResponse);
 }
 
 message GetAttachmentRequest {
@@ -21,13 +23,35 @@ message DeleteAttachmentRequest {
     string user_id = 3;
 }
 
+message GetHeaderRequest {
+    string note_id = 1;
+    string user_id = 2;
+}
+
+message DeleteHeaderRequest {
+    string note_id = 1;
+    string user_id = 2;
+}
+
 message DeleteAttachmentResponse {}
+
+message DeleteHeaderResponse {}
 
 message AttachmentResponse {
     string id = 1;
     string block_id = 2;
     string minio_key = 3;
     string attach_url = 4;
+    int64 url_expires_at = 5;
+    int64 created_at = 6;
+    int64 updated_at = 7;
+}
+
+message HeaderResponse {
+    string id = 1;
+    string note_id = 2;
+    string minio_key = 3;
+    string header_url = 4;
     int64 url_expires_at = 5;
     int64 created_at = 6;
     int64 updated_at = 7;

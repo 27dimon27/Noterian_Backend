@@ -60,8 +60,9 @@ message NoteResponse {
     optional string parent_id = 4;
     bool is_public = 5;
     string icon = 6;
-    google.protobuf.Timestamp created_at = 7;
-    google.protobuf.Timestamp updated_at = 8;
+    string header_url = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
 }
 
 message BlockResponse {
