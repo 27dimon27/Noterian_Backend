@@ -26,6 +26,31 @@ const (
 		RETURNING minio_key
 	`
 
+	CREATE_HEADER = `
+		INSERT INTO headers (id, note_id, minio_key, header_url, url_expires_at, created_at, updated_at) 
+		VALUES ($1, $2, $3, $4, $5, now(), now()) 
+		RETURNING id, note_id, minio_key, header_url, url_expires_at, created_at, updated_at
+	`
+
+	GET_HEADER_BY_NOTE_ID = `
+		SELECT id, note_id, minio_key, header_url, url_expires_at, created_at, updated_at 
+		FROM headers 
+		WHERE note_id = $1
+	`
+
+	UPDATE_HEADER_URL = `
+		UPDATE headers 
+		SET header_url = $2, url_expires_at = $3, updated_at = now()
+		WHERE id = $1
+		RETURNING header_url, url_expires_at, updated_at
+	`
+
+	DELETE_HEADER_BY_NOTE_ID = `
+		DELETE FROM headers 
+		WHERE note_id = $1 
+		RETURNING minio_key
+	`
+
 	GET_NOTE_BY_ID = `
 		SELECT id, user_id, title, parent_id, created_at, updated_at 
 		FROM notes 

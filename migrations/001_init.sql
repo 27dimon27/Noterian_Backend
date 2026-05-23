@@ -78,6 +78,16 @@ CREATE TABLE IF NOT EXISTS attachments (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS headers (
+    id UUID PRIMARY KEY,
+    note_id UUID NOT NULL UNIQUE REFERENCES notes(id) ON DELETE CASCADE,
+    minio_key VARCHAR(255) NOT NULL,
+    header_url TEXT NOT NULL UNIQUE,
+    url_expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX idx_notes_user_id ON notes(user_id);
 CREATE INDEX idx_notes_parent_id ON notes(parent_id);
 CREATE INDEX idx_blocks_note_id ON blocks(note_id);

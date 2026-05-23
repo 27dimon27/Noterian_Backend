@@ -27,6 +27,7 @@ const (
 	DEFAULT_MINIO_USE_SSL                    = false
 	DEFAULT_MINIO_ATTACHMENTS_BUCKET         = "attachments"
 	DEFAULT_MINIO_AVATARS_BUCKET             = "avatars"
+	DEFAULT_MINIO_HEADERS_BUCKET             = "headers"
 	DEFAULT_ATTACHMENTS_PORT                 = "50051"
 	DEFAULT_NOTES_PORT                       = "50052"
 	DEFAULT_PROFILES_PORT                    = "50053"
@@ -77,6 +78,7 @@ type MinIOConfig struct {
 	UseSSL            bool
 	AttachmentsBucket string
 	AvatarsBucket     string
+	HeadersBucket     string
 }
 
 type ServicesConfig struct {
@@ -205,6 +207,11 @@ func Load() *Config {
 		avatarsBucket = DEFAULT_MINIO_AVATARS_BUCKET
 	}
 
+	headersBucket := os.Getenv("MINIO_HEADERS_BUCKET")
+	if headersBucket == "" {
+		headersBucket = DEFAULT_MINIO_HEADERS_BUCKET
+	}
+
 	attachmentsPort := os.Getenv("ATTACHMENTS_PORT")
 	if attachmentsPort == "" {
 		attachmentsPort = DEFAULT_ATTACHMENTS_PORT
@@ -276,6 +283,7 @@ func Load() *Config {
 			UseSSL:            useSSL,
 			AttachmentsBucket: attachmentsBucket,
 			AvatarsBucket:     avatarsBucket,
+			HeadersBucket:     headersBucket,
 		},
 		Services: ServicesConfig{
 			AttachmentsPort: attachmentsPort,
