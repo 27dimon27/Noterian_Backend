@@ -14,6 +14,7 @@ type Note struct {
 	ParentID   *uuid.UUID `json:"parent_id,omitempty"`
 	IsPublic   bool       `json:"is_public"`
 	IsFavorite bool       `json:"is_favorite"`
+	Icon       string     `json:"icon"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
@@ -31,6 +32,7 @@ func ToNoteDTO(note *models.Note) Note {
 		ParentID:   note.ParentID,
 		IsPublic:   note.IsPublic,
 		IsFavorite: note.IsFavorite,
+		Icon:       note.Icon,
 		CreatedAt:  note.CreatedAt,
 		UpdatedAt:  note.UpdatedAt,
 	}
