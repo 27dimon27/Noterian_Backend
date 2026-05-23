@@ -21,11 +21,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/csrf/token": {
+        "/csrf-token": {
             "get": {
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Возвращает CSRF-токен в теле и Set-Cookie. Используется во всех методах, изменяющих состояние (POST/PUT/DELETE), через заголовок X-CSRF-Token.",
                 "produces": [
                     "application/json"
                 ],
@@ -57,6 +55,12 @@ const docTemplate = `{
         },
         "/logout": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Сбрасывает JWT-cookie текущей сессии.",
                 "produces": [
                     "application/json"
                 ],
@@ -70,15 +74,6 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Неавторизован",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "405": {
-                        "description": "Неверный метод",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -105,682 +100,23 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Возвращает все заметки текущего пользователя.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "notes"
                 ],
-                "summary": "Получение всех заметок для пользователя",
+                "summary": "Список заметок пользователя",
                 "responses": {
                     "200": {
-                        "description": "List of notes retrieved successfully",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.NotesResponse"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NotesResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "notes"
-                ],
-                "summary": "Создание заметки",
-                "parameters": [
-                    {
-                        "description": "Note creation data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.NoteRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Note created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Note"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body or note data",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "notes"
-                ],
-                "summary": "Получение заметки по ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Note retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.NoteResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid note ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "notes"
-                ],
-                "summary": "Обновление заметки",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Note update data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.NoteRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Note updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Note"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, note ID, or note data",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "notes"
-                ],
-                "summary": "Удаление заметки",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Note deleted successfully (no content)"
-                    },
-                    "400": {
-                        "description": "Invalid note ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}/blocks": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Создание блока в заметке",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Block creation data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.BlockRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Block created successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Block"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, note ID, block data, or block type",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}/blocks/{blockId}": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Получение блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Block retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Block"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid note ID or block ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Удаление блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Block deleted successfully (no content)"
-                    },
-                    "400": {
-                        "description": "Invalid note ID or block ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}/blocks/{blockId}/attachments": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "attachments"
-                ],
-                "summary": "Получение вложения",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID заметки",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID блока",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Информация о вложении",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Attachment"
-                        }
-                    },
-                    "400": {
-                        "description": "Невалидный NoteID или BlockID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Невалидный UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Заметка, блок или вложение не найдены",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -803,8 +139,326 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
                     }
                 ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Создать заметку",
+                "parameters": [
+                    {
+                        "description": "Параметры заметки",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает заметку c блоками и форматированиями.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Получить заметку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный noteId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Обновить заметку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новые данные заметки",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notes"
+                ],
+                "summary": "Удалить заметку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Заметка удалена"
+                    },
+                    "400": {
+                        "description": "Некорректный noteId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/attachments": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "description": "Загружает файл в MinIO и создаёт блок-аттач в заметке. Поддерживает image, gif, audio, video.",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -814,25 +468,24 @@ const docTemplate = `{
                 "tags": [
                     "attachments"
                 ],
-                "summary": "Загрузка вложения",
+                "summary": "Загрузить аттач в заметку",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "ID заметки",
+                        "description": "UUID заметки",
                         "name": "noteId",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "type": "string",
-                        "description": "ID блока",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
+                        "type": "integer",
+                        "description": "Позиция вставки блока",
+                        "name": "position",
+                        "in": "query"
                     },
                     {
                         "type": "file",
-                        "description": "Файл для загрузки (JPEG, PNG, WEBP, макс. 100MB)",
+                        "description": "Файл вложения",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -840,13 +493,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Информация о загруженном вложении",
+                        "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/dto.Attachment"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment"
                         }
                     },
                     "400": {
-                        "description": "Невалидный NoteID/BlockID или неподдерживаемый MIME-тип",
+                        "description": "Недопустимый mime-type или позиция",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -855,7 +508,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Невалидный UserID",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -864,7 +517,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Доступ запрещён",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -882,7 +535,1208 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Блок уже содержит вложение",
+                        "description": "У блока уже есть аттач",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Файл слишком большой",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blocks"
+                ],
+                "summary": "Создать блок заметки",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Параметры блока",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks/{blockId}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blocks"
+                ],
+                "summary": "Удалить блок",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Блок удалён"
+                    },
+                    "400": {
+                        "description": "Некорректный noteId/blockId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка или блок не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks/{blockId}/attachments": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachments"
+                ],
+                "summary": "Получить аттач блока",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный noteId/blockId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка, блок или аттач не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "attachments"
+                ],
+                "summary": "Удалить аттач",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Аттач удалён"
+                    },
+                    "400": {
+                        "description": "Некорректный noteId/blockId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка, блок или аттач не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks/{blockId}/content": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blocks"
+                ],
+                "summary": "Обновить содержимое блока",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новое содержимое",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.UpdateBlockContentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка или блок не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks/{blockId}/formatting": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blocks"
+                ],
+                "summary": "Обновить форматирование блока",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Диапазон форматирования",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные форматирования",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка, блок или тип блока не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/blocks/{blockId}/move": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blocks"
+                ],
+                "summary": "Переместить блок",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID блока",
+                        "name": "blockId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новая позиция блока",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.MoveBlockRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка или блок не найдены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/subnote": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subnotes"
+                ],
+                "summary": "Список подзаметок",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID родительской заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный noteId",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subnotes"
+                ],
+                "summary": "Создать подзаметку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID родительской заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Позиция вставки блока-ссылки в родительскую заметку",
+                        "name": "position",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Параметры подзаметки",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Subnote"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Родительская заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notes/{noteId}/subnote/{subnoteId}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "subnotes"
+                ],
+                "summary": "Удалить подзаметку",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID родительской заметки",
+                        "name": "noteId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID подзаметки",
+                        "name": "subnoteId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Подзаметка удалена"
+                    },
+                    "400": {
+                        "description": "Некорректные идентификаторы",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Заметка не найдена",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Профиль текущего пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Обновить профиль",
+                "parameters": [
+                    {
+                        "description": "Новые данные профиля",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректные данные",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "description": "Удаляет профиль текущего пользователя и сбрасывает сессионную cookie.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Удалить аккаунт",
+                "responses": {
+                    "204": {
+                        "description": "Профиль удалён"
+                    },
+                    "400": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/avatar": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Возвращает аватар текущего пользователя со ссылкой на MinIO.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Получить аватар",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Аватар не найден",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
+                    }
+                ],
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "profile"
+                ],
+                "summary": "Загрузить аватар",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Файл изображения",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar"
+                        }
+                    },
+                    "400": {
+                        "description": "Недопустимый mime-type",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -914,58 +1768,24 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
                     }
-                ],
-                "consumes": [
-                    "application/json"
                 ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "attachments"
+                    "profile"
                 ],
-                "summary": "Удаление вложения",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "ID заметки",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "ID блока",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
+                "summary": "Удалить аватар",
                 "responses": {
                     "204": {
-                        "description": "Вложение успешно удалено"
-                    },
-                    "400": {
-                        "description": "Невалидный NoteID или BlockID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                        "description": "Аватар удалён"
                     },
                     "401": {
-                        "description": "Невалидный UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Доступ запрещен",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -974,7 +1794,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Заметка, блок или вложение не найдены",
+                        "description": "Аватар не найден",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -994,795 +1814,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/notes/{noteId}/blocks/{blockId}/content": {
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Обновление контента блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "New block content",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateBlockContentRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Block content updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Block"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, note ID, block ID, or block data",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}/blocks/{blockId}/formatting": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Получение форматирования блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Block formatting retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.BlockFormatting"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid note ID or block ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Обновление форматирования блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Formatting range and styles to apply",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.FormattingRange"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Formatting updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.BlockFormatting"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, note ID, block ID, formatting data, or formatting not supported for this block type",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Сброс форматирования блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "All formatting reset successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.BlockFormatting"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid note ID or block ID format",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/notes/{noteId}/blocks/{blockId}/move": {
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "blocks"
-                ],
-                "summary": "Перемещение блока",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Note ID (UUID format)",
-                        "name": "noteId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Block ID (UUID format)",
-                        "name": "blockId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "New position data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.MoveBlockRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Block moved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Block"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, note ID, block ID, or position",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - missing or invalid token",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden - user does not have access to this note",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Note or block not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/profile": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "profiles"
-                ],
-                "summary": "Получение профиля пользователя",
-                "responses": {
-                    "200": {
-                        "description": "Profile retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Profile"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "profiles"
-                ],
-                "summary": "Обновление профиля пользователя",
-                "parameters": [
-                    {
-                        "description": "Profile update data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.Profile"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Profile updated successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Profile"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - Invalid profile data or missing body",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "profiles"
-                ],
-                "summary": "Удаление профиля пользователя",
-                "responses": {
-                    "204": {
-                        "description": "Profile deleted successfully"
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/profile/avatar": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "avatars"
-                ],
-                "summary": "Получение аватара профиля",
-                "responses": {
-                    "200": {
-                        "description": "Avatar retrieved successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Avatar"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Avatar not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "avatars"
-                ],
-                "summary": "Загрузка аватара профиля",
-                "parameters": [
-                    {
-                        "type": "file",
-                        "description": "Avatar image file (JPEG, PNG, or WEBP)",
-                        "name": "file",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Avatar uploaded successfully",
-                        "schema": {
-                            "$ref": "#/definitions/dto.Avatar"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request - Invalid MIME type",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "413": {
-                        "description": "File too large (max 100MB)",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "avatars"
-                ],
-                "summary": "Удаление аватара профиля",
-                "responses": {
-                    "204": {
-                        "description": "Avatar deleted successfully"
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid UserID",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Avatar not found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/profile/password": {
             "put": {
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "CsrfToken": []
                     }
                 ],
                 "consumes": [
@@ -1792,29 +1831,29 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "profiles"
+                    "profile"
                 ],
-                "summary": "Смена пароля профиля",
+                "summary": "Сменить пароль",
                 "parameters": [
                     {
-                        "description": "Old and new password data",
+                        "description": "Старый и новый пароли",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UpdatePassword"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.UpdatePassword"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Password changed successfully",
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.Profile"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile"
                         }
                     },
                     "400": {
-                        "description": "Bad request - Invalid password data or missing body",
+                        "description": "Некорректные данные или неверный старый пароль",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1823,7 +1862,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - Invalid UserID",
+                        "description": "Неавторизован",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1832,7 +1871,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "User not found or wrong password",
+                        "description": "Пользователь не найден",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1841,7 +1880,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Внутренняя ошибка сервера",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1854,6 +1893,7 @@ const docTemplate = `{
         },
         "/signin": {
             "post": {
+                "description": "Проверяет учётные данные и устанавливает JWT-cookie сессии.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1863,27 +1903,27 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Вход пользователя",
+                "summary": "Аутентификация пользователя",
                 "parameters": [
                     {
-                        "description": "Данные для входа",
+                        "description": "Учётные данные",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SignInUser"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignInUser"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешный вход",
+                        "description": "Аутентификация успешна, в Set-Cookie возвращается JWT",
                         "schema": {
-                            "$ref": "#/definitions/dto.UserResponse"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Невалидный ввод",
+                        "description": "Некорректные входные данные",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1901,7 +1941,7 @@ const docTemplate = `{
                         }
                     },
                     "405": {
-                        "description": "Неверный метод",
+                        "description": "Пустое тело запроса",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1923,6 +1963,7 @@ const docTemplate = `{
         },
         "/signup": {
             "post": {
+                "description": "Создаёт нового пользователя и устанавливает JWT-cookie сессии.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1932,36 +1973,27 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "Регистрация пользователя",
+                "summary": "Регистрация нового пользователя",
                 "parameters": [
                     {
-                        "description": "Данные для регистрации",
+                        "description": "Данные регистрации",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SignUpUser"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignUpUser"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешная регистрация",
+                        "description": "Пользователь создан, в Set-Cookie возвращается JWT",
                         "schema": {
-                            "$ref": "#/definitions/dto.UserResponse"
+                            "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse"
                         }
                     },
                     "400": {
-                        "description": "Невалидный ввод или невалидные username/password",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Неавторизован",
+                        "description": "Некорректные входные данные",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1970,7 +2002,7 @@ const docTemplate = `{
                         }
                     },
                     "405": {
-                        "description": "Неверный метод",
+                        "description": "Пустое тело запроса",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -2001,7 +2033,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "dto.Attachment": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_attachments_dto.Attachment": {
             "type": "object",
             "properties": {
                 "attach_url": {
@@ -2027,33 +2059,48 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.Avatar": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignInUser": {
             "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
             "properties": {
-                "avatarURL": {
+                "password": {
                     "type": "string"
                 },
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "minioKey": {
-                    "type": "string"
-                },
-                "profileID": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "urlexpiresAt": {
+                "username": {
                     "type": "string"
                 }
             }
         },
-        "dto.Block": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.SignUpUser": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_auth_dto.UserResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Block": {
             "type": "object",
             "properties": {
                 "block_type_id": {
@@ -2079,7 +2126,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.BlockFormatting": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting": {
             "type": "object",
             "properties": {
                 "block_id": {
@@ -2088,12 +2135,12 @@ const docTemplate = `{
                 "ranges": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.FormattingRange"
+                        "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange"
                     }
                 }
             }
         },
-        "dto.BlockRequest": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockRequest": {
             "type": "object",
             "properties": {
                 "block_type_id": {
@@ -2110,7 +2157,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.BlockWithFormatting": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockWithFormatting": {
             "type": "object",
             "properties": {
                 "block_type_id": {
@@ -2123,7 +2170,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "formatting": {
-                    "$ref": "#/definitions/dto.BlockFormatting"
+                    "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockFormatting"
                 },
                 "id": {
                     "type": "string"
@@ -2139,7 +2186,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.FormattingRange": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.FormattingRange": {
             "type": "object",
             "properties": {
                 "bold": {
@@ -2165,7 +2212,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.MoveBlockRequest": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.MoveBlockRequest": {
             "type": "object",
             "properties": {
                 "new_position": {
@@ -2173,7 +2220,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.Note": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -2181,6 +2228,12 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "string"
+                },
+                "is_favorite": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
                 },
                 "parent_id": {
                     "type": "string"
@@ -2196,9 +2249,15 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.NoteRequest": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteRequest": {
             "type": "object",
             "properties": {
+                "is_favorite": {
+                    "type": "boolean"
+                },
+                "is_public": {
+                    "type": "boolean"
+                },
                 "parent_id": {
                     "type": "string"
                 },
@@ -2207,27 +2266,27 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.NoteResponse": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NoteResponse": {
             "type": "object",
             "properties": {
                 "blocks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.BlockWithFormatting"
+                        "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.BlockWithFormatting"
                     }
                 },
                 "note": {
-                    "$ref": "#/definitions/dto.Note"
+                    "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
                 }
             }
         },
-        "dto.NotesResponse": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.NotesResponse": {
             "type": "object",
             "properties": {
                 "notes": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.Note"
+                        "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
                     }
                 },
                 "total": {
@@ -2235,9 +2294,57 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.Profile": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Subnote": {
             "type": "object",
             "properties": {
+                "block_id": {
+                    "type": "string"
+                },
+                "note": {
+                    "$ref": "#/definitions/github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.Note"
+                }
+            }
+        },
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_notes_dto.UpdateBlockContentRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Avatar": {
+            "type": "object",
+            "properties": {
+                "avatarURL": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "minioKey": {
+                    "type": "string"
+                },
+                "profileID": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "urlexpiresAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.Profile": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -2252,45 +2359,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SignInUser": {
-            "type": "object",
-            "required": [
-                "password",
-                "username"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.SignUpUser": {
-            "type": "object",
-            "required": [
-                "password",
-                "username"
-            ],
-            "properties": {
-                "password": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.UpdateBlockContentRequest": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.UpdatePassword": {
+        "github_com_go-park-mail-ru_2026_1_WHITECROWSOFT_internal_profiles_dto.UpdatePassword": {
             "type": "object",
             "properties": {
                 "new_password": {
@@ -2300,32 +2369,52 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "dto.UserResponse": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
         }
     },
     "securityDefinitions": {
         "ApiKeyAuth": {
-            "description": "JWT token stored in cookie",
+            "description": "JWT-токен сессии, выставляется сервером после /signup или /signin.",
             "type": "apiKey",
             "name": "token",
             "in": "cookie"
         },
         "CsrfToken": {
+            "description": "CSRF-токен, полученный из /csrf-token. Требуется для POST/PUT/DELETE.",
             "type": "apiKey",
             "name": "X-CSRF-Token",
             "in": "header"
         }
-    }
+    },
+    "tags": [
+        {
+            "description": "Регистрация, вход и выход пользователя",
+            "name": "auth"
+        },
+        {
+            "description": "Выдача CSRF-токена",
+            "name": "csrf"
+        },
+        {
+            "description": "Управление заметками",
+            "name": "notes"
+        },
+        {
+            "description": "Подзаметки",
+            "name": "subnotes"
+        },
+        {
+            "description": "Блоки внутри заметки",
+            "name": "blocks"
+        },
+        {
+            "description": "Аттачи (изображения, gif, аудио, видео)",
+            "name": "attachments"
+        },
+        {
+            "description": "Профиль и аватар пользователя",
+            "name": "profile"
+        }
+    ]
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
@@ -2333,9 +2422,9 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8000",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"http", "https"},
 	Title:            "WHITECROWSOFT API",
-	Description:      "API for note-taking application",
+	Description:      "API for the Noterian note-taking application.\nAuthentication is performed via a JWT-cookie set by /signup and /signin.\nState-changing endpoints additionally require an X-CSRF-Token header (obtain it from /csrf-token).",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

@@ -41,6 +41,16 @@ func NewProfileHandler(profileUsecase ProfileUsecase, jwtConfig config.JWTConfig
 	}
 }
 
+// GetProfile godoc
+// @Summary      Профиль текущего пользователя
+// @Tags         profile
+// @Produce      json
+// @Success      200  {object}  dto.Profile
+// @Failure      401  {object}  map[string]string  "Неавторизован"
+// @Failure      404  {object}  map[string]string  "Пользователь не найден"
+// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /profile [get]
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -63,6 +73,19 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// UpdateProfile godoc
+// @Summary      Обновить профиль
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.Profile  true  "Новые данные профиля"
+// @Success      200      {object}  dto.Profile
+// @Failure      400      {object}  map[string]string  "Некорректные данные"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /profile [put]
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
@@ -101,6 +124,18 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// DeleteProfile godoc
+// @Summary      Удалить аккаунт
+// @Description  Удаляет профиль текущего пользователя и сбрасывает сессионную cookie.
+// @Tags         profile
+// @Produce      json
+// @Success      204  "Профиль удалён"
+// @Failure      400  {object}  map[string]string  "Пользователь не найден"
+// @Failure      401  {object}  map[string]string  "Неавторизован"
+// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /profile [delete]
 func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -132,6 +167,17 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
+// GetAvatar godoc
+// @Summary      Получить аватар
+// @Description  Возвращает аватар текущего пользователя со ссылкой на MinIO.
+// @Tags         profile
+// @Produce      json
+// @Success      200  {object}  dto.Avatar
+// @Failure      401  {object}  map[string]string  "Неавторизован"
+// @Failure      404  {object}  map[string]string  "Аватар не найден"
+// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /profile/avatar [get]
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -155,6 +201,20 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// UploadAvatar godoc
+// @Summary      Загрузить аватар
+// @Tags         profile
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file  formData  file  true  "Файл изображения"
+// @Success      201   {object}  dto.Avatar
+// @Failure      400   {object}  map[string]string  "Недопустимый mime-type"
+// @Failure      401   {object}  map[string]string  "Неавторизован"
+// @Failure      413   {object}  map[string]string  "Файл слишком большой"
+// @Failure      500   {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /profile/avatar [post]
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -207,6 +267,17 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// DeleteAvatar godoc
+// @Summary      Удалить аватар
+// @Tags         profile
+// @Produce      json
+// @Success      204  "Аватар удалён"
+// @Failure      401  {object}  map[string]string  "Неавторизован"
+// @Failure      404  {object}  map[string]string  "Аватар не найден"
+// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /profile/avatar [delete]
 func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -227,6 +298,20 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
+// ChangePassword godoc
+// @Summary      Сменить пароль
+// @Tags         profile
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.UpdatePassword  true  "Старый и новый пароли"
+// @Success      200      {object}  dto.Profile
+// @Failure      400      {object}  map[string]string  "Некорректные данные или неверный старый пароль"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      404      {object}  map[string]string  "Пользователь не найден"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /profile/password [put]
 func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)

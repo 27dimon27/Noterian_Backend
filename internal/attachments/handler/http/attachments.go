@@ -38,6 +38,20 @@ func NewAttachmentHandler(attachmentUsecase AttachmentUsecase) *AttachmentHandle
 	}
 }
 
+// GetAttachment godoc
+// @Summary      Получить аттач блока
+// @Tags         attachments
+// @Produce      json
+// @Param        noteId   path      string  true  "UUID заметки"
+// @Param        blockId  path      string  true  "UUID блока"
+// @Success      200      {object}  dto.Attachment
+// @Failure      400      {object}  map[string]string  "Некорректный noteId/blockId"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка, блок или аттач не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /notes/{noteId}/blocks/{blockId}/attachments [get]
 func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -87,6 +101,26 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
+// UploadAttachment godoc
+// @Summary      Загрузить аттач в заметку
+// @Description  Загружает файл в MinIO и создаёт блок-аттач в заметке. Поддерживает image, gif, audio, video.
+// @Tags         attachments
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        noteId    path      string  true   "UUID заметки"
+// @Param        position  query     int     false  "Позиция вставки блока"
+// @Param        file      formData  file    true   "Файл вложения"
+// @Success      201       {object}  dto.Attachment
+// @Failure      400       {object}  map[string]string  "Недопустимый mime-type или позиция"
+// @Failure      401       {object}  map[string]string  "Неавторизован"
+// @Failure      403       {object}  map[string]string  "Доступ запрещён"
+// @Failure      404       {object}  map[string]string  "Заметка или блок не найдены"
+// @Failure      409       {object}  map[string]string  "У блока уже есть аттач"
+// @Failure      413       {object}  map[string]string  "Файл слишком большой"
+// @Failure      500       {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/attachments [post]
 func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -194,6 +228,21 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
+// DeleteAttachment godoc
+// @Summary      Удалить аттач
+// @Tags         attachments
+// @Produce      json
+// @Param        noteId   path  string  true  "UUID заметки"
+// @Param        blockId  path  string  true  "UUID блока"
+// @Success      204      "Аттач удалён"
+// @Failure      400      {object}  map[string]string  "Некорректный noteId/blockId"
+// @Failure      401      {object}  map[string]string  "Неавторизован"
+// @Failure      403      {object}  map[string]string  "Доступ запрещён"
+// @Failure      404      {object}  map[string]string  "Заметка, блок или аттач не найдены"
+// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Security     CsrfToken
+// @Router       /notes/{noteId}/blocks/{blockId}/attachments [delete]
 func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
