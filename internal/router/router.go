@@ -35,7 +35,7 @@ import (
 )
 
 func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
-	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
 	noteRepository := notesRepository.NewNoteRepository(db)
 	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 
@@ -126,6 +126,10 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.MoveBlock))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteBlock))))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateBlockFormatting))))
+
+	r.Handle("GET /notes/{noteId}/header", authMiddleware(http.HandlerFunc(attachmentHandler.GetHeader)))
+	r.Handle("POST /notes/{noteId}/header", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadHeader))))
+	r.Handle("DELETE /notes/{noteId}/header", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.DeleteHeader))))
 
 	// для обратной совместимости
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(http.HandlerFunc(attachmentHandler.GetAttachment)))

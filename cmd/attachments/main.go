@@ -44,7 +44,7 @@ func main() {
 	}
 	defer notesClient.Close()
 
-	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket)
+	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, notesClient)
 	server := attachmentsgrpcserver.NewServer(attachmentUsecase)
 

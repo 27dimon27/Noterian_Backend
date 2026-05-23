@@ -23,6 +23,9 @@ type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
 	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
+	GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, error)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 }
 
 type AttachmentHandler struct {
@@ -227,6 +230,156 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 		case errors.Is(err, attachments.ErrForbidden):
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	write.JSONResponse(w, http.StatusNoContent, nil)
+}
+
+func (h *AttachmentHandler) GetHeader(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
+		return
+	}
+
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
+		return
+	}
+
+	header, err := h.attachmentUsecase.GetHeader(r.Context(), noteID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, attachments.ErrHeaderNotFound):
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	response := dto.ToHeaderDTO(*header)
+
+	write.JSONResponse(w, http.StatusOK, response)
+}
+
+func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
+		return
+	}
+
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, attachments.MAX_IMAGE_SIZE)
+
+	if err := r.ParseMultipartForm(0); err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrFileTooLarge)
+		} else {
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	file, fileHeader, err := r.FormFile("file")
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil && err != io.EOF {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	mimeType := http.DetectContentType(buffer)
+
+	if !attachments.AllowedMimeTypesForImage[mimeType] {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidMimeType)
+		return
+	}
+
+	if fileHeader.Size > attachments.MAX_IMAGE_SIZE {
+		write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrSpecificFileTooLarge["IMAGE"])
+		return
+	}
+
+	fileToUpload := io.MultiReader(bytes.NewReader(buffer), file)
+
+	header, err := h.attachmentUsecase.UploadHeader(
+		r.Context(),
+		noteID,
+		userID,
+		fileHeader.Filename,
+		fileHeader.Size,
+		mimeType,
+		fileToUpload,
+	)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if header == nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := dto.ToHeaderDTO(*header)
+
+	write.JSONResponse(w, http.StatusCreated, response)
+}
+
+func (h *AttachmentHandler) DeleteHeader(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
+		return
+	}
+
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
+		return
+	}
+
+	if err := h.attachmentUsecase.DeleteHeader(r.Context(), noteID, userID); err != nil {
+		switch {
+		case errors.Is(err, attachments.ErrHeaderNotFound):
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)

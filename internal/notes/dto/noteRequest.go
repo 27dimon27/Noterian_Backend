@@ -11,6 +11,7 @@ type NoteRequest struct {
 	ParentID   *uuid.UUID `json:"parent_id,omitempty"`
 	IsPublic   bool       `json:"is_public"`
 	IsFavorite bool       `json:"is_favorite"`
+	Icon       string     `json:"icon"`
 }
 
 func FromNoteRequestDTO(noteReq NoteRequest) models.Note {
@@ -20,5 +21,6 @@ func FromNoteRequestDTO(noteReq NoteRequest) models.Note {
 		ParentID:   noteReq.ParentID,
 		IsPublic:   noteReq.IsPublic,
 		IsFavorite: noteReq.IsFavorite,
+		Icon:       noteReq.Icon,
 	}
 }

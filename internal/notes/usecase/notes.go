@@ -7,6 +7,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 //go:generate mockgen -source=notes.go -destination=mocks/mock_usecase_notes.go -package=mocks
@@ -76,6 +78,17 @@ func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid
 		}
 	}
 
+	header, err := u.attachmentsClient.GetHeader(ctx, noteID, userID)
+	if err != nil {
+		if status.Code(err) != codes.NotFound {
+			return nil, nil, nil, err
+		}
+	}
+
+	if header != nil {
+		note.HeaderURL = header.HeaderUrl
+	}
+
 	formattings, err := u.noteRepository.GetBlocksFormatting(ctx, blockIDs)
 	if err != nil {
 		return nil, nil, nil, err
@@ -123,6 +136,11 @@ func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID u
 				continue
 			}
 		}
+	}
+
+	err = u.attachmentsClient.DeleteHeader(ctx, noteID, userID)
+	if err != nil && status.Code(err) != codes.NotFound {
+		return err
 	}
 
 	return u.noteRepository.DeleteNote(ctx, noteID)
