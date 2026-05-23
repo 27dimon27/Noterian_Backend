@@ -170,7 +170,7 @@ func TestLogFunctions(t *testing.T) {
 		Debug(ctx, "debug message no id", "key2", "value2")
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["msg"] != "debug message no id" {
 			t.Errorf("expected msg 'debug message no id', got %v", logEntry["msg"])
@@ -187,7 +187,7 @@ func TestLogFunctions(t *testing.T) {
 		Info(ctx, "info message", "user", "testuser")
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["msg"] != "info message" {
 			t.Errorf("expected msg 'info message', got %v", logEntry["msg"])
@@ -207,7 +207,7 @@ func TestLogFunctions(t *testing.T) {
 		Info(ctx, "info with id", "status", "ok")
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["request_id"] != "req-789" {
 			t.Errorf("expected request_id req-789, got %v", logEntry["request_id"])
@@ -221,7 +221,7 @@ func TestLogFunctions(t *testing.T) {
 		Warn(ctx, "warn message", "code", 400)
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["msg"] != "warn message" {
 			t.Errorf("expected msg 'warn message', got %v", logEntry["msg"])
@@ -241,7 +241,7 @@ func TestLogFunctions(t *testing.T) {
 		Error(ctx, "error message", "error", "something went wrong")
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["msg"] != "error message" {
 			t.Errorf("expected msg 'error message', got %v", logEntry["msg"])
@@ -264,7 +264,7 @@ func TestLogFunctions(t *testing.T) {
 		Error(ctx, "error with id", "details", "crash")
 
 		var logEntry map[string]interface{}
-		json.Unmarshal(buf.Bytes(), &logEntry)
+		_ = json.Unmarshal(buf.Bytes(), &logEntry)
 
 		if logEntry["request_id"] != "error-req-456" {
 			t.Errorf("expected request_id error-req-456, got %v", logEntry["request_id"])

@@ -12,6 +12,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
@@ -47,10 +49,56 @@ services:
     networks:
       - noterian_network
 
-  backend:
+  attachments:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: /cmd/attachments/Dockerfile.attachments
+    restart: unless-stopped
+    env_file: ".env"
+    expose:
+      - "${ATTACHMENTS_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  notes:
+    build:
+      context: .
+      dockerfile: /cmd/notes/Dockerfile.notes
+    restart: unless-stopped
+    env_file: ".env"
+    expose:
+      - "${NOTES_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  profiles:
+    build:
+      context: .
+      dockerfile: /cmd/profiles/Dockerfile.profiles
+    restart: unless-stopped
+    env_file: ".env"
+    expose:
+      - "${PROFILES_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - noterian_network
+
+  main:
+    build:
+      context: .
+      dockerfile: /cmd/main/Dockerfile.main
     restart: unless-stopped
     env_file: ".env"
     expose:
@@ -60,6 +108,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      attachments:
+        condition: service_started
+      notes:
+        condition: service_started
+      profiles:
+        condition: service_started
     networks:
       - noterian_network
 

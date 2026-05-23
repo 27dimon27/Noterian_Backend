@@ -22,4 +22,5 @@ var (
 	ErrInvalidFormattingRange         = errors.New("Невалидный диапазон форматирования")
 	ErrInvalidFormattingForImageBlock = errors.New("Для блока с изображением допустимо только выравнивание")
 	ErrFormattingNotSupported         = errors.New("Форматирование не поддерживается для данного типа блока")
+	ErrBlockTypeNotFound              = errors.New("Тип блока не найден")
 )

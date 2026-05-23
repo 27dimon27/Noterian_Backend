@@ -5,20 +5,23 @@ import (
 	"database/sql"
 	"net/http"
 
-	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler"
-	authRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/repository"
+	attachmentsGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
+	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http"
+	attachmentsRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
+	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
+	"google.golang.org/grpc"
+
+	authGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
+	authHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler/http"
 	authUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/usecase"
 
-	attachmentsHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler"
-	attachmentsRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository"
-	attachmentsUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase"
-
-	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler"
-	notesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
+	notesGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
+	notesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/http"
+	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
-	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler"
-	profilesRepo "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
+	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http"
+	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
 
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -31,34 +34,47 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 )
 
-func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http.Handler, error) {
-	userRepo := authRepo.NewUserRepository(db)
+func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
+	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
+	noteRepository := notesRepository.NewNoteRepository(db)
+	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 
-	authUsecase, err := authUsecase.NewAuthUsecase(userRepo, cfg.JWT)
+	attachmentRemoteRepository, err := notesGrpcClient.NewAttachmentsServiceClient(cfg.Services.AttachmentsAddr)
 	if err != nil {
 		return nil, err
 	}
 
+	noteRemoteRepository, err := attachmentsGrpcClient.NewNotesServiceClient(cfg.Services.NotesAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	profileRemoteRepository, err := authGrpcClient.NewProfilesServiceClient(cfg.Services.ProfilesAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository)
+	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT)
+	if err != nil {
+		return nil, err
+	}
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRemoteRepository)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
+	if err != nil {
+		return nil, err
+	}
+
+	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
 	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
-
-	noteRepo := notesRepo.NewNoteRepository(db)
-	noteUsecase := notesUsecase.NewNoteUsecase(noteRepo)
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
-
-	profileRepo := profilesRepo.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
-
-	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepo)
-	if err != nil {
-		return nil, err
-	}
-
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
 
-	attachmentRepo := attachmentsRepo.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepo, noteRepo)
-	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
+	attachmentAdapter := websocket.NewAttachmentUsecaseAdapter(
+		attachmentUsecase.UploadAttachment,
+	)
 
-	wsHub := websocket.NewHub(noteUsecase, profileUsecase)
+	wsHub := websocket.NewHub(noteUsecase, profileUsecase, attachmentAdapter)
 	go wsHub.Run(context.Background())
 
 	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)
@@ -93,7 +109,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
-	r.HandleFunc("POST /logout", authHandler.LogOutUser)
+	r.HandleFunc("POST /logout", authHandler.LogoutUser)
 
 	r.Handle("GET /notes", authMiddleware(http.HandlerFunc(noteHandler.GetNotes)))
 	r.Handle("GET /notes/{noteId}", authMiddleware(http.HandlerFunc(noteHandler.GetNote)))
@@ -105,22 +121,24 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService) (http
 	r.Handle("POST /notes/{noteId}/subnote", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateSubnote))))
 	r.Handle("DELETE /notes/{noteId}/subnote/{subnoteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteSubnote))))
 
-	r.Handle("GET /notes/{noteId}/blocks/{blockId}", authMiddleware(http.HandlerFunc(noteHandler.GetBlock)))
 	r.Handle("POST /notes/{noteId}/blocks", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateBlock))))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/content", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateBlockContent))))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/move", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.MoveBlock))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteBlock))))
-	r.Handle("GET /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(http.HandlerFunc(noteHandler.GetBlockFormatting)))
 	r.Handle("PUT /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateBlockFormatting))))
-	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/formatting", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.ResetBlockFormatting))))
+
+	// для обратной совместимости
 	r.Handle("GET /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(http.HandlerFunc(attachmentHandler.GetAttachment)))
-	r.Handle("POST /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
+	r.Handle("POST /notes/{noteId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.UploadAttachment))))
 	r.Handle("DELETE /notes/{noteId}/blocks/{blockId}/attachments", authMiddleware(securityMiddleware(http.HandlerFunc(attachmentHandler.DeleteAttachment))))
 
 	r.Handle("GET /profile", authMiddleware(http.HandlerFunc(profileHandler.GetProfile)))
 	r.Handle("PUT /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UpdateProfile))))
 	r.Handle("DELETE /profile", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteProfile))))
+
+	// для обратной совместимости
 	r.Handle("GET /profile/avatar", authMiddleware(http.HandlerFunc(profileHandler.GetAvatar)))
+
 	r.Handle("POST /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.UploadAvatar))))
 	r.Handle("DELETE /profile/avatar", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.DeleteAvatar))))
 	r.Handle("PUT /profile/password", authMiddleware(securityMiddleware(http.HandlerFunc(profileHandler.ChangePassword))))

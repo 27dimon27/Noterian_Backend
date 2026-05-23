@@ -12,8 +12,7 @@ func ToNoteResponse(note *models.Note, blocks []models.Block, blockFormattings m
 
 	dtoBlocks := make([]BlockWithFormatting, len(blocks))
 	for i, block := range blocks {
-		formatting := blockFormattings[block.ID.String()]
-		dtoBlocks[i] = ToBlockWithFormattingDTO(block, formatting)
+		dtoBlocks[i] = ToBlockWithFormattingDTO(block, blockFormattings[block.ID.String()])
 	}
 
 	return NoteResponse{

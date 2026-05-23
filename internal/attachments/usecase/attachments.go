@@ -5,11 +5,11 @@ import (
 	"io"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 )
-
-//go:generate mockgen -source=attachments.go -destination=mocks/mock_usecase_attachments.go -package=mocks
 
 type AttachmentRepository interface {
 	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
@@ -17,34 +17,19 @@ type AttachmentRepository interface {
 	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
 }
 
-type NoteRepository interface {
-	GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
-	GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error)
-}
-
 type attachmentUsecase struct {
 	attachmentRepo AttachmentRepository
-	noteRepo       NoteRepository
+	notesClient    grpcclient.NotesServiceClient
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, noteRepo NoteRepository) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcclient.NotesServiceClient) *attachmentUsecase {
 	return &attachmentUsecase{
 		attachmentRepo: attachmentRepo,
-		noteRepo:       noteRepo,
+		notesClient:    notesClient,
 	}
 }
 
 func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
-	}
-
 	attachment, err := u.attachmentRepo.GetAttachment(ctx, blockID)
 	if err != nil {
 		return nil, err
@@ -60,25 +45,60 @@ func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID,
 func (u *attachmentUsecase) UploadAttachment(
 	ctx context.Context,
 	noteID uuid.UUID,
-	blockID uuid.UUID,
 	userID uuid.UUID,
 	fileName string,
 	fileSize int64,
 	mimeType string,
 	fileReader io.Reader,
+	hasPosition bool,
+	position int,
 ) (*models.Attachment, error) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	blockTypeID, err := u.getBlockTypeByMimeType(mimeType)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
+	blocks, err := u.notesClient.GetBlocks(ctx, noteID, userID)
 	if err != nil {
+		return nil, u.mapGrpcError(err)
+	}
+
+	var blockPosition int
+	if hasPosition {
+		if position < 0 || position > len(blocks) {
+			return nil, attachments.ErrInvalidPosition
+		}
+		blockPosition = position
+	} else {
+		blockPosition = len(blocks)
+	}
+
+	err = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, 1)
+	if err != nil {
+		return nil, u.mapGrpcError(err)
+	}
+
+	createdBlock, err := u.notesClient.CreateBlock(ctx, userID, &notesgen.BlockResponse{
+		NoteId:      noteID.String(),
+		BlockTypeId: int32(blockTypeID),
+		Position:    int32(blockPosition),
+		Content:     "",
+	})
+	if err != nil {
+		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
+		return nil, u.mapGrpcError(err)
+	}
+
+	blockID, err := uuid.Parse(createdBlock.Id)
+	if err != nil {
+		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
 		return nil, err
 	}
 
 	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
+		_, _ = u.notesClient.DeleteBlock(ctx, blockID, noteID, userID)
+		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
 		return nil, err
 	}
 
@@ -86,14 +106,12 @@ func (u *attachmentUsecase) UploadAttachment(
 }
 
 func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
+	block, err := u.notesClient.GetBlock(ctx, blockID, noteID, userID)
 	if err != nil {
-		return err
+		return u.mapGrpcError(err)
 	}
-
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return err
+	if block == nil {
+		return attachments.ErrBlockNotFound
 	}
 
 	if err := u.attachmentRepo.DeleteAttachment(ctx, blockID); err != nil {
@@ -103,36 +121,23 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 	return nil
 }
 
-func (u *attachmentUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
-	note, err := u.noteRepo.GetNote(ctx, noteID)
-	if err != nil {
-		return nil, err
+func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, error) {
+	if attachments.AllowedMimeTypesForImage[mimeType] {
+		return 2, nil
 	}
-
-	if note == nil {
-		return nil, attachments.ErrNoteNotFound
+	if attachments.AllowedMimeTypesForGIF[mimeType] {
+		return 2, nil
 	}
-
-	if note.UserID != userID {
-		return nil, attachments.ErrForbidden
+	if attachments.AllowedMimeTypesForAudio[mimeType] {
+		return 6, nil
 	}
-
-	return note, nil
+	if attachments.AllowedMimeTypesForVideo[mimeType] {
+		return 7, nil
+	}
+	return 0, attachments.ErrInvalidMimeType
 }
 
-func (u *attachmentUsecase) checkBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, error) {
-	block, err := u.noteRepo.GetBlock(ctx, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	if block == nil {
-		return nil, attachments.ErrBlockNotFound
-	}
-
-	if block.NoteID != noteID {
-		return nil, attachments.ErrForbidden
-	}
-
-	return block, nil
+func (u *attachmentUsecase) mapGrpcError(err error) error {
+	// можно добавить маппинг gRPC ошибок в доменные ошибки, например если пришел codes.NotFound - вернуть attachments.ErrNoteNotFound
+	return err
 }

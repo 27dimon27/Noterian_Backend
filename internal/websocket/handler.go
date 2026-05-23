@@ -55,7 +55,7 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
+	note, _, _, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
 	if err != nil {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return
@@ -141,7 +141,7 @@ func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 		conn.Close()
 	}()
 
-	conn.SetReadLimit(4096)
+	conn.SetReadLimit(MAX_VIDEO_SIZE)
 	err := conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	if err != nil {
 		log.Printf("Failed to set read deadline: %v", err)

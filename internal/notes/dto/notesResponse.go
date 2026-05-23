@@ -9,6 +9,7 @@ type NotesResponse struct {
 
 func ToNotesResponse(notes []models.Note) NotesResponse {
 	dtoNotes := make([]Note, len(notes))
+
 	for i, note := range notes {
 		dtoNotes[i] = ToNoteDTO(&note)
 	}

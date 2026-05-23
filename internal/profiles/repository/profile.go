@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/google/uuid"
@@ -105,7 +106,7 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, profiles.ErrAvatarNotFound
 		}
 		return nil, err
 	}
@@ -118,7 +119,7 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 
 		newExpiry := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
 
-		err = r.UpdateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
+		err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
 		if err != nil {
 			return nil, err
 		}
@@ -129,23 +130,6 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 	}
 
 	return avatar, nil
-}
-
-func (r *profileRepository) UpdateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
-	var returnedURL string
-	var returnedExpiresAt time.Time
-	var returnedUpdatedAt time.Time
-
-	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
-		&returnedURL,
-		&returnedExpiresAt,
-		&returnedUpdatedAt,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *profileRepository) UploadAvatar(
@@ -261,4 +245,67 @@ func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) (
 	}
 
 	return password, nil
+}
+
+func (r *profileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, auth.ErrUserExist
+	}
+
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.Profile{
+		ID:           uuid.New(),
+		Username:     username,
+		Password:     hashPassword,
+		TokenVersion: 1,
+	}
+
+	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *profileRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
+	user := &models.Profile{}
+
+	err := r.db.QueryRowContext(ctx, GET_USER_BY_USERNAME, username).Scan(
+		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, auth.ErrUserNotExist
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
+	var returnedURL string
+	var returnedExpiresAt time.Time
+	var returnedUpdatedAt time.Time
+
+	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
+		&returnedURL,
+		&returnedExpiresAt,
+		&returnedUpdatedAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

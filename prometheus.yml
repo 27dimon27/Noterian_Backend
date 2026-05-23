@@ -4,9 +4,9 @@ global:
 scrape_configs:
   - job_name: "whitecrowsoft-backend"
     static_configs:
-      - targets: ["localhost:${SERVER_PORT}"]
+      - targets: ["backend:8000"]
     metrics_path: "/metrics"
 
   - job_name: "node-exporter"
     static_configs:
-      - targets: ["localhost:${PROMETHEUS_PORT}"]
+      - targets: ["node-exporter:9100"]

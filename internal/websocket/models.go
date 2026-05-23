@@ -2,10 +2,51 @@ package websocket
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
 )
+
+const (
+	MAX_IMAGE_SIZE = 5 * 1024 * 1024
+	MAX_GIF_SIZE   = 15 * 1024 * 1024
+	MAX_AUDIO_SIZE = 30 * 1024 * 1024
+	MAX_VIDEO_SIZE = 50 * 1024 * 1024
+)
+
+var ErrInvalidMimeType = errors.New("Неподдерживаемый MIME-тип файла")
+
+var AllowedMimeTypesForImage = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+}
+
+var AllowedMimeTypesForGIF = map[string]bool{
+	"image/gif": true,
+}
+
+var AllowedMimeTypesForAudio = map[string]bool{
+	"audio/mpeg":  true,
+	"audio/mp4":   true,
+	"audio/ogg":   true,
+	"audio/wav":   true,
+	"audio/webm":  true,
+	"audio/flac":  true,
+	"audio/x-m4a": true,
+	"audio/aac":   true,
+	"audio/opus":  true,
+}
+
+var AllowedMimeTypesForVideo = map[string]bool{
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/ogg":       true,
+	"video/quicktime": true,
+	"video/x-msvideo": true,
+	"video/mpeg":      true,
+}
 
 type MessageType string
 
@@ -26,6 +67,8 @@ const (
 	MsgUpdateNoteTitle  MessageType = "update_note_title"
 	MsgUpdateNotePublic MessageType = "update_note_public"
 	MsgDeleteNote       MessageType = "delete_note"
+
+	MsgUploadAttachment MessageType = "upload_attachment"
 
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
@@ -118,6 +161,27 @@ type MoveBlockOperation struct {
 	Timestamp   int64  `json:"timestamp"`
 }
 
+type UploadAttachmentOperation struct {
+	ID       string `json:"id"`
+	FileName string `json:"fileName"`
+	// FileSize    int64  `json:"fileSize"`
+	// MimeType    string `json:"mimeType"`
+	FileData    []byte `json:"fileData"`
+	HasPosition bool   `json:"hasPosition"`
+	Position    int    `json:"position"`
+	UserID      string `json:"userId"`
+	Timestamp   int64  `json:"timestamp"`
+}
+
+type AttachmentResponse struct {
+	ID           string `json:"id"`
+	BlockID      string `json:"blockId"`
+	AttachURL    string `json:"attachUrl"`
+	URLExpiresAt int64  `json:"urlExpiresAt"`
+	CreatedAt    int64  `json:"createdAt"`
+	UpdatedAt    int64  `json:"updatedAt"`
+}
+
 type BroadcastMessage struct {
 	NoteID  string
 	Message WebSocketMessage
@@ -125,11 +189,9 @@ type BroadcastMessage struct {
 }
 
 type NoteUsecaseInterface interface {
-	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error)
-	UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note, userID uuid.UUID) (*models.Note, error)
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error)
+	UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
-	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
-	GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error)
 	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
 	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
 	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
@@ -139,4 +201,8 @@ type NoteUsecaseInterface interface {
 
 type ProfileUsecaseInterface interface {
 	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+}
+
+type AttachmentUsecaseInterface interface {
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error)
 }

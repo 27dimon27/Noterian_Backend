@@ -8,24 +8,38 @@ import (
 )
 
 type Note struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"user_id"`
-	Title     string     `json:"title"`
-	ParentID  *uuid.UUID `json:"parent_id,omitempty"`
-	IsPublic  bool       `json:"is_public"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Title      string     `json:"title"`
+	ParentID   *uuid.UUID `json:"parent_id,omitempty"`
+	IsPublic   bool       `json:"is_public"`
+	IsFavorite bool       `json:"is_favorite"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+type Subnote struct {
+	Note    Note      `json:"note"`
+	BlockID uuid.UUID `json:"block_id"`
 }
 
 func ToNoteDTO(note *models.Note) Note {
 	return Note{
-		ID:        note.ID,
-		UserID:    note.UserID,
-		Title:     note.Title,
-		ParentID:  note.ParentID,
-		IsPublic:  note.IsPublic,
-		CreatedAt: note.CreatedAt,
-		UpdatedAt: note.UpdatedAt,
+		ID:         note.ID,
+		UserID:     note.UserID,
+		Title:      note.Title,
+		ParentID:   note.ParentID,
+		IsPublic:   note.IsPublic,
+		IsFavorite: note.IsFavorite,
+		CreatedAt:  note.CreatedAt,
+		UpdatedAt:  note.UpdatedAt,
+	}
+}
+
+func ToSubnoteDTO(subnote models.Note, blockID uuid.UUID) Subnote {
+	return Subnote{
+		Note:    ToNoteDTO(&subnote),
+		BlockID: blockID,
 	}
 }
 

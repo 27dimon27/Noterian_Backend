@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -12,24 +13,26 @@ import (
 )
 
 type Hub struct {
-	mu             sync.RWMutex
-	rooms          map[string]*NoteRoom
-	register       chan *ClientInfo
-	unregister     chan *ClientInfo
-	broadcast      chan *BroadcastMessage
-	noteUsecase    NoteUsecaseInterface
-	profileUsecase ProfileUsecaseInterface
-	storage        *BatchStorage
+	mu                sync.RWMutex
+	rooms             map[string]*NoteRoom
+	register          chan *ClientInfo
+	unregister        chan *ClientInfo
+	broadcast         chan *BroadcastMessage
+	noteUsecase       NoteUsecaseInterface
+	profileUsecase    ProfileUsecaseInterface
+	attachmentUsecase AttachmentUsecaseInterface
+	storage           *BatchStorage
 }
 
-func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface) *Hub {
+func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface, attachmentUsecase AttachmentUsecaseInterface) *Hub {
 	hub := &Hub{
-		rooms:          make(map[string]*NoteRoom),
-		register:       make(chan *ClientInfo, 256),
-		unregister:     make(chan *ClientInfo, 256),
-		broadcast:      make(chan *BroadcastMessage, 512),
-		noteUsecase:    noteUsecase,
-		profileUsecase: profileUsecase,
+		rooms:             make(map[string]*NoteRoom),
+		register:          make(chan *ClientInfo, 256),
+		unregister:        make(chan *ClientInfo, 256),
+		broadcast:         make(chan *BroadcastMessage, 512),
+		noteUsecase:       noteUsecase,
+		profileUsecase:    profileUsecase,
+		attachmentUsecase: attachmentUsecase,
 	}
 
 	hub.storage = NewBatchStorage(hub)
@@ -190,13 +193,7 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		return
 	}
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
-		return
-	}
-
-	blocks, err := h.noteUsecase.GetBlocks(context.Background(), noteID)
+	note, blocks, blockFormattings, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -225,10 +222,11 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		UserID: client.UserID,
 		NoteID: client.NoteID,
 		Msg: map[string]any{
-			"note":           note,
-			"blocks":         blocks,
-			"cursors":        room.GetAllCursors(),
-			"sync_timestamp": time.Now().Unix(),
+			"note":              note,
+			"blocks":            blocks,
+			"block_formattings": blockFormattings,
+			"cursors":           room.GetAllCursors(),
+			"sync_timestamp":    time.Now().Unix(),
 		},
 	}
 }
@@ -295,6 +293,12 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 		var isPublic bool
 		if err := mapToStruct(msg.Msg, &isPublic); err == nil {
 			h.handleUpdateNotePublic(room, userID, isPublic)
+		}
+
+	case MsgUploadAttachment:
+		var op UploadAttachmentOperation
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleUploadAttachment(room, userID, &op)
 		}
 
 	case MsgDeleteNote:
@@ -502,7 +506,7 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		UserID:   userID,
 		UserName: client.UserName,
 		Msg:      createdBlock,
-	}, userID)
+	}, "")
 }
 
 func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOperation) {
@@ -568,7 +572,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -576,7 +580,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 
 	note.Title = newTitle
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -598,14 +602,14 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 	noteID, _ := uuid.Parse(room.NoteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
 		return
 	}
 
 	note.IsPublic = isPublic
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, *note, userUUID)
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
 	if err != nil {
 		return
 	}
@@ -627,6 +631,67 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 			room.RemoveClient(c.UserID)
 		}
 	}
+}
+
+func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAttachmentOperation) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	buffer := make([]byte, 512)
+	copy(buffer, op.FileData)
+
+	mimeType := http.DetectContentType(buffer)
+
+	maxSize, err := getMaxSizeByMimeType(mimeType)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid MIME-type of file", client)
+		return
+	}
+
+	fileSize := int64(len(op.FileData))
+
+	if fileSize > maxSize {
+		client.Send <- h.errorMessage("File too large", client)
+		return
+	}
+
+	attachment, err := h.attachmentUsecase.UploadAttachment(
+		context.Background(),
+		noteID,
+		userUUID,
+		op.FileName,
+		fileSize,
+		mimeType,
+		op.FileData,
+		op.HasPosition,
+		op.Position,
+	)
+	if err != nil {
+		log.Printf("Failed to upload attachment: %v", err)
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type:     MsgUploadAttachment,
+		UserID:   userID,
+		UserName: client.UserName,
+		Msg:      attachment,
+	}, "")
 }
 
 func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
@@ -690,7 +755,7 @@ func (h *Hub) isNoteOwner(noteID string, userID string) bool {
 	noteUUID, _ := uuid.Parse(noteID)
 	userUUID, _ := uuid.Parse(userID)
 
-	note, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
 	if err != nil || note == nil {
 		return false
 	}
@@ -763,4 +828,20 @@ func mapToStruct(data any, target any) error {
 		return err
 	}
 	return json.Unmarshal(jsonBytes, target)
+}
+
+func getMaxSizeByMimeType(mimeType string) (int64, error) {
+	if AllowedMimeTypesForImage[mimeType] {
+		return MAX_IMAGE_SIZE, nil
+	}
+	if AllowedMimeTypesForGIF[mimeType] {
+		return MAX_GIF_SIZE, nil
+	}
+	if AllowedMimeTypesForAudio[mimeType] {
+		return MAX_AUDIO_SIZE, nil
+	}
+	if AllowedMimeTypesForVideo[mimeType] {
+		return MAX_VIDEO_SIZE, nil
+	}
+	return 0, ErrInvalidMimeType
 }

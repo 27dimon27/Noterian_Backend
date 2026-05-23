@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package profiles;
+
+option go_package = "proto/profiles/grpc/gen";
+
+import "google/protobuf/timestamp.proto";
+
+service ProfileService {
+    rpc SignupUser(SignupUserRequest) returns (ProfileResponse);
+    rpc SigninUser(SigninUserRequest) returns (ProfileResponse);
+}
+
+message SignupUserRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message SigninUserRequest {
+    string username = 1;
+}
+
+message ProfileResponse {
+    string id = 1;
+    string username = 2;
+    string avatar_url = 3;
+    string password = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}

@@ -34,7 +34,7 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 		var note models.Note
 		var parentID sql.NullString
 
-		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt)
+		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -62,11 +62,11 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 	var parentID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, GET_NOTE_BY_ID, noteID).Scan(
-		&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
+		&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrNoteNotFound
 		}
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (r *noteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*mo
 	err := r.db.QueryRowContext(ctx, "SELECT id, name FROM block_types WHERE id = $1", blockTypeID).Scan(&blockType.ID, &blockType.Name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrBlockTypeNotFound
 		}
 		return nil, err
 	}
@@ -130,8 +130,8 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 		}
 	}
 
-	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID).Scan(
-		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.CreatedAt, &note.UpdatedAt,
+	err := r.db.QueryRowContext(ctx, CREATE_NOTE, note.UserID, note.Title, parentID, note.IsPublic, note.IsFavorite).Scan(
+		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.IsFavorite, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -151,12 +151,13 @@ func (r *noteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note 
 
 	updatedNote := &models.Note{}
 
-	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.IsPublic).Scan(
+	err := r.db.QueryRowContext(ctx, UPDATE_NOTE, noteID, note.Title, parentID, note.IsPublic, note.IsFavorite).Scan(
 		&updatedNote.ID,
 		&updatedNote.UserID,
 		&updatedNote.Title,
 		&updatedNote.ParentID,
 		&updatedNote.IsPublic,
+		&updatedNote.IsFavorite,
 		&updatedNote.CreatedAt,
 		&updatedNote.UpdatedAt,
 	)
@@ -205,7 +206,7 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, notes.ErrBlockNotFound
 		}
 		return nil, err
 	}
@@ -291,7 +292,8 @@ func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UU
 	if direction > 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition)
 		return err
-	} else if direction < 0 {
+	}
+	if direction < 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition)
 		return err
 	}
@@ -442,34 +444,9 @@ func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid
 	return r.GetBlockFormatting(ctx, blockID)
 }
 
-func (r *noteRepository) ResetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			if err == nil {
-				err = rollbackErr
-			}
-		}
-	}()
-
-	_, err = tx.ExecContext(ctx, DELETE_BLOCK_FORMATTING, blockID)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return r.GetBlockFormatting(ctx, blockID)
-}
-
 func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 	defer rows.Close()
@@ -479,7 +456,7 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 	for rows.Next() {
 		var subnote models.Note
 
-		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.CreatedAt, &subnote.UpdatedAt)
+		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.IsPublic, &subnote.IsFavorite, &subnote.CreatedAt, &subnote.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
