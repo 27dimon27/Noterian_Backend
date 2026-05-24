@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -32,6 +33,7 @@ type NoteUsecase interface {
 	CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note, hasPosition bool, position int) (*models.Note, uuid.UUID, error)
 	DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) error
 	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error
+	GenerateNotePDF(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*bytes.Buffer, error)
 }
 
 type NoteHandler struct {
@@ -869,4 +871,61 @@ func (h *NoteHandler) DeleteSubnote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	write.JSONResponse(w, http.StatusNoContent, nil)
+}
+
+// GetNotePDF godoc
+// @Summary      Скачать заметку в PDF
+// @Description  Возвращает PDF-файл заметки со всем её содержимым (текст, форматирование, аттачи, подзаметки).
+// @Tags         notes
+// @Produce      application/pdf
+// @Param        noteId  path      string  true  "UUID заметки"
+// @Success      200     {file}    application/pdf
+// @Failure      400     {object}  map[string]string  "Некорректный noteId"
+// @Failure      401     {object}  map[string]string  "Неавторизован"
+// @Failure      403     {object}  map[string]string  "Доступ запрещён"
+// @Failure      404     {object}  map[string]string  "Заметка не найдена"
+// @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Security     ApiKeyAuth
+// @Router       /notes/{noteId}/pdf [get]
+func (h *NoteHandler) GetNotePDF(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
+	if !ok {
+		write.JSONErrorResponse(w, http.StatusUnauthorized, notes.ErrInvalidUserID)
+		return
+	}
+
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	pdfBuffer, err := h.noteUsecase.GenerateNotePDF(r.Context(), noteID, userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, notes.ErrForbidden):
+			write.JSONErrorResponse(w, http.StatusForbidden, err)
+		case errors.Is(err, notes.ErrNoteNotFound):
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		default:
+			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"note-"+noteID.String()+".pdf\"")
+	w.Header().Set("Content-Length", strconv.Itoa(pdfBuffer.Len()))
+
+	_, err = w.Write(pdfBuffer.Bytes())
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
 }

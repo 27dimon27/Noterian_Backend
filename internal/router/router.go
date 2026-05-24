@@ -113,6 +113,7 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 
 	r.Handle("GET /notes", authMiddleware(http.HandlerFunc(noteHandler.GetNotes)))
 	r.Handle("GET /notes/{noteId}", authMiddleware(http.HandlerFunc(noteHandler.GetNote)))
+	r.Handle("GET /notes/{noteId}/pdf", authMiddleware(http.HandlerFunc(noteHandler.GetNotePDF)))
 	r.Handle("POST /notes", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.CreateNote))))
 	r.Handle("PUT /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.UpdateNote))))
 	r.Handle("DELETE /notes/{noteId}", authMiddleware(securityMiddleware(http.HandlerFunc(noteHandler.DeleteNote))))

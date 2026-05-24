@@ -1,11 +1,13 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/grpcclient"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/pdf"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -385,6 +387,68 @@ func (u *noteUsecase) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID,
 		return err
 	}
 	return nil
+}
+
+func (u *noteUsecase) GenerateNotePDF(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*bytes.Buffer, error) {
+	note, err := u.checkNoteAccess(ctx, noteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	blocks, err := u.noteRepository.GetBlocks(ctx, note.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	blockIDs := make([]uuid.UUID, len(blocks))
+	for i, block := range blocks {
+		blockIDs[i] = block.ID
+
+		if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
+			attachment, err := u.attachmentsClient.GetAttachment(ctx, block.ID, noteID, userID)
+			if err != nil {
+				continue
+			}
+			blocks[i].Content = attachment.AttachUrl
+		}
+	}
+
+	header, err := u.attachmentsClient.GetHeader(ctx, noteID, userID)
+	if err != nil {
+		if status.Code(err) != codes.NotFound {
+			return nil, err
+		}
+	}
+
+	headerURL := ""
+	if header != nil {
+		headerURL = header.HeaderUrl
+	}
+
+	formattings, err := u.noteRepository.GetBlocksFormatting(ctx, blockIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	subnotes, err := u.noteRepository.GetSubnotes(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	noteContent := &pdf.NoteContent{
+		Note:       note,
+		Blocks:     blocks,
+		Formatting: formattings,
+		Subnotes:   subnotes,
+		HeaderURL:  headerURL,
+	}
+
+	pdfBuffer, err := pdf.GeneratePDF(noteContent)
+	if err != nil {
+		return nil, err
+	}
+
+	return pdfBuffer, nil
 }
 
 func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, error) {
