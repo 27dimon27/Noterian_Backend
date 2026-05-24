@@ -7,9 +7,30 @@ import (
 	"net/http"
 	"strings"
 
+	_ "embed"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/jung-kurt/gofpdf/v2"
 )
+
+//go:embed fonts/arial.ttf
+var arialRegularTTF []byte
+
+//go:embed fonts/arialbd.ttf
+var arialBoldTTF []byte
+
+//go:embed fonts/ariali.ttf
+var arialItalicTTF []byte
+
+//go:embed fonts/arialbi.ttf
+var arialBoldItalicTTF []byte
+
+func registerPDFFonts(pdf *gofpdf.Fpdf) {
+	pdf.AddUTF8FontFromBytes("Arial", "", arialRegularTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "B", arialBoldTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "I", arialItalicTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "BI", arialBoldItalicTTF)
+}
 
 type NoteContent struct {
 	Note       *models.Note
@@ -29,6 +50,7 @@ var mimeToExt = map[string]string{
 
 func GeneratePDF(content *NoteContent) (*bytes.Buffer, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
+	registerPDFFonts(pdf)
 	pdf.AddPage()
 
 	addTitle(pdf, content.Note.Title)
@@ -155,7 +177,7 @@ func addFormattedText(pdf *gofpdf.Fpdf, content string, ranges []models.Formatti
 		bold      bool
 		italic    bool
 		underline bool
-		textAlign int // 0: left, 1: center, 2: right
+		textAlign int
 	}
 
 	var segments []segment
@@ -320,25 +342,6 @@ func addImageAttachment(pdf *gofpdf.Fpdf, imageURL string) {
 	pdf.MultiCell(0, 8, "Image: "+imageURL, "", "L", false)
 	pdf.Ln(5)
 }
-
-// func addFileAttachment(pdf *gofpdf.Fpdf, fileURL string) {
-// 	if fileURL == "" {
-// 		return
-// 	}
-
-// 	pdf.SetFont("Arial", "", 11)
-// 	pdf.SetTextColor(0, 0, 0)
-
-// 	// Extract filename from URL
-// 	filename := extractFilename(fileURL)
-
-// 	pdf.SetTextColor(0, 0, 255)
-// 	pdf.Write(6, "📎 "+filename)
-// 	pdf.SetTextColor(128, 128, 128)
-// 	pdf.Write(6, " ("+fileURL+")")
-// 	pdf.SetTextColor(0, 0, 0)
-// 	pdf.Ln(6)
-// }
 
 func addCodeBlock(pdf *gofpdf.Fpdf, content string) {
 	if content == "" {
