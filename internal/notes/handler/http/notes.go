@@ -21,6 +21,7 @@ import (
 type NoteUsecase interface {
 	GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error)
 	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error)
+	GetPublicNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error)
 	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
 	UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
 	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
@@ -928,4 +929,45 @@ func (h *NoteHandler) GetNotePDF(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
+}
+
+// GetPublicNote godoc
+// @Summary      Получить публичные метаданные заметки
+// @Description  Возвращает минимальные метаданные (id, title, icon) публичной заметки без авторизации. Используется для генерации meta-тегов для share-инга.
+// @Tags         notes
+// @Produce      json
+// @Param        noteId  path      string  true  "UUID заметки"
+// @Success      200     {object}  map[string]any
+// @Failure      400     {object}  map[string]string  "Некорректный noteId"
+// @Failure      404     {object}  map[string]string  "Заметка не найдена"
+// @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
+// @Router       /public/notes/{noteId} [get]
+func (h *NoteHandler) GetPublicNote(w http.ResponseWriter, r *http.Request) {
+	noteIDStr := r.PathValue("noteId")
+	if noteIDStr == "" {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrNoteIDRequired)
+		return
+	}
+
+	noteID, err := uuid.Parse(noteIDStr)
+	if err != nil {
+		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidNoteID)
+		return
+	}
+
+	note, err := h.noteUsecase.GetPublicNote(r.Context(), noteID)
+	if err != nil {
+		if errors.Is(err, notes.ErrNoteNotFound) {
+			write.JSONErrorResponse(w, http.StatusNotFound, err)
+			return
+		}
+		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	write.JSONResponse(w, http.StatusOK, map[string]any{
+		"id":    note.ID,
+		"title": note.Title,
+		"icon":  note.Icon,
+	})
 }
