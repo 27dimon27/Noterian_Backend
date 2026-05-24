@@ -134,6 +134,9 @@ func (s *Server) DeleteHeader(ctx context.Context, req *attachmentsgrpc.DeleteHe
 	}
 
 	if err := s.attachmentUsecase.DeleteHeader(ctx, noteID, userID); err != nil {
+		if errors.Is(err, attachments.ErrHeaderNotFound) {
+			return nil, status.Error(codes.NotFound, "header not found")
+		}
 		return nil, err
 	}
 

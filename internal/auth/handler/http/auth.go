@@ -9,14 +9,15 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	profilesdto "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
 type AuthUsecase interface {
-	SignupUser(ctx context.Context, username, password string) (userID string, err error)
-	SigninUser(ctx context.Context, username, password string) (userID string, err error)
+	SignupUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
+	SigninUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
 	Logout(ctx context.Context, w http.ResponseWriter)
 }
 
@@ -62,7 +63,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	userID, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
+	profile, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserExist):
@@ -75,7 +76,7 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, userID, signUpUser.Username)
+	h.saveUserCookie(w, profile)
 }
 
 // SigninUser godoc
@@ -108,7 +109,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	userID, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
+	profile, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrBadCredentials), errors.Is(err, auth.ErrUserNotExist):
@@ -119,7 +120,7 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.saveUserCookie(w, userID, signInUser.Username)
+	h.saveUserCookie(w, profile)
 }
 
 // LogoutUser godoc
@@ -137,8 +138,8 @@ func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
-func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, userID, username string) {
-	token, err := jwt.GenerateToken(userID, h.jwtConfig.CookieTime, h.jwtConfig.Secret)
+func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, profile *profilesdto.Profile) {
+	token, err := jwt.GenerateToken(profile.ID.String(), h.jwtConfig.CookieTime, h.jwtConfig.Secret)
 	if err != nil {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
 		return
@@ -155,7 +156,8 @@ func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, userID, username str
 	})
 
 	write.JSONResponse(w, http.StatusOK, dto.UserResponse{
-		ID:       userID,
-		Username: username,
+		ID:       profile.ID.String(),
+		Username: profile.Username,
+		Avatar:   profile.Avatar,
 	})
 }

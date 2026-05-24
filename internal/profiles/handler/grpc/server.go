@@ -42,7 +42,7 @@ func (s *Server) SignupUser(ctx context.Context, req *profilesgrpc.SignupUserReq
 	return &profilesgrpc.ProfileResponse{
 		Id:        user.ID.String(),
 		Username:  user.Username,
-		AvatarUrl: user.Avatar,
+		Avatar:    user.Avatar,
 		CreatedAt: timestamppb.New(user.CreatedAt),
 		UpdatedAt: timestamppb.New(user.UpdatedAt),
 	}, nil
@@ -62,7 +62,7 @@ func (s *Server) SigninUser(ctx context.Context, req *profilesgrpc.SigninUserReq
 	return &profilesgrpc.ProfileResponse{
 		Id:        user.ID.String(),
 		Username:  user.Username,
-		AvatarUrl: user.Avatar,
+		Avatar:    user.Avatar,
 		Password:  string(user.Password),
 		CreatedAt: timestamppb.New(user.CreatedAt),
 		UpdatedAt: timestamppb.New(user.UpdatedAt),

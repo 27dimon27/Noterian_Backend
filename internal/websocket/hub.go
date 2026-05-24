@@ -560,10 +560,6 @@ func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, op *MoveBlockOperat
 }
 
 func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle string) {
-	if !h.isNoteOwner(room.NoteID, userID) {
-		return
-	}
-
 	client, exists := room.GetClient(userID)
 	if !exists {
 		return
@@ -690,7 +686,18 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 		Type:     MsgUploadAttachment,
 		UserID:   userID,
 		UserName: client.UserName,
-		Msg:      attachment,
+		Msg: map[string]any{
+			"id":          attachment.ID,
+			"block_id":    attachment.BlockID,
+			"minio_key":   attachment.MinioKey,
+			"attach_url":  attachment.AttachURL,
+			"url_expires": attachment.URLExpiresAt.Unix(),
+			"created_at":  attachment.CreatedAt.Unix(),
+			"updated_at":  attachment.UpdatedAt.Unix(),
+			"note_id":     room.NoteID,
+			"position":    op.Position,
+			"mime_type":   mimeType,
+		},
 	}, "")
 }
 

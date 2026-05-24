@@ -5,15 +5,14 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/profiles/grpc/gen"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type ProfilesServiceClient interface {
-	SignupUser(ctx context.Context, username, password string) (userID uuid.UUID, err error)
-	SigninUser(ctx context.Context, username string) (userID uuid.UUID, passwordHash string, err error)
+	SignupUser(ctx context.Context, username, password string) (profile *profilesgrpc.ProfileResponse, err error)
+	SigninUser(ctx context.Context, username string) (profile *profilesgrpc.ProfileResponse, err error)
 	Close() error
 }
 
@@ -34,7 +33,7 @@ func NewProfilesServiceClient(addr string) (ProfilesServiceClient, error) {
 	}, nil
 }
 
-func (c *profilesServiceClient) SignupUser(ctx context.Context, username, password string) (uuid.UUID, error) {
+func (c *profilesServiceClient) SignupUser(ctx context.Context, username, password string) (*profilesgrpc.ProfileResponse, error) {
 	resp, err := c.client.SignupUser(ctx, &profilesgrpc.SignupUserRequest{
 		Username: username,
 		Password: password,
@@ -44,23 +43,18 @@ func (c *profilesServiceClient) SignupUser(ctx context.Context, username, passwo
 		if ok {
 			switch st.Code() {
 			case codes.AlreadyExists:
-				return uuid.Nil, auth.ErrUserExist
+				return nil, auth.ErrUserExist
 			case codes.InvalidArgument:
-				return uuid.Nil, auth.ErrBadCredentials
+				return nil, auth.ErrBadCredentials
 			}
 		}
-		return uuid.Nil, err
+		return nil, err
 	}
 
-	userID, err := uuid.Parse(resp.GetId())
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return userID, nil
+	return resp, nil
 }
 
-func (c *profilesServiceClient) SigninUser(ctx context.Context, username string) (uuid.UUID, string, error) {
+func (c *profilesServiceClient) SigninUser(ctx context.Context, username string) (*profilesgrpc.ProfileResponse, error) {
 	resp, err := c.client.SigninUser(ctx, &profilesgrpc.SigninUserRequest{
 		Username: username,
 	})
@@ -69,20 +63,15 @@ func (c *profilesServiceClient) SigninUser(ctx context.Context, username string)
 		if ok {
 			switch st.Code() {
 			case codes.NotFound:
-				return uuid.Nil, "", auth.ErrUserNotExist
+				return nil, auth.ErrUserNotExist
 			case codes.InvalidArgument:
-				return uuid.Nil, "", auth.ErrBadCredentials
+				return nil, auth.ErrBadCredentials
 			}
 		}
-		return uuid.Nil, "", err
+		return nil, err
 	}
 
-	userID, err := uuid.Parse(resp.GetId())
-	if err != nil {
-		return uuid.Nil, "", err
-	}
-
-	return userID, resp.GetPassword(), nil
+	return resp, nil
 }
 
 func (c *profilesServiceClient) Close() error {
