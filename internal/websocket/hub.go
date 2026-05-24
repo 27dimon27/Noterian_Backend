@@ -586,7 +586,7 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 		Type:     MsgUpdateNoteTitle,
 		UserID:   userID,
 		UserName: client.UserName,
-		Msg:      newTitle,
+		Msg:      map[string]string{"title": newTitle},
 	}, userID)
 }
 
