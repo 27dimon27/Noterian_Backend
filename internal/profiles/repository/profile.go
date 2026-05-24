@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/google/uuid"
@@ -254,7 +253,7 @@ func (r *profileRepository) SignupUser(ctx context.Context, username, password s
 		return nil, err
 	}
 	if exists {
-		return nil, auth.ErrUserExist
+		return nil, profiles.ErrUsernameExists
 	}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -285,7 +284,7 @@ func (r *profileRepository) SigninUser(ctx context.Context, username string) (*m
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, auth.ErrUserNotExist
+			return nil, profiles.ErrUserNotExist
 		}
 		return nil, err
 	}
