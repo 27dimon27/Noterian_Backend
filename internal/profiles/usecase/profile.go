@@ -234,7 +234,9 @@ func (u *profileUsecase) SigninUser(ctx context.Context, username string) (*mode
 		return nil, err
 	}
 
-	profile.Avatar = avatar.AvatarURL
+	if avatar != nil {
+		profile.Avatar = avatar.AvatarURL
+	}
 
 	return profile, nil
 }
