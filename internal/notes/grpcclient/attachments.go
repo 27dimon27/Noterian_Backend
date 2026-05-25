@@ -11,6 +11,8 @@ import (
 type AttachmentsServiceClient interface {
 	GetAttachment(ctx context.Context, blockID, noteID, userID uuid.UUID) (*attachmentsgen.AttachmentResponse, error)
 	DeleteAttachment(ctx context.Context, blockID, noteID, userID uuid.UUID) error
+	GetHeader(ctx context.Context, noteID, userID uuid.UUID) (*attachmentsgen.HeaderResponse, error)
+	DeleteHeader(ctx context.Context, noteID, userID uuid.UUID) error
 	Close() error
 }
 
@@ -44,6 +46,21 @@ func (c *attachmentsServiceClient) DeleteAttachment(ctx context.Context, blockID
 		BlockId: blockID.String(),
 		NoteId:  noteID.String(),
 		UserId:  userID.String(),
+	})
+	return err
+}
+
+func (c *attachmentsServiceClient) GetHeader(ctx context.Context, noteID, userID uuid.UUID) (*attachmentsgen.HeaderResponse, error) {
+	return c.client.GetHeader(ctx, &attachmentsgen.GetHeaderRequest{
+		NoteId: noteID.String(),
+		UserId: userID.String(),
+	})
+}
+
+func (c *attachmentsServiceClient) DeleteHeader(ctx context.Context, noteID, userID uuid.UUID) error {
+	_, err := c.client.DeleteHeader(ctx, &attachmentsgen.DeleteHeaderRequest{
+		NoteId: noteID.String(),
+		UserId: userID.String(),
 	})
 	return err
 }

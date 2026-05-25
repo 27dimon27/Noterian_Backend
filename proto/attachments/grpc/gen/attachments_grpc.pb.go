@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AttachmentService_GetAttachment_FullMethodName    = "/attachments.AttachmentService/GetAttachment"
 	AttachmentService_DeleteAttachment_FullMethodName = "/attachments.AttachmentService/DeleteAttachment"
+	AttachmentService_GetHeader_FullMethodName        = "/attachments.AttachmentService/GetHeader"
+	AttachmentService_DeleteHeader_FullMethodName     = "/attachments.AttachmentService/DeleteHeader"
 )
 
 // AttachmentServiceClient is the client API for AttachmentService service.
@@ -29,6 +31,8 @@ const (
 type AttachmentServiceClient interface {
 	GetAttachment(ctx context.Context, in *GetAttachmentRequest, opts ...grpc.CallOption) (*AttachmentResponse, error)
 	DeleteAttachment(ctx context.Context, in *DeleteAttachmentRequest, opts ...grpc.CallOption) (*DeleteAttachmentResponse, error)
+	GetHeader(ctx context.Context, in *GetHeaderRequest, opts ...grpc.CallOption) (*HeaderResponse, error)
+	DeleteHeader(ctx context.Context, in *DeleteHeaderRequest, opts ...grpc.CallOption) (*DeleteHeaderResponse, error)
 }
 
 type attachmentServiceClient struct {
@@ -59,12 +63,34 @@ func (c *attachmentServiceClient) DeleteAttachment(ctx context.Context, in *Dele
 	return out, nil
 }
 
+func (c *attachmentServiceClient) GetHeader(ctx context.Context, in *GetHeaderRequest, opts ...grpc.CallOption) (*HeaderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HeaderResponse)
+	err := c.cc.Invoke(ctx, AttachmentService_GetHeader_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *attachmentServiceClient) DeleteHeader(ctx context.Context, in *DeleteHeaderRequest, opts ...grpc.CallOption) (*DeleteHeaderResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteHeaderResponse)
+	err := c.cc.Invoke(ctx, AttachmentService_DeleteHeader_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AttachmentServiceServer is the server API for AttachmentService service.
 // All implementations must embed UnimplementedAttachmentServiceServer
 // for forward compatibility.
 type AttachmentServiceServer interface {
 	GetAttachment(context.Context, *GetAttachmentRequest) (*AttachmentResponse, error)
 	DeleteAttachment(context.Context, *DeleteAttachmentRequest) (*DeleteAttachmentResponse, error)
+	GetHeader(context.Context, *GetHeaderRequest) (*HeaderResponse, error)
+	DeleteHeader(context.Context, *DeleteHeaderRequest) (*DeleteHeaderResponse, error)
 	mustEmbedUnimplementedAttachmentServiceServer()
 }
 
@@ -80,6 +106,12 @@ func (UnimplementedAttachmentServiceServer) GetAttachment(context.Context, *GetA
 }
 func (UnimplementedAttachmentServiceServer) DeleteAttachment(context.Context, *DeleteAttachmentRequest) (*DeleteAttachmentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAttachment not implemented")
+}
+func (UnimplementedAttachmentServiceServer) GetHeader(context.Context, *GetHeaderRequest) (*HeaderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHeader not implemented")
+}
+func (UnimplementedAttachmentServiceServer) DeleteHeader(context.Context, *DeleteHeaderRequest) (*DeleteHeaderResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteHeader not implemented")
 }
 func (UnimplementedAttachmentServiceServer) mustEmbedUnimplementedAttachmentServiceServer() {}
 func (UnimplementedAttachmentServiceServer) testEmbeddedByValue()                           {}
@@ -138,6 +170,42 @@ func _AttachmentService_DeleteAttachment_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AttachmentService_GetHeader_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHeaderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AttachmentServiceServer).GetHeader(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AttachmentService_GetHeader_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AttachmentServiceServer).GetHeader(ctx, req.(*GetHeaderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AttachmentService_DeleteHeader_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteHeaderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AttachmentServiceServer).DeleteHeader(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AttachmentService_DeleteHeader_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AttachmentServiceServer).DeleteHeader(ctx, req.(*DeleteHeaderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AttachmentService_ServiceDesc is the grpc.ServiceDesc for AttachmentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +220,14 @@ var AttachmentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAttachment",
 			Handler:    _AttachmentService_DeleteAttachment_Handler,
+		},
+		{
+			MethodName: "GetHeader",
+			Handler:    _AttachmentService_GetHeader_Handler,
+		},
+		{
+			MethodName: "DeleteHeader",
+			Handler:    _AttachmentService_DeleteHeader_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

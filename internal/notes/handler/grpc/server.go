@@ -55,6 +55,8 @@ func (s *Server) GetNote(ctx context.Context, req *notesgrpc.GetNoteRequest) (*n
 		Title:     note.Title,
 		ParentId:  parentID,
 		IsPublic:  note.IsPublic,
+		Icon:      note.Icon,
+		HeaderUrl: note.HeaderURL,
 		CreatedAt: timestamppb.New(note.CreatedAt),
 		UpdatedAt: timestamppb.New(note.UpdatedAt),
 	}, nil

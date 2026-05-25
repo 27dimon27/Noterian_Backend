@@ -15,6 +15,9 @@ type AttachmentRepository interface {
 	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
 	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
+	GetHeader(ctx context.Context, noteID uuid.UUID) (*models.Header, error)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID) error
 }
 
 type attachmentUsecase struct {
@@ -115,6 +118,45 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 	}
 
 	if err := u.attachmentRepo.DeleteAttachment(ctx, blockID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *attachmentUsecase) GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, error) {
+	header, err := u.attachmentRepo.GetHeader(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if header == nil {
+		return nil, attachments.ErrHeaderNotFound
+	}
+
+	return header, nil
+}
+
+func (u *attachmentUsecase) UploadHeader(
+	ctx context.Context,
+	noteID uuid.UUID,
+	userID uuid.UUID,
+	fileName string,
+	fileSize int64,
+	mimeType string,
+	fileReader io.Reader,
+) (*models.Header, error) {
+	header, err := u.attachmentRepo.UploadHeader(ctx, noteID, fileName, fileSize, mimeType, fileReader)
+	if err != nil {
+		return nil, err
+	}
+
+	return header, nil
+}
+
+func (u *attachmentUsecase) DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error {
+	err := u.attachmentRepo.DeleteHeader(ctx, noteID)
+	if err != nil {
 		return err
 	}
 

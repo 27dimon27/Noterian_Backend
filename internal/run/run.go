@@ -44,6 +44,10 @@ func Run() error {
 		return err
 	}
 	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.AvatarsBucket))
+	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.HeadersBucket); err != nil {
+		return err
+	}
+	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.HeadersBucket))
 
 	log.Info("Connected to MinIO successfully")
 

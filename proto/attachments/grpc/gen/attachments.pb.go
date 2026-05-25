@@ -141,6 +141,110 @@ func (x *DeleteAttachmentRequest) GetUserId() string {
 	return ""
 }
 
+type GetHeaderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHeaderRequest) Reset() {
+	*x = GetHeaderRequest{}
+	mi := &file_proto_attachments_attachments_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHeaderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHeaderRequest) ProtoMessage() {}
+
+func (x *GetHeaderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_attachments_attachments_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHeaderRequest.ProtoReflect.Descriptor instead.
+func (*GetHeaderRequest) Descriptor() ([]byte, []int) {
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetHeaderRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *GetHeaderRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeleteHeaderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteHeaderRequest) Reset() {
+	*x = DeleteHeaderRequest{}
+	mi := &file_proto_attachments_attachments_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteHeaderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteHeaderRequest) ProtoMessage() {}
+
+func (x *DeleteHeaderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_attachments_attachments_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteHeaderRequest.ProtoReflect.Descriptor instead.
+func (*DeleteHeaderRequest) Descriptor() ([]byte, []int) {
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *DeleteHeaderRequest) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *DeleteHeaderRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 type DeleteAttachmentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -149,7 +253,7 @@ type DeleteAttachmentResponse struct {
 
 func (x *DeleteAttachmentResponse) Reset() {
 	*x = DeleteAttachmentResponse{}
-	mi := &file_proto_attachments_attachments_proto_msgTypes[2]
+	mi := &file_proto_attachments_attachments_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -161,7 +265,7 @@ func (x *DeleteAttachmentResponse) String() string {
 func (*DeleteAttachmentResponse) ProtoMessage() {}
 
 func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_attachments_attachments_proto_msgTypes[2]
+	mi := &file_proto_attachments_attachments_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -174,7 +278,43 @@ func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{2}
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{4}
+}
+
+type DeleteHeaderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteHeaderResponse) Reset() {
+	*x = DeleteHeaderResponse{}
+	mi := &file_proto_attachments_attachments_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteHeaderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteHeaderResponse) ProtoMessage() {}
+
+func (x *DeleteHeaderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_attachments_attachments_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteHeaderResponse.ProtoReflect.Descriptor instead.
+func (*DeleteHeaderResponse) Descriptor() ([]byte, []int) {
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{5}
 }
 
 type AttachmentResponse struct {
@@ -192,7 +332,7 @@ type AttachmentResponse struct {
 
 func (x *AttachmentResponse) Reset() {
 	*x = AttachmentResponse{}
-	mi := &file_proto_attachments_attachments_proto_msgTypes[3]
+	mi := &file_proto_attachments_attachments_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +344,7 @@ func (x *AttachmentResponse) String() string {
 func (*AttachmentResponse) ProtoMessage() {}
 
 func (x *AttachmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_attachments_attachments_proto_msgTypes[3]
+	mi := &file_proto_attachments_attachments_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +357,7 @@ func (x *AttachmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachmentResponse.ProtoReflect.Descriptor instead.
 func (*AttachmentResponse) Descriptor() ([]byte, []int) {
-	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{3}
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AttachmentResponse) GetId() string {
@@ -269,6 +409,98 @@ func (x *AttachmentResponse) GetUpdatedAt() int64 {
 	return 0
 }
 
+type HeaderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
+	MinioKey      string                 `protobuf:"bytes,3,opt,name=minio_key,json=minioKey,proto3" json:"minio_key,omitempty"`
+	HeaderUrl     string                 `protobuf:"bytes,4,opt,name=header_url,json=headerUrl,proto3" json:"header_url,omitempty"`
+	UrlExpiresAt  int64                  `protobuf:"varint,5,opt,name=url_expires_at,json=urlExpiresAt,proto3" json:"url_expires_at,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeaderResponse) Reset() {
+	*x = HeaderResponse{}
+	mi := &file_proto_attachments_attachments_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeaderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeaderResponse) ProtoMessage() {}
+
+func (x *HeaderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_attachments_attachments_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeaderResponse.ProtoReflect.Descriptor instead.
+func (*HeaderResponse) Descriptor() ([]byte, []int) {
+	return file_proto_attachments_attachments_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *HeaderResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *HeaderResponse) GetNoteId() string {
+	if x != nil {
+		return x.NoteId
+	}
+	return ""
+}
+
+func (x *HeaderResponse) GetMinioKey() string {
+	if x != nil {
+		return x.MinioKey
+	}
+	return ""
+}
+
+func (x *HeaderResponse) GetHeaderUrl() string {
+	if x != nil {
+		return x.HeaderUrl
+	}
+	return ""
+}
+
+func (x *HeaderResponse) GetUrlExpiresAt() int64 {
+	if x != nil {
+		return x.UrlExpiresAt
+	}
+	return 0
+}
+
+func (x *HeaderResponse) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *HeaderResponse) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
 var File_proto_attachments_attachments_proto protoreflect.FileDescriptor
 
 const file_proto_attachments_attachments_proto_rawDesc = "" +
@@ -281,8 +513,15 @@ const file_proto_attachments_attachments_proto_rawDesc = "" +
 	"\x17DeleteAttachmentRequest\x12\x19\n" +
 	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x17\n" +
 	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId\"\x1a\n" +
-	"\x18DeleteAttachmentResponse\"\xdf\x01\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\"D\n" +
+	"\x10GetHeaderRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"G\n" +
+	"\x13DeleteHeaderRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x1a\n" +
+	"\x18DeleteAttachmentResponse\"\x16\n" +
+	"\x14DeleteHeaderResponse\"\xdf\x01\n" +
 	"\x12AttachmentResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bblock_id\x18\x02 \x01(\tR\ablockId\x12\x1b\n" +
@@ -293,10 +532,23 @@ const file_proto_attachments_attachments_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\x03R\tupdatedAt2\xc9\x01\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\xd9\x01\n" +
+	"\x0eHeaderResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x1b\n" +
+	"\tminio_key\x18\x03 \x01(\tR\bminioKey\x12\x1d\n" +
+	"\n" +
+	"header_url\x18\x04 \x01(\tR\theaderUrl\x12$\n" +
+	"\x0eurl_expires_at\x18\x05 \x01(\x03R\furlExpiresAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt2\xe7\x02\n" +
 	"\x11AttachmentService\x12S\n" +
 	"\rGetAttachment\x12!.attachments.GetAttachmentRequest\x1a\x1f.attachments.AttachmentResponse\x12_\n" +
-	"\x10DeleteAttachment\x12$.attachments.DeleteAttachmentRequest\x1a%.attachments.DeleteAttachmentResponseB\x1cZ\x1aproto/attachments/grpc/genb\x06proto3"
+	"\x10DeleteAttachment\x12$.attachments.DeleteAttachmentRequest\x1a%.attachments.DeleteAttachmentResponse\x12G\n" +
+	"\tGetHeader\x12\x1d.attachments.GetHeaderRequest\x1a\x1b.attachments.HeaderResponse\x12S\n" +
+	"\fDeleteHeader\x12 .attachments.DeleteHeaderRequest\x1a!.attachments.DeleteHeaderResponseB\x1cZ\x1aproto/attachments/grpc/genb\x06proto3"
 
 var (
 	file_proto_attachments_attachments_proto_rawDescOnce sync.Once
@@ -310,20 +562,28 @@ func file_proto_attachments_attachments_proto_rawDescGZIP() []byte {
 	return file_proto_attachments_attachments_proto_rawDescData
 }
 
-var file_proto_attachments_attachments_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_attachments_attachments_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_attachments_attachments_proto_goTypes = []any{
 	(*GetAttachmentRequest)(nil),     // 0: attachments.GetAttachmentRequest
 	(*DeleteAttachmentRequest)(nil),  // 1: attachments.DeleteAttachmentRequest
-	(*DeleteAttachmentResponse)(nil), // 2: attachments.DeleteAttachmentResponse
-	(*AttachmentResponse)(nil),       // 3: attachments.AttachmentResponse
+	(*GetHeaderRequest)(nil),         // 2: attachments.GetHeaderRequest
+	(*DeleteHeaderRequest)(nil),      // 3: attachments.DeleteHeaderRequest
+	(*DeleteAttachmentResponse)(nil), // 4: attachments.DeleteAttachmentResponse
+	(*DeleteHeaderResponse)(nil),     // 5: attachments.DeleteHeaderResponse
+	(*AttachmentResponse)(nil),       // 6: attachments.AttachmentResponse
+	(*HeaderResponse)(nil),           // 7: attachments.HeaderResponse
 }
 var file_proto_attachments_attachments_proto_depIdxs = []int32{
 	0, // 0: attachments.AttachmentService.GetAttachment:input_type -> attachments.GetAttachmentRequest
 	1, // 1: attachments.AttachmentService.DeleteAttachment:input_type -> attachments.DeleteAttachmentRequest
-	3, // 2: attachments.AttachmentService.GetAttachment:output_type -> attachments.AttachmentResponse
-	2, // 3: attachments.AttachmentService.DeleteAttachment:output_type -> attachments.DeleteAttachmentResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	2, // 2: attachments.AttachmentService.GetHeader:input_type -> attachments.GetHeaderRequest
+	3, // 3: attachments.AttachmentService.DeleteHeader:input_type -> attachments.DeleteHeaderRequest
+	6, // 4: attachments.AttachmentService.GetAttachment:output_type -> attachments.AttachmentResponse
+	4, // 5: attachments.AttachmentService.DeleteAttachment:output_type -> attachments.DeleteAttachmentResponse
+	7, // 6: attachments.AttachmentService.GetHeader:output_type -> attachments.HeaderResponse
+	5, // 7: attachments.AttachmentService.DeleteHeader:output_type -> attachments.DeleteHeaderResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -340,7 +600,7 @@ func file_proto_attachments_attachments_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_attachments_attachments_proto_rawDesc), len(file_proto_attachments_attachments_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

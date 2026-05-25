@@ -410,8 +410,10 @@ type NoteResponse struct {
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	ParentId      *string                `protobuf:"bytes,4,opt,name=parent_id,json=parentId,proto3,oneof" json:"parent_id,omitempty"`
 	IsPublic      bool                   `protobuf:"varint,5,opt,name=is_public,json=isPublic,proto3" json:"is_public,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Icon          string                 `protobuf:"bytes,6,opt,name=icon,proto3" json:"icon,omitempty"`
+	HeaderUrl     string                 `protobuf:"bytes,7,opt,name=header_url,json=headerUrl,proto3" json:"header_url,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -479,6 +481,20 @@ func (x *NoteResponse) GetIsPublic() bool {
 		return x.IsPublic
 	}
 	return false
+}
+
+func (x *NoteResponse) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *NoteResponse) GetHeaderUrl() string {
+	if x != nil {
+		return x.HeaderUrl
+	}
+	return ""
 }
 
 func (x *NoteResponse) GetCreatedAt() *timestamppb.Timestamp {
@@ -658,17 +674,20 @@ const file_proto_notes_notes_proto_rawDesc = "" +
 	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\".\n" +
 	"\x13DeleteBlockResponse\x12\x17\n" +
-	"\anote_id\x18\x01 \x01(\tR\x06noteId\"\x90\x02\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\"\xc3\x02\n" +
 	"\fNoteResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12 \n" +
 	"\tparent_id\x18\x04 \x01(\tH\x00R\bparentId\x88\x01\x01\x12\x1b\n" +
-	"\tis_public\x18\x05 \x01(\bR\bisPublic\x129\n" +
+	"\tis_public\x18\x05 \x01(\bR\bisPublic\x12\x12\n" +
+	"\x04icon\x18\x06 \x01(\tR\x04icon\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"header_url\x18\a \x01(\tR\theaderUrl\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\f\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\f\n" +
 	"\n" +
 	"_parent_id\"\x88\x02\n" +
 	"\rBlockResponse\x12\x0e\n" +
