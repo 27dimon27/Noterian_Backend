@@ -16,13 +16,13 @@ func NewHandler(cfg config.CSRFConfig) *Handler {
 }
 
 // GetToken godoc
-// @Summary Получение CSRF-токена
-// @Tags csrf
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]string "CSRF token successfully generated"
-// @Failure 500 {object} map[string]string "Internal server error"
-// @Router /csrf/token [get]
+// @Summary      Получение CSRF-токена
+// @Description  Возвращает CSRF-токен в теле и Set-Cookie. Используется во всех методах, изменяющих состояние (POST/PUT/DELETE), через заголовок X-CSRF-Token.
+// @Tags         csrf
+// @Produce      json
+// @Success      200  {object}  map[string]string  "CSRF token successfully generated"
+// @Failure      500  {object}  map[string]string  "Internal server error"
+// @Router       /csrf-token [get]
 func (h *Handler) GetToken(w http.ResponseWriter, r *http.Request) {
 	token, err := Generate()
 	if err != nil {
