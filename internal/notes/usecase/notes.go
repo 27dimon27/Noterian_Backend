@@ -448,11 +448,23 @@ func (u *noteUsecase) GenerateNotePDF(ctx context.Context, noteID uuid.UUID, use
 		return nil, err
 	}
 
+	subnotesMap := make(map[string]models.Note)
+	for _, block := range blocks {
+		if block.BlockTypeID == 5 {
+			for _, subnote := range subnotes {
+				if subnote.ID.String() == block.Content {
+					subnotesMap[block.ID.String()] = subnote
+					break
+				}
+			}
+		}
+	}
+
 	noteContent := &pdf.NoteContent{
 		Note:       note,
 		Blocks:     blocks,
 		Formatting: formattings,
-		Subnotes:   subnotes,
+		Subnotes:   subnotesMap,
 		HeaderURL:  headerURL,
 	}
 
