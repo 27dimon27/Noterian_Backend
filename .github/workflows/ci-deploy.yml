@@ -20,8 +20,6 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: backend
 
       - uses: actions/setup-go@v5
         with:
@@ -33,13 +31,12 @@ jobs:
       - name: Run unit tests
         run: go test ./...
 
-      - name: Install golangci-lint
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.58.0
-          golangci-lint --version
-
       - name: Run golangci-lint
-        run: golangci-lint run --timeout=5m ./...
+        working-directory: backend
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.74.0
+          args: run --timeout=5m ./...
 
   deploy:
     name: Deploy on main
@@ -48,8 +45,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: backend
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.8.1
