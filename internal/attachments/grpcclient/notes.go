@@ -6,6 +6,7 @@ import (
 	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type NotesServiceClient interface {
@@ -24,7 +25,7 @@ type notesServiceClient struct {
 }
 
 func NewNotesServiceClient(addr string) (NotesServiceClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

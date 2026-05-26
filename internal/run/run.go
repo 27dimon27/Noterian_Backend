@@ -51,21 +51,21 @@ func Run() error {
 
 	log.Info("Connected to MinIO successfully")
 
-	attachmentsConn, err := grpc.Dial(cfg.Services.AttachmentsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	attachmentsConn, err := grpc.NewClient(cfg.Services.AttachmentsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Failed to connect to attachments service", "error", err)
 		return err
 	}
 	defer attachmentsConn.Close()
 
-	notesConn, err := grpc.Dial(cfg.Services.NotesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	notesConn, err := grpc.NewClient(cfg.Services.NotesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Failed to connect to notes service", "error", err)
 		return err
 	}
 	defer notesConn.Close()
 
-	profilesConn, err := grpc.Dial(cfg.Services.ProfilesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	profilesConn, err := grpc.NewClient(cfg.Services.ProfilesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Failed to connect to profiles service", "error", err)
 		return err
