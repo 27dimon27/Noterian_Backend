@@ -1,17 +1,17 @@
 package body
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/xss"
+	"github.com/mailru/easyjson"
 )
 
-func GetBody[T any](r *http.Request, u *T) error {
-	if err := json.NewDecoder(r.Body).Decode(u); err != nil {
+func GetBody(r *http.Request, data easyjson.Unmarshaler) error {
+	if err := easyjson.UnmarshalFromReader(r.Body, data); err != nil {
 		return err
 	}
 
-	xss.SanitizeStruct(u)
+	xss.SanitizeStruct(data)
 	return nil
 }

@@ -723,7 +723,7 @@ func (h *NoteHandler) GetSubnotes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := dto.ToSubnotesDTO(subnotes)
+	response := dto.ToNotesResponse(subnotes)
 
 	write.JSONResponse(w, http.StatusOK, response)
 }
@@ -937,7 +937,7 @@ func (h *NoteHandler) GetNotePDF(w http.ResponseWriter, r *http.Request) {
 // @Tags         notes
 // @Produce      json
 // @Param        noteId  path      string  true  "UUID заметки"
-// @Success      200     {object}  map[string]any
+// @Success      200     {object}  dto.PublicNoteResponse
 // @Failure      400     {object}  map[string]string  "Некорректный noteId"
 // @Failure      404     {object}  map[string]string  "Заметка не найдена"
 // @Failure      500     {object}  map[string]string  "Внутренняя ошибка сервера"
@@ -965,9 +965,7 @@ func (h *NoteHandler) GetPublicNote(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	write.JSONResponse(w, http.StatusOK, map[string]any{
-		"id":    note.ID,
-		"title": note.Title,
-		"icon":  note.Icon,
-	})
+	response := dto.ToPublicNoteResponse(*note)
+
+	write.JSONResponse(w, http.StatusOK, response)
 }

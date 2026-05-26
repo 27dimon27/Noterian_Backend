@@ -11,6 +11,10 @@ type Handler struct {
 	cfg config.CSRFConfig
 }
 
+type TokenResponse struct {
+	CSRFToken string `json:"csrf_token"`
+}
+
 func NewHandler(cfg config.CSRFConfig) *Handler {
 	return &Handler{cfg: cfg}
 }
@@ -32,7 +36,7 @@ func (h *Handler) GetToken(w http.ResponseWriter, r *http.Request) {
 
 	SetCookie(w, token, h.cfg)
 
-	write.JSONResponse(w, http.StatusOK, map[string]string{
-		"csrf_token": token,
+	write.JSONResponse(w, http.StatusOK, TokenResponse{
+		CSRFToken: token,
 	})
 }
