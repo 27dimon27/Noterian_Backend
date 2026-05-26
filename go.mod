@@ -1,12 +1,14 @@
 module github.com/go-park-mail-ru/2026_1_WHITECROWSOFT
 
-go 1.25.7
+go 1.25.0
 
 require (
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/jung-kurt/gofpdf/v2 v2.17.3
+	github.com/mailru/easyjson v0.7.6
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/prometheus/client_golang v1.23.2
@@ -14,6 +16,8 @@ require (
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.48.0
+	google.golang.org/grpc v1.81.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -29,11 +33,9 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
-	github.com/jung-kurt/gofpdf/v2 v2.17.3 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
-	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
@@ -51,8 +53,6 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
-	google.golang.org/grpc v1.81.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
