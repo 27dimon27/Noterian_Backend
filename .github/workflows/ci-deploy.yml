@@ -42,17 +42,17 @@ jobs:
   deploy:
     name: Deploy on main
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.8.1
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy backend stack on remote host
         run: |
           ssh -o StrictHostKeyChecking=no "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            'sudo bash -lc "su - noterian -c '\''cd noterian/backend && git pull origin main && cd .. && docker compose -f docker-compose.yml pull && docker compose -f docker-compose.yml up -d --build'\''"'
+            'sudo bash -lc "su - noterian -c '\''cd noterian && mkdir test_folder_with_ssh'\''"'
