@@ -12,6 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+//go:generate mockgen -source=server.go -destination=mocks/mock_usecase.go -package=mocks
+
 type AttachmentUsecase interface {
 	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
 	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
