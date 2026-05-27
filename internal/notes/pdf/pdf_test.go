@@ -252,7 +252,3 @@ func TestGeneratePDF_SubnoteNotFound(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
-
-func intPtr(i int) *int {
-	return &i
-}
