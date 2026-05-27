@@ -448,7 +448,165 @@ func TestGetBlockTypeByMimeType(t *testing.T) {
 	if got, err := usecase.getBlockTypeByMimeType("audio/mpeg"); got != 6 || err != nil {
 		t.Fatalf("expected audio block type 6, got %d, %v", got, err)
 	}
+	if got, err := usecase.getBlockTypeByMimeType("image/png"); got != 2 || err != nil {
+		t.Fatalf("expected image block type 2, got %d, %v", got, err)
+	}
+	if got, err := usecase.getBlockTypeByMimeType("image/gif"); got != 2 || err != nil {
+		t.Fatalf("expected gif block type 2, got %d, %v", got, err)
+	}
 	if _, err := usecase.getBlockTypeByMimeType("application/pdf"); !errors.Is(err, attachments.ErrInvalidMimeType) {
 		t.Fatalf("expected ErrInvalidMimeType, got %v", err)
+	}
+}
+
+func TestGetAttachment_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+
+	blockID := uuid.New()
+	repoMock.EXPECT().GetAttachment(gomock.Any(), blockID).Return(nil, errors.New("db error"))
+
+	attachment, err := usecase.GetAttachment(context.Background(), uuid.New(), blockID, uuid.New())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %v", attachment)
+	}
+}
+
+func TestGetHeader_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	repoMock.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+
+	header, err := usecase.GetHeader(context.Background(), uuid.New(), uuid.New())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %v", header)
+	}
+}
+
+func TestUploadAttachment_NegativePosition(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	notesClient := &fakeNotesClient{
+		GetBlocksFunc: func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error) {
+			return []*notesgen.BlockResponse{}, nil
+		},
+	}
+	usecase := NewAttachmentUsecase(repoMock, notesClient)
+
+	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, true, -1)
+	if !errors.Is(err, attachments.ErrInvalidPosition) {
+		t.Fatalf("expected ErrInvalidPosition, got %v", err)
+	}
+}
+
+func TestUploadAttachment_ShiftError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	notesClient := &fakeNotesClient{
+		GetBlocksFunc: func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error) {
+			return []*notesgen.BlockResponse{}, nil
+		},
+		ShiftBlockPositionsFunc: func(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+			return errors.New("shift fail")
+		},
+	}
+	usecase := NewAttachmentUsecase(repoMock, notesClient)
+
+	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestUploadAttachment_CreateBlockError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	shiftCalls := 0
+	notesClient := &fakeNotesClient{
+		GetBlocksFunc: func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error) {
+			return []*notesgen.BlockResponse{}, nil
+		},
+		ShiftBlockPositionsFunc: func(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+			shiftCalls++
+			return nil
+		},
+		CreateBlockFunc: func(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error) {
+			return nil, errors.New("create fail")
+		},
+	}
+	usecase := NewAttachmentUsecase(repoMock, notesClient)
+
+	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if shiftCalls != 2 {
+		t.Fatalf("expected rollback shift, total shift calls = 2, got %d", shiftCalls)
+	}
+}
+
+func TestUploadAttachment_CreateBlockReturnsInvalidUUID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	shiftCalls := 0
+	notesClient := &fakeNotesClient{
+		GetBlocksFunc: func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error) {
+			return []*notesgen.BlockResponse{}, nil
+		},
+		ShiftBlockPositionsFunc: func(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+			shiftCalls++
+			return nil
+		},
+		CreateBlockFunc: func(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error) {
+			return &notesgen.BlockResponse{Id: "not-a-uuid"}, nil
+		},
+	}
+	usecase := NewAttachmentUsecase(repoMock, notesClient)
+
+	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if shiftCalls != 2 {
+		t.Fatalf("expected rollback shift, total shift calls = 2, got %d", shiftCalls)
+	}
+}
+
+func TestDeleteAttachment_RepoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockAttachmentRepository(ctrl)
+	notesClient := &fakeNotesClient{
+		GetBlockFunc: func(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error) {
+			return &notesgen.BlockResponse{Id: blockID.String()}, nil
+		},
+	}
+	repoMock.EXPECT().DeleteAttachment(gomock.Any(), gomock.Any()).Return(errors.New("repo fail"))
+	usecase := NewAttachmentUsecase(repoMock, notesClient)
+
+	err := usecase.DeleteAttachment(context.Background(), uuid.New(), uuid.New(), uuid.New())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }

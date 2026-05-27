@@ -516,3 +516,298 @@ func TestDeleteAttachment_DeleteFileError(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetAttachment_DBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	blockID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnError(errors.New("conn refused"))
+
+	attachment, err := repo.GetAttachment(context.Background(), blockID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, attachments.ErrAttachmentNotFound) {
+		t.Fatalf("expected non-not-found error, got %v", err)
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAttachment_ExpiredGeneratePresignedURLError(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	blockID := uuid.New()
+	attachmentID := uuid.New()
+	past := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	rows := sqlmock.NewRows([]string{"id", "block_id", "minio_key", "attach_url", "url_expires_at", "created_at", "updated_at"}).
+		AddRow(attachmentID, blockID, "attachment-key", "https://example.com/old", past, now, now)
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnRows(rows)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "attachments-bucket", "attachment-key", attachments.PRESIGNED_URL_EXPIRY).Return("", errors.New("presign fail"))
+
+	attachment, err := repo.GetAttachment(context.Background(), blockID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAttachment_ExpiredUpdateURLError(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	blockID := uuid.New()
+	attachmentID := uuid.New()
+	past := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	rows := sqlmock.NewRows([]string{"id", "block_id", "minio_key", "attach_url", "url_expires_at", "created_at", "updated_at"}).
+		AddRow(attachmentID, blockID, "attachment-key", "https://example.com/old", past, now, now)
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnRows(rows)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "attachments-bucket", "attachment-key", attachments.PRESIGNED_URL_EXPIRY).Return("https://example.com/new", nil)
+	mock.ExpectQuery(queryRegexp(UPDATE_ATTACHMENT_URL)).WithArgs(attachmentID, "https://example.com/new", sqlmock.AnyArg()).WillReturnError(errors.New("update failed"))
+
+	attachment, err := repo.GetAttachment(context.Background(), blockID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUploadAttachment_GetAttachmentDBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	blockID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnError(errors.New("conn refused"))
+
+	attachment, err := repo.UploadAttachment(context.Background(), blockID, "file.png", 123, "image/png", bytes.NewReader([]byte("data")))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUploadAttachment_CreateDBErrorDeletesFile(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	blockID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnError(sql.ErrNoRows)
+	minioMock.EXPECT().UploadFile(gomock.Any(), "attachments-bucket", gomock.Any(), gomock.Any(), int64(123), "image/png").Return(nil)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "attachments-bucket", gomock.Any(), attachments.PRESIGNED_URL_EXPIRY).Return("https://example.com/file", nil)
+	mock.ExpectQuery(queryRegexp(CREATE_ATTACHMENT)).WithArgs(sqlmock.AnyArg(), blockID, sqlmock.AnyArg(), "https://example.com/file", sqlmock.AnyArg()).WillReturnError(errors.New("insert failed"))
+	minioMock.EXPECT().DeleteFile(gomock.Any(), "attachments-bucket", gomock.Any()).Return(nil)
+
+	attachment, err := repo.UploadAttachment(context.Background(), blockID, "file.png", 123, "image/png", bytes.NewReader([]byte("data")))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteAttachment_DBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	blockID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(DELETE_ATTACHMENT_BY_ID)).WithArgs(blockID).WillReturnError(errors.New("conn refused"))
+
+	err := repo.DeleteAttachment(context.Background(), blockID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, attachments.ErrAttachmentNotFound) {
+		t.Fatalf("expected non-not-found error, got %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHeader_DBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	noteID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(GET_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnError(errors.New("conn refused"))
+
+	header, err := repo.GetHeader(context.Background(), noteID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, attachments.ErrHeaderNotFound) {
+		t.Fatalf("expected non-not-found error, got %v", err)
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %#v", header)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHeader_ExpiredGeneratePresignedURLError(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	noteID := uuid.New()
+	headerID := uuid.New()
+	past := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	rows := sqlmock.NewRows([]string{"id", "note_id", "minio_key", "header_url", "url_expires_at", "created_at", "updated_at"}).
+		AddRow(headerID, noteID, "header-key", "https://example.com/old", past, now, now)
+
+	mock.ExpectQuery(queryRegexp(GET_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnRows(rows)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "headers-bucket", "header-key", attachments.PRESIGNED_URL_EXPIRY).Return("", errors.New("presign fail"))
+
+	header, err := repo.GetHeader(context.Background(), noteID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %#v", header)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetHeader_ExpiredUpdateURLError(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	noteID := uuid.New()
+	headerID := uuid.New()
+	past := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	rows := sqlmock.NewRows([]string{"id", "note_id", "minio_key", "header_url", "url_expires_at", "created_at", "updated_at"}).
+		AddRow(headerID, noteID, "header-key", "https://example.com/old", past, now, now)
+
+	mock.ExpectQuery(queryRegexp(GET_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnRows(rows)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "headers-bucket", "header-key", attachments.PRESIGNED_URL_EXPIRY).Return("https://example.com/new", nil)
+	mock.ExpectQuery(queryRegexp(UPDATE_HEADER_URL)).WithArgs(headerID, "https://example.com/new", sqlmock.AnyArg()).WillReturnError(errors.New("update failed"))
+
+	header, err := repo.GetHeader(context.Background(), noteID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %#v", header)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUploadHeader_DeleteHeaderDBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	noteID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(DELETE_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnError(errors.New("conn refused"))
+
+	header, err := repo.UploadHeader(context.Background(), noteID, "header.png", 123, "image/png", bytes.NewReader([]byte("data")))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %#v", header)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUploadHeader_CreateDBErrorDeletesFile(t *testing.T) {
+	repo, mock, _, minioMock := newMockRepository(t)
+	noteID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(DELETE_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnError(sql.ErrNoRows)
+	minioMock.EXPECT().UploadFile(gomock.Any(), "headers-bucket", gomock.Any(), gomock.Any(), int64(123), "image/png").Return(nil)
+	minioMock.EXPECT().GeneratePresignedURL(gomock.Any(), "headers-bucket", gomock.Any(), attachments.PRESIGNED_URL_EXPIRY).Return("https://example.com/header", nil)
+	mock.ExpectQuery(queryRegexp(CREATE_HEADER)).WithArgs(sqlmock.AnyArg(), noteID, sqlmock.AnyArg(), "https://example.com/header", sqlmock.AnyArg()).WillReturnError(errors.New("insert failed"))
+	minioMock.EXPECT().DeleteFile(gomock.Any(), "headers-bucket", gomock.Any()).Return(nil)
+
+	header, err := repo.UploadHeader(context.Background(), noteID, "header.png", 123, "image/png", bytes.NewReader([]byte("data")))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if header != nil {
+		t.Fatalf("expected nil header, got %#v", header)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteHeader_DBError(t *testing.T) {
+	repo, mock, _, _ := newMockRepository(t)
+	noteID := uuid.New()
+
+	mock.ExpectQuery(queryRegexp(DELETE_HEADER_BY_NOTE_ID)).WithArgs(noteID).WillReturnError(errors.New("conn refused"))
+
+	err := repo.DeleteHeader(context.Background(), noteID)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(err, attachments.ErrHeaderNotFound) {
+		t.Fatalf("expected non-not-found error, got %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAttachment_ExpiredRefreshAndScanError(t *testing.T) {
+	// Cover the rows-Scan error branch on attachment fetch by returning a row with bad type.
+	repo, mock, _, _ := newMockRepository(t)
+	blockID := uuid.New()
+
+	rows := sqlmock.NewRows([]string{"id", "block_id", "minio_key", "attach_url", "url_expires_at", "created_at", "updated_at"}).
+		AddRow("not-a-uuid", blockID, "k", "u", time.Now(), time.Now(), time.Now())
+
+	mock.ExpectQuery(queryRegexp(GET_ATTACHMENT_BY_BLOCK_ID)).WithArgs(blockID).WillReturnRows(rows)
+
+	attachment, err := repo.GetAttachment(context.Background(), blockID)
+	if err == nil {
+		t.Fatal("expected scan error, got nil")
+	}
+	if attachment != nil {
+		t.Fatalf("expected nil attachment, got %#v", attachment)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
