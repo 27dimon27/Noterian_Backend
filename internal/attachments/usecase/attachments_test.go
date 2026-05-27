@@ -14,12 +14,12 @@ import (
 )
 
 type fakeNotesClient struct {
-	GetBlocksFunc            func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error)
-	ShiftBlockPositionsFunc  func(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error
-	CreateBlockFunc          func(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error)
-	GetBlockFunc             func(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error)
-	DeleteBlockFunc          func(ctx context.Context, blockID, noteID, userID uuid.UUID) (uuid.UUID, error)
-	CloseFunc                func() error
+	GetBlocksFunc           func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error)
+	ShiftBlockPositionsFunc func(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error
+	CreateBlockFunc         func(ctx context.Context, userID uuid.UUID, block *notesgen.BlockResponse) (*notesgen.BlockResponse, error)
+	GetBlockFunc            func(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error)
+	DeleteBlockFunc         func(ctx context.Context, blockID, noteID, userID uuid.UUID) (uuid.UUID, error)
+	CloseFunc               func() error
 }
 
 func (f *fakeNotesClient) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*notesgen.NoteResponse, error) {

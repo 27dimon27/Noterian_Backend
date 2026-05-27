@@ -53,21 +53,6 @@ type MinIOServiceWithMock struct {
 	MockClient *MockMinioClient
 }
 
-func setupTest(t *testing.T) (*MinIOServiceWithMock, context.Context) {
-	mockClient := new(MockMinioClient)
-
-	// Create a real service with mocked client
-	// Note: This requires modifying the original struct or using interface
-	// For demonstration, we'll work with the mock directly
-
-	ctx := context.Background()
-
-	return &MinIOServiceWithMock{
-		MinIOService: &MinIOService{},
-		MockClient:   mockClient,
-	}, ctx
-}
-
 func TestNewMinIOService(t *testing.T) {
 	tests := []struct {
 		name        string

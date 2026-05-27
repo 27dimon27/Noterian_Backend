@@ -3,768 +3,1758 @@ package websocket
 import (
 	"context"
 	"errors"
+	"io"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	attachMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http/mocks"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	noteMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/http/mocks"
+	profileMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http/mocks"
 	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
 )
 
-// Mock implementations
-
-type MockNoteUsecase struct {
-	GetNoteFunc               func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error)
-	UpdateNoteFunc            func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
-	DeleteNoteFunc            func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
-	CreateBlockFunc           func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
-	DeleteBlockFunc           func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
-	MoveBlockFunc             func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
-	UpdateBlockContentFunc    func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
-	UpdateBlockFormattingFunc func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
+type hubTestEnv struct {
+	hub       *Hub
+	noteUC    *noteMocks.MockNoteUsecase
+	profileUC *profileMocks.MockProfileUsecase
+	attachUC  *attachMocks.MockAttachmentUsecase
 }
 
-func (m *MockNoteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
-	if m.GetNoteFunc != nil {
-		return m.GetNoteFunc(ctx, noteID, userID)
+func newHubTestEnv(ctrl *gomock.Controller) *hubTestEnv {
+	noteUC := noteMocks.NewMockNoteUsecase(ctrl)
+	profileUC := profileMocks.NewMockProfileUsecase(ctrl)
+	attachUC := attachMocks.NewMockAttachmentUsecase(ctrl)
+
+	adapter := NewAttachmentUsecaseAdapter(attachUC.UploadAttachment)
+	hub := NewHub(noteUC, profileUC, adapter)
+
+	return &hubTestEnv{
+		hub:       hub,
+		noteUC:    noteUC,
+		profileUC: profileUC,
+		attachUC:  attachUC,
 	}
-	return nil, nil, nil, nil
 }
 
-func (m *MockNoteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error) {
-	if m.UpdateNoteFunc != nil {
-		return m.UpdateNoteFunc(ctx, noteID, userID, note)
-	}
-	return nil, nil
-}
-
-func (m *MockNoteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error {
-	if m.DeleteNoteFunc != nil {
-		return m.DeleteNoteFunc(ctx, noteID, userID)
-	}
-	return nil
-}
-
-func (m *MockNoteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error) {
-	if m.CreateBlockFunc != nil {
-		return m.CreateBlockFunc(ctx, noteID, userID, block)
-	}
-	return nil, nil
-}
-
-func (m *MockNoteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error {
-	if m.DeleteBlockFunc != nil {
-		return m.DeleteBlockFunc(ctx, blockID, noteID, userID)
-	}
-	return nil
-}
-
-func (m *MockNoteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error) {
-	if m.MoveBlockFunc != nil {
-		return m.MoveBlockFunc(ctx, blockID, noteID, userID, newPosition)
-	}
-	return nil, nil
-}
-
-func (m *MockNoteUsecase) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error) {
-	if m.UpdateBlockContentFunc != nil {
-		return m.UpdateBlockContentFunc(ctx, blockID, noteID, userID, content)
-	}
-	return nil, nil
-}
-
-func (m *MockNoteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
-	if m.UpdateBlockFormattingFunc != nil {
-		return m.UpdateBlockFormattingFunc(ctx, blockID, noteID, userID, formattingRange)
-	}
-	return nil, nil
-}
-
-type MockProfileUsecase struct {
-	GetProfileFunc func(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
-}
-
-func (m *MockProfileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
-	if m.GetProfileFunc != nil {
-		return m.GetProfileFunc(ctx, userID)
-	}
-	return &models.Profile{Username: "testuser"}, nil
-}
-
-type MockAttachmentUsecase struct {
-	UploadAttachmentFunc func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error)
-}
-
-func (m *MockAttachmentUsecase) UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error) {
-	if m.UploadAttachmentFunc != nil {
-		return m.UploadAttachmentFunc(ctx, noteID, userID, fileName, fileSize, mimeType, fileData, hasPosition, position)
-	}
-	return &models.Attachment{
-		ID:       uuid.New(),
-		BlockID:  uuid.New(),
-		MinioKey: "test-key",
-	}, nil
-}
-
-// Helper functions
-
-func createTestHub() *Hub {
-	noteUsecase := &MockNoteUsecase{}
-	profileUsecase := &MockProfileUsecase{}
-	attachmentUsecase := &MockAttachmentUsecase{}
-	return NewHub(noteUsecase, profileUsecase, attachmentUsecase)
-}
-
-func createTestClient(userID, userName, noteID string) *ClientInfo {
+func newTestClient(userID, userName, noteID string, bufSize int) *ClientInfo {
 	return &ClientInfo{
 		UserID:   userID,
 		UserName: userName,
 		NoteID:   noteID,
-		Send:     make(chan WebSocketMessage, 256),
-		LastPing: time.Now().Unix(),
+		Send:     make(chan WebSocketMessage, bufSize),
 	}
 }
 
-// Tests
+func drainBroadcast(hub *Hub) []*BroadcastMessage {
+	msgs := []*BroadcastMessage{}
+	for {
+		select {
+		case m := <-hub.broadcast:
+			msgs = append(msgs, m)
+		default:
+			return msgs
+		}
+	}
+}
+
+func collectMessages(ch chan WebSocketMessage, timeout time.Duration) []WebSocketMessage {
+	msgs := []WebSocketMessage{}
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	for {
+		select {
+		case m, ok := <-ch:
+			if !ok {
+				return msgs
+			}
+			msgs = append(msgs, m)
+		case <-deadline.C:
+			return msgs
+		}
+	}
+}
 
 func TestNewHub(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	if hub == nil {
-		t.Fatal("Expected hub to be created")
+	if env.hub.rooms == nil {
+		t.Fatal("rooms map should be initialized")
 	}
-
-	if hub.rooms == nil {
-		t.Error("Rooms map should be initialized")
+	if env.hub.register == nil || env.hub.unregister == nil || env.hub.broadcast == nil {
+		t.Fatal("channels should be initialized")
 	}
-
-	if hub.register == nil {
-		t.Error("Register channel should be initialized")
+	if env.hub.storage == nil {
+		t.Fatal("storage should be initialized")
 	}
-
-	if hub.unregister == nil {
-		t.Error("Unregister channel should be initialized")
-	}
-
-	if hub.broadcast == nil {
-		t.Error("Broadcast channel should be initialized")
-	}
-
-	if hub.storage == nil {
-		t.Error("Storage should be initialized")
-	}
-}
-
-func TestHub_HandleRegister_NewRoom(t *testing.T) {
-	hub := createTestHub()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go hub.Run(ctx)
-
-	client := createTestClient("user1", "Test User", "note123")
-
-	hub.register <- client
-
-	// Give some time for processing
-	time.Sleep(50 * time.Millisecond)
-
-	hub.mu.RLock()
-	room, exists := hub.rooms["note123"]
-	hub.mu.RUnlock()
-
-	if !exists {
-		t.Error("Room should be created")
-	}
-
-	if room.NoteID != "note123" {
-		t.Errorf("Expected NoteID 'note123', got '%s'", room.NoteID)
-	}
-
-	// Client should be added to the room
-	_, ok := room.GetClient("user1")
-	if !ok {
-		t.Error("Client should be added to room")
-	}
-}
-
-func TestHub_HandleRegister_ExistingRoom(t *testing.T) {
-	hub := createTestHub()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go hub.Run(ctx)
-
-	// First client creates room
-	client1 := createTestClient("user1", "User One", "note123")
-	hub.register <- client1
-
-	time.Sleep(50 * time.Millisecond)
-
-	// Second client joins existing room
-	client2 := createTestClient("user2", "User Two", "note123")
-	hub.register <- client2
-
-	time.Sleep(50 * time.Millisecond)
-
-	hub.mu.RLock()
-	room, exists := hub.rooms["note123"]
-	hub.mu.RUnlock()
-
-	if !exists {
-		t.Fatal("Room should exist")
-	}
-
-	_, ok1 := room.GetClient("user1")
-	_, ok2 := room.GetClient("user2")
-
-	if !ok1 || !ok2 {
-		t.Error("Both clients should be in the room")
+	if cap(env.hub.broadcast) != 512 {
+		t.Errorf("expected broadcast cap 512, got %d", cap(env.hub.broadcast))
 	}
 }
 
 func TestHub_HandleRegister_DeletedRoom(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Create room and mark as deleted
-	room := NewNoteRoom("note123")
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
 	room.IsDeleted = true
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	env.hub.rooms[noteID] = room
 
-	client := createTestClient("user1", "Test User", "note123")
+	client := newTestClient(uuid.New().String(), "Alice", noteID, 4)
+	env.hub.handleRegister(client)
 
-	// Start reading from client's Send channel
-	var receivedMsg WebSocketMessage
-	go func() {
-		select {
-		case msg := <-client.Send:
-			receivedMsg = msg
-		case <-time.After(100 * time.Millisecond):
+	select {
+	case msg := <-client.Send:
+		if msg.Type != MsgError {
+			t.Errorf("expected MsgError, got %s", msg.Type)
 		}
-	}()
-
-	hub.handleRegister(client)
-
-	time.Sleep(50 * time.Millisecond)
-
-	if receivedMsg.Type != MsgError {
-		t.Errorf("Expected error message, got %s", receivedMsg.Type)
+	case <-time.After(time.Second):
+		t.Fatal("expected error message")
 	}
 }
 
-func TestHub_HandleUnregister(t *testing.T) {
-	hub := createTestHub()
+func TestHub_HandleRegister_NewRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Create room with client
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	blocks := []models.Block{{ID: blockID, BlockTypeID: 1, Content: "hi"}}
+	note := &models.Note{ID: noteID, UserID: userID, Title: "t"}
 
-	hub.handleUnregister(client)
+	done := make(chan struct{})
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		DoAndReturn(func(_ context.Context, _, _ uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
+			close(done)
+			return note, blocks, map[string]models.BlockFormatting{}, nil
+		})
 
-	// Client should be removed
-	_, ok := room.GetClient("user1")
-	if ok {
-		t.Error("Client should be removed from room")
+	client := newTestClient(userID.String(), "Alice", noteID.String(), 8)
+	env.hub.handleRegister(client)
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("GetNote was not called from sendSyncState")
 	}
 
-	// Send channel should be closed
-	_, ok = <-client.Send
-	if ok {
-		t.Error("Send channel should be closed")
+	env.hub.mu.RLock()
+	room, ok := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if !ok {
+		t.Fatal("room should be created")
+	}
+	if _, ok := room.GetClient(userID.String()); !ok {
+		t.Fatal("client should be added to room")
+	}
+
+	msgs := drainBroadcast(env.hub)
+	foundJoined := false
+	for _, m := range msgs {
+		if m.Message.Type == MsgUserJoined {
+			foundJoined = true
+		}
+	}
+	if !foundJoined {
+		t.Fatal("expected MsgUserJoined broadcast")
 	}
 }
 
-func TestHub_HandleUnregister_EmptyRoomRemoval(t *testing.T) {
-	hub := createTestHub()
+func TestHub_HandleUnregister_NoRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Create room with one client
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
+	client := newTestClient(uuid.New().String(), "x", uuid.New().String(), 1)
+	env.hub.handleUnregister(client)
+}
+
+func TestHub_HandleUnregister_RemovesClientAndDeletesEmptyRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	client := newTestClient(uuid.New().String(), "Alice", noteID, 4)
 	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
 
-	hub.handleUnregister(client)
+	env.hub.handleUnregister(client)
 
-	hub.mu.RLock()
-	_, exists := hub.rooms["note123"]
-	hub.mu.RUnlock()
+	if _, ok := room.GetClient(client.UserID); ok {
+		t.Fatal("client should be removed")
+	}
 
+	env.hub.mu.RLock()
+	_, exists := env.hub.rooms[noteID]
+	env.hub.mu.RUnlock()
 	if exists {
-		t.Error("Empty room should be removed from hub")
+		t.Fatal("empty room should be deleted")
+	}
+
+	if _, ok := <-client.Send; ok {
+		t.Fatal("send channel should be closed")
+	}
+
+	msgs := drainBroadcast(env.hub)
+	foundLeft := false
+	for _, m := range msgs {
+		if m.Message.Type == MsgUserLeft {
+			foundLeft = true
+		}
+	}
+	if !foundLeft {
+		t.Fatal("expected MsgUserLeft broadcast")
 	}
 }
 
-func TestHub_HandleBroadcast(t *testing.T) {
-	hub := createTestHub()
+func TestHub_HandleUnregister_KeepsRoomWithOtherClients(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Create room with two clients
-	room := NewNoteRoom("note123")
-	client1 := createTestClient("user1", "User One", "note123")
-	client2 := createTestClient("user2", "User Two", "note123")
-	room.AddClient(client1)
-	room.AddClient(client2)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c1 := newTestClient(uuid.New().String(), "A", noteID, 4)
+	c2 := newTestClient(uuid.New().String(), "B", noteID, 4)
+	room.AddClient(c1)
+	room.AddClient(c2)
 
-	msg := WebSocketMessage{
-		Type: MsgCursorMove,
-		Msg:  map[string]string{"test": "data"},
-	}
+	env.hub.handleUnregister(c1)
 
-	broadcastMsg := &BroadcastMessage{
-		NoteID:  "note123",
-		Message: msg,
-		Exclude: "user1",
-	}
-
-	// Read from client2's channel (should receive message)
-	var receivedMsg WebSocketMessage
-	go func() {
-		select {
-		case receivedMsg = <-client2.Send:
-		case <-time.After(100 * time.Millisecond):
-		}
-	}()
-
-	hub.handleBroadcast(broadcastMsg)
-
-	time.Sleep(50 * time.Millisecond)
-
-	if receivedMsg.Type != MsgCursorMove {
-		t.Errorf("Expected broadcast message, got %+v", receivedMsg)
+	env.hub.mu.RLock()
+	_, exists := env.hub.rooms[noteID]
+	env.hub.mu.RUnlock()
+	if !exists {
+		t.Fatal("room should remain because of other clients")
 	}
 }
 
-func TestHub_BroadcastToRoom(t *testing.T) {
-	hub := createTestHub()
+func TestHub_HandleBroadcast_NonExistentRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Create room with two clients
-	room := NewNoteRoom("note123")
-	client1 := createTestClient("user1", "User One", "note123")
-	client2 := createTestClient("user2", "User Two", "note123")
-	room.AddClient(client1)
-	room.AddClient(client2)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	env.hub.handleBroadcast(&BroadcastMessage{NoteID: "nope", Message: WebSocketMessage{Type: MsgHeartbeat}})
+}
 
-	msg := WebSocketMessage{
-		Type: MsgUserJoined,
-		Msg:  map[string]string{"message": "joined"},
+func TestHub_HandleBroadcast_ExcludesUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	c1 := newTestClient("u1", "A", noteID, 4)
+	c2 := newTestClient("u2", "B", noteID, 4)
+	room.AddClient(c1)
+	room.AddClient(c2)
+
+	env.hub.handleBroadcast(&BroadcastMessage{
+		NoteID:  noteID,
+		Message: WebSocketMessage{Type: MsgHeartbeat},
+		Exclude: "u1",
+	})
+
+	if len(c1.Send) != 0 {
+		t.Fatal("excluded client should not receive")
+	}
+	if len(c2.Send) != 1 {
+		t.Fatal("non-excluded client should receive")
+	}
+}
+
+func TestHub_BroadcastToRoom_ChannelFullDoesNotPanic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	for i := 0; i < cap(env.hub.broadcast); i++ {
+		env.hub.broadcast <- &BroadcastMessage{NoteID: "x"}
+	}
+	env.hub.broadcastToRoom("x", WebSocketMessage{Type: MsgHeartbeat}, "")
+}
+
+func TestHub_SendSyncState_InvalidNoteID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := "not-a-uuid"
+	room := NewNoteRoom(noteID)
+	client := newTestClient(uuid.New().String(), "A", noteID, 4)
+	env.hub.sendSyncState(client, room)
+
+	msg := <-client.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_SendSyncState_InvalidUserID(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	client := newTestClient("not-a-uuid", "A", noteID, 4)
+	env.hub.sendSyncState(client, room)
+
+	msg := <-client.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_SendSyncState_GetNoteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(nil, nil, nil, errors.New("boom"))
+
+	room := NewNoteRoom(noteID.String())
+	client := newTestClient(userID.String(), "A", noteID.String(), 4)
+	env.hub.sendSyncState(client, room)
+
+	msg := <-client.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_SendSyncState_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	blocks := []models.Block{{ID: blockID, BlockTypeID: 1, Content: "hello"}}
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: userID}, blocks, map[string]models.BlockFormatting{}, nil)
+
+	room := NewNoteRoom(noteID.String())
+	client := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(client)
+
+	env.hub.sendSyncState(client, room)
+
+	msg := <-client.Send
+	if msg.Type != MsgSyncState {
+		t.Fatalf("expected MsgSyncState, got %s", msg.Type)
 	}
 
-	// Start broadcast goroutine
-	go hub.Run(context.Background())
-
-	hub.broadcastToRoom("note123", msg, "user1")
-
-	time.Sleep(50 * time.Millisecond)
-
-	// Check that client2 received message
-	select {
-	case received := <-client2.Send:
-		if received.Type != MsgUserJoined {
-			t.Errorf("Expected MsgUserJoined, got %s", received.Type)
-		}
-	default:
-		t.Error("Client2 should have received the message")
+	if _, ok := room.GetCRDTDocument(blockID.String()); !ok {
+		t.Fatal("expected CRDT document to be created for text block")
 	}
 
-	// Client1 should NOT have received message
-	select {
-	case <-client1.Send:
-		t.Error("Client1 should not have received message (excluded)")
-	default:
-		// Expected
+	cursor := client.GetCursor()
+	if cursor.BlockID != blockID.String() {
+		t.Errorf("expected cursor on block %s, got %s", blockID, cursor.BlockID)
 	}
+}
+
+func TestHub_HandleOperation_NoRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	env.hub.HandleOperation("nope", "u1", WebSocketMessage{Type: MsgCursorMove})
+}
+
+func TestHub_HandleOperation_DeletedRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	room.IsDeleted = true
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{Type: MsgCursorMove})
 }
 
 func TestHub_HandleCursorMove(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
 
-	cursor := CursorPosition{
-		BlockID:  "block1",
-		Position: 42,
+	cursor := CursorPosition{BlockID: "b1", Position: 7}
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  cursor,
+	})
+
+	if c.GetCursor().Position != 7 {
+		t.Errorf("expected position 7, got %d", c.GetCursor().Position)
 	}
 
-	hub.handleCursorMove(room, "user1", cursor)
-
-	storedCursor := client.GetCursor()
-	if storedCursor.Position != 42 {
-		t.Errorf("Expected cursor position 42, got %d", storedCursor.Position)
-	}
-	if storedCursor.BlockID != "block1" {
-		t.Errorf("Expected BlockID 'block1', got '%s'", storedCursor.BlockID)
+	msgs := drainBroadcast(env.hub)
+	if len(msgs) == 0 {
+		t.Fatal("expected broadcast")
 	}
 }
 
+func TestHub_HandleCursorMove_ClientNotInRoom(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "ghost", WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  CursorPosition{Position: 1},
+	})
+}
+
 func TestHub_HandleInsertChar_Local(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New().String()
+	blockID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
 
-	msg := WebSocketMessage{
+	op := InsertCharOperation{
+		BlockID: blockID,
+		Char:    "x",
+	}
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
 		Type:    MsgInsertChar,
 		IsLocal: true,
+		Msg:     op,
+	})
+
+	doc, ok := room.GetCRDTDocument(blockID)
+	if !ok {
+		t.Fatal("expected CRDT doc to be created")
+	}
+	if doc.GetText() != "x" {
+		t.Errorf("expected text 'x', got %q", doc.GetText())
 	}
 
-	op := &InsertCharOperation{
-		BlockID: "block1",
-		Char:    "a",
-	}
-
-	hub.handleInsertChar(room, "user1", msg, op)
-
-	doc, exists := room.GetCRDTDocument("block1")
-	if !exists {
-		t.Error("CRDT document should be created")
-	}
-
-	text := doc.GetText()
-	if text != "a" {
-		t.Errorf("Expected text 'a', got '%s'", text)
+	msgs := drainBroadcast(env.hub)
+	if len(msgs) < 1 {
+		t.Fatal("expected at least one broadcast")
 	}
 }
 
 func TestHub_HandleInsertChar_Remote(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	room := NewNoteRoom("note123")
-	doc := NewCRDTDocument("user2")
-	doc.InsertChar(0, 'b', "user2")
-	room.SetCRDTDocument("block1", doc)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New().String()
+	blockID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	doc := NewCRDTDocument("u1")
+	room.SetCRDTDocument(blockID, doc)
 
-	msg := WebSocketMessage{
+	op := InsertCharOperation{
+		BlockID:  blockID,
+		Char:     "y",
+		UniqueID: "u1:1:1",
+		PrevID:   "root:0:0",
+		Lamport:  10,
+		UserID:   "u1",
+	}
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
 		Type:    MsgInsertChar,
 		IsLocal: false,
-	}
+		Msg:     op,
+	})
 
-	op := &InsertCharOperation{
-		BlockID:   "block1",
-		UniqueID:  "user2:2:2",
-		Char:      "c",
-		PrevID:    "user2:1:1",
-		Lamport:   2,
-		UserID:    "user2",
-		Timestamp: time.Now().UnixNano(),
+	if doc.GetText() != "y" {
+		t.Errorf("expected 'y', got %q", doc.GetText())
 	}
+}
 
-	hub.handleInsertChar(room, "user2", msg, op)
+func TestHub_HandleInsertChar_RemoteNoDocNoop(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	text := doc.GetText()
-	// Should have 'b' and 'c' (order depends on CRDT)
-	if len(text) != 2 {
-		t.Errorf("Expected 2 characters, got %d", len(text))
-	}
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
+		Type:    MsgInsertChar,
+		IsLocal: false,
+		Msg:     InsertCharOperation{BlockID: "no-doc", Char: "y", UniqueID: "z", PrevID: "root:0:0"},
+	})
+}
+
+func TestHub_HandleInsertChar_LocalClientMissing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "ghost", WebSocketMessage{
+		Type:    MsgInsertChar,
+		IsLocal: true,
+		Msg:     InsertCharOperation{BlockID: "b", Char: "z"},
+	})
 }
 
 func TestHub_HandleDeleteChar_Local(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
+	noteID := uuid.New().String()
+	blockID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
 
-	// Create CRDT doc with content "ab"
-	doc := NewCRDTDocument("user1")
-	doc.InsertChar(0, 'a', "user1")
-	doc.InsertChar(1, 'b', "user1")
-	room.SetCRDTDocument("block1", doc)
+	doc := NewCRDTDocument("u1")
+	doc.LoadText("ab", "u1")
+	room.SetCRDTDocument(blockID, doc)
+	c.UpdateCursor(CursorPosition{BlockID: blockID, Position: 2})
 
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
-
-	// Set cursor position to 2 (after 'b')
-	client.UpdateCursor(CursorPosition{
-		BlockID:  "block1",
-		Position: 2,
-	})
-
-	msg := WebSocketMessage{
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
 		Type:    MsgDeleteChar,
 		IsLocal: true,
-	}
+		Msg:     DeleteCharOperation{BlockID: blockID},
+	})
 
-	op := &DeleteCharOperation{
-		BlockID: "block1",
+	if doc.GetText() != "a" {
+		t.Errorf("expected 'a', got %q", doc.GetText())
 	}
+}
 
-	hub.handleDeleteChar(room, "user1", msg, op)
+func TestHub_HandleDeleteChar_Local_NoCursor(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	text := doc.GetText()
-	if text != "a" {
-		t.Errorf("Expected text 'a', got '%s'", text)
-	}
+	noteID := uuid.New().String()
+	blockID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+	doc := NewCRDTDocument("u1")
+	room.SetCRDTDocument(blockID, doc)
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
+		Type:    MsgDeleteChar,
+		IsLocal: true,
+		Msg:     DeleteCharOperation{BlockID: blockID},
+	})
+}
+
+func TestHub_HandleDeleteChar_LocalNoDoc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
+		Type:    MsgDeleteChar,
+		IsLocal: true,
+		Msg:     DeleteCharOperation{BlockID: "no-doc"},
+	})
 }
 
 func TestHub_HandleDeleteChar_Remote(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	room := NewNoteRoom("note123")
-	doc := NewCRDTDocument("user1")
-	id := doc.InsertChar(0, 'a', "user1")
-	room.SetCRDTDocument("block1", doc)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	noteID := uuid.New().String()
+	blockID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	doc := NewCRDTDocument("u1")
+	doc.LoadText("abc", "u1")
+	room.SetCRDTDocument(blockID, doc)
 
-	msg := WebSocketMessage{
+	state := doc.GetCRDTState()
+	delID := state[0].ID
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
 		Type:    MsgDeleteChar,
 		IsLocal: false,
-	}
+		Msg:     DeleteCharOperation{BlockID: blockID, UniqueID: delID, Lamport: 100},
+	})
 
-	op := &DeleteCharOperation{
-		BlockID:  "block1",
-		UniqueID: id,
-		Lamport:  2,
-	}
-
-	hub.handleDeleteChar(room, "user2", msg, op)
-
-	text := doc.GetText()
-	if text != "" {
-		t.Errorf("Expected empty text, got '%s'", text)
+	if doc.GetText() != "bc" {
+		t.Errorf("expected 'bc', got %q", doc.GetText())
 	}
 }
 
-func TestHub_HandleCreateBlock(t *testing.T) {
-	hub := createTestHub()
+func TestHub_HandleApplyFormatting_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Setup mock
-	createdBlock := &models.Block{
-		ID:          uuid.New(),
-		BlockTypeID: 1,
-		Position:    0,
-	}
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
 
-	mockNoteUsecase := &MockNoteUsecase{
-		CreateBlockFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error) {
-			return createdBlock, nil
+	done := make(chan struct{})
+	env.noteUC.EXPECT().
+		UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _, _, _ uuid.UUID, _ models.FormattingRange) (*models.BlockFormatting, error) {
+			close(done)
+			return &models.BlockFormatting{}, nil
+		})
+
+	boldTrue := true
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgApplyFormatting,
+		Msg: FormattingOperation{
+			BlockID:  blockID.String(),
+			StartPos: 0,
+			EndPos:   3,
+			Bold:     &boldTrue,
 		},
-	}
-	hub.noteUsecase = mockNoteUsecase
+	})
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
-
-	op := &CreateBlockOperation{
-		BlockTypeID: 1,
-		Position:    0,
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("UpdateBlockFormatting was not called")
 	}
 
-	hub.handleCreateBlock(room, "user1", op)
+	if room.SequenceID != 1 {
+		t.Errorf("expected SequenceID 1, got %d", room.SequenceID)
+	}
+}
 
-	// Should create CRDT document for text block
-	_, exists := room.GetCRDTDocument(createdBlock.ID.String())
-	if !exists {
-		t.Error("CRDT document should be created for text block")
+func TestHub_HandleApplyFormatting_ErrorSentToClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 8)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).
+		Return(nil, errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgApplyFormatting,
+		Msg: FormattingOperation{
+			BlockID: blockID.String(),
+		},
+	})
+
+	select {
+	case msg := <-c.Send:
+		if msg.Type != MsgError {
+			t.Errorf("expected MsgError, got %s", msg.Type)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected error message")
+	}
+}
+
+func TestHub_HandleApplyFormatting_ClientMissing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+
+	env.hub.HandleOperation(noteID.String(), uuid.New().String(), WebSocketMessage{
+		Type: MsgApplyFormatting,
+		Msg:  FormattingOperation{BlockID: uuid.New().String()},
+	})
+}
+
+func TestHub_HandleCreateBlock_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	createdBlockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).
+		Return(&models.Block{ID: createdBlockID, BlockTypeID: 1, Position: 0}, nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgCreateBlock,
+		Msg:  CreateBlockOperation{BlockTypeID: 1, Position: 0},
+	})
+
+	if _, ok := room.GetCRDTDocument(createdBlockID.String()); !ok {
+		t.Fatal("expected CRDT doc for text block")
 	}
 }
 
 func TestHub_HandleCreateBlock_Error(t *testing.T) {
-	hub := createTestHub()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	mockNoteUsecase := &MockNoteUsecase{
-		CreateBlockFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error) {
-			return nil, errors.New("create block failed")
-		},
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).
+		Return(nil, errors.New("boom"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgCreateBlock,
+		Msg:  CreateBlockOperation{BlockTypeID: 1},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
 	}
-	hub.noteUsecase = mockNoteUsecase
+}
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+func TestHub_HandleDeleteBlock_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	// Read error message
-	var receivedMsg WebSocketMessage
-	go func() {
-		select {
-		case receivedMsg = <-client.Send:
-		case <-time.After(100 * time.Millisecond):
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+	room.SetCRDTDocument(blockID.String(), NewCRDTDocument(userID.String()))
+
+	env.noteUC.EXPECT().
+		DeleteBlock(gomock.Any(), blockID, noteID, userID).
+		Return(nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgDeleteBlock,
+		Msg:  DeleteBlockOperation{BlockID: blockID.String()},
+	})
+
+	if _, ok := room.GetCRDTDocument(blockID.String()); ok {
+		t.Fatal("CRDT doc should be deleted")
+	}
+}
+
+func TestHub_HandleDeleteBlock_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		DeleteBlock(gomock.Any(), blockID, noteID, userID).
+		Return(errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgDeleteBlock,
+		Msg:  DeleteBlockOperation{BlockID: blockID.String()},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleMoveBlock_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		MoveBlock(gomock.Any(), blockID, noteID, userID, 3).
+		Return(&models.Block{}, nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgMoveBlock,
+		Msg:  MoveBlockOperation{BlockID: blockID.String(), NewPosition: 3},
+	})
+}
+
+func TestHub_HandleMoveBlock_Error(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		MoveBlock(gomock.Any(), blockID, noteID, userID, 3).
+		Return(nil, errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgMoveBlock,
+		Msg:  MoveBlockOperation{BlockID: blockID.String(), NewPosition: 3},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUpdateNoteTitle_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	note := &models.Note{ID: noteID, UserID: userID, Title: "old"}
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil, nil, nil)
+	env.noteUC.EXPECT().
+		UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _, _ uuid.UUID, n models.Note) (*models.Note, error) {
+			if n.Title != "new title" {
+				t.Errorf("expected updated title, got %q", n.Title)
+			}
+			return &n, nil
+		})
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNoteTitle,
+		Msg:  "new title",
+	})
+}
+
+func TestHub_HandleUpdateNoteTitle_GetNoteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(nil, nil, nil, errors.New("boom"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNoteTitle,
+		Msg:  "new title",
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUpdateNoteTitle_UpdateError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(&models.Note{ID: noteID, UserID: userID}, nil, nil, nil)
+	env.noteUC.EXPECT().UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNoteTitle,
+		Msg:  "x",
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected MsgError, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUpdateNotePublic_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	otherUser := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: otherUser}, nil, nil, nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNotePublic,
+		Msg:  false,
+	})
+}
+
+func TestHub_HandleUpdateNotePublic_OwnerMakePrivate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	owner := newTestClient(userID.String(), "Owner", noteID.String(), 4)
+	other := newTestClient(uuid.New().String(), "Guest", noteID.String(), 4)
+	room.AddClient(owner)
+	room.AddClient(other)
+
+	note := &models.Note{ID: noteID, UserID: userID, IsPublic: true}
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil, nil, nil).Times(2)
+	env.noteUC.EXPECT().
+		UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _, _ uuid.UUID, n models.Note) (*models.Note, error) {
+			if n.IsPublic {
+				t.Error("note should be marked private")
+			}
+			return &n, nil
+		})
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNotePublic,
+		Msg:  false,
+	})
+
+	for _, c := range []*ClientInfo{owner, other} {
+		msgs := collectMessages(c.Send, time.Second)
+		foundPrivate := false
+		for _, m := range msgs {
+			if m.Type == MsgNotePrivate {
+				foundPrivate = true
+			}
 		}
+		if !foundPrivate {
+			t.Errorf("client %s did not receive MsgNotePrivate", c.UserID)
+		}
+	}
+}
+
+func TestHub_HandleUpdateNotePublic_OwnerMakePublic(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	owner := newTestClient(userID.String(), "Owner", noteID.String(), 4)
+	room.AddClient(owner)
+
+	note := &models.Note{ID: noteID, UserID: userID, IsPublic: false}
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil, nil, nil).Times(2)
+	env.noteUC.EXPECT().UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).Return(note, nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNotePublic,
+		Msg:  true,
+	})
+
+	if _, ok := room.GetClient(userID.String()); !ok {
+		t.Fatal("client should remain when making public")
+	}
+}
+
+func TestHub_HandleUpdateNotePublic_OwnerGetNoteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	owner := newTestClient(userID.String(), "Owner", noteID.String(), 4)
+	room.AddClient(owner)
+
+	first := env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: userID}, nil, nil, nil)
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(nil, nil, nil, errors.New("boom")).
+		After(first)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNotePublic,
+		Msg:  false,
+	})
+}
+
+func TestHub_HandleUpdateNotePublic_OwnerUpdateError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	owner := newTestClient(userID.String(), "Owner", noteID.String(), 4)
+	room.AddClient(owner)
+
+	note := &models.Note{ID: noteID, UserID: userID}
+	env.noteUC.EXPECT().GetNote(gomock.Any(), noteID, userID).Return(note, nil, nil, nil).Times(2)
+	env.noteUC.EXPECT().UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUpdateNotePublic,
+		Msg:  false,
+	})
+}
+
+func TestHub_HandleUploadAttachment_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	pngHeader := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}
+	data := append(pngHeader, make([]byte, 200)...)
+
+	env.attachUC.EXPECT().
+		UploadAttachment(gomock.Any(), noteID, userID, "f.png", int64(len(data)), "image/png", gomock.Any(), true, 1).
+		DoAndReturn(func(_ context.Context, _, _ uuid.UUID, _ string, _ int64, _ string, r io.Reader, _ bool, _ int) (*models.Attachment, error) {
+			_, _ = io.ReadAll(r)
+			return &models.Attachment{ID: uuid.New(), BlockID: uuid.New()}, nil
+		})
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUploadAttachment,
+		Msg: UploadAttachmentOperation{
+			FileName:    "f.png",
+			FileData:    data,
+			HasPosition: true,
+			Position:    1,
+		},
+	})
+}
+
+func TestHub_HandleUploadAttachment_InvalidMime(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUploadAttachment,
+		Msg: UploadAttachmentOperation{
+			FileName: "a.bin",
+			FileData: []byte("not a valid file with html<html><body>test</body></html> contents"),
+		},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected error, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUploadAttachment_FileTooLarge(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	data := make([]byte, MAX_IMAGE_SIZE+1)
+	copy(data, []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'})
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUploadAttachment,
+		Msg: UploadAttachmentOperation{
+			FileName: "big.png",
+			FileData: data,
+		},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected error, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUploadAttachment_UploadError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c := newTestClient(userID.String(), "A", noteID.String(), 4)
+	room.AddClient(c)
+
+	pngHeader := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}
+	data := append(pngHeader, make([]byte, 100)...)
+
+	env.attachUC.EXPECT().
+		UploadAttachment(gomock.Any(), noteID, userID, "f.png", int64(len(data)), "image/png", gomock.Any(), false, 0).
+		Return(nil, errors.New("upload fail"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgUploadAttachment,
+		Msg: UploadAttachmentOperation{
+			FileName: "f.png",
+			FileData: data,
+		},
+	})
+
+	msg := <-c.Send
+	if msg.Type != MsgError {
+		t.Fatalf("expected error, got %s", msg.Type)
+	}
+}
+
+func TestHub_HandleUploadAttachment_ClientMissing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+
+	env.hub.HandleOperation(noteID.String(), uuid.New().String(), WebSocketMessage{
+		Type: MsgUploadAttachment,
+		Msg:  UploadAttachmentOperation{FileName: "f.png", FileData: []byte("data")},
+	})
+}
+
+func TestHub_HandleDeleteNote_NotOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	otherUser := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: otherUser}, nil, nil, nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgDeleteNote,
+	})
+
+	env.hub.mu.RLock()
+	_, exists := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if !exists {
+		t.Fatal("room should remain when caller is not owner")
+	}
+}
+
+func TestHub_HandleDeleteNote_OwnerSuccess(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+	c1 := newTestClient(userID.String(), "A", noteID.String(), 4)
+	c2 := newTestClient(uuid.New().String(), "B", noteID.String(), 4)
+	room.AddClient(c1)
+	room.AddClient(c2)
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: userID}, nil, nil, nil)
+	env.noteUC.EXPECT().DeleteNote(gomock.Any(), noteID, userID).Return(nil)
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgDeleteNote,
+	})
+
+	env.hub.mu.RLock()
+	_, exists := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if exists {
+		t.Fatal("room should be removed after delete")
+	}
+
+	for _, c := range []*ClientInfo{c1, c2} {
+		msgs := collectMessages(c.Send, time.Second)
+		foundDeleted := false
+		for _, m := range msgs {
+			if m.Type == MsgNoteDeleted {
+				foundDeleted = true
+			}
+		}
+		if !foundDeleted {
+			t.Errorf("client %s did not get MsgNoteDeleted", c.UserID)
+		}
+	}
+}
+
+func TestHub_HandleDeleteNote_OwnerDeleteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	room := NewNoteRoom(noteID.String())
+	env.hub.rooms[noteID.String()] = room
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: userID}, nil, nil, nil)
+	env.noteUC.EXPECT().DeleteNote(gomock.Any(), noteID, userID).Return(errors.New("nope"))
+
+	env.hub.HandleOperation(noteID.String(), userID.String(), WebSocketMessage{
+		Type: MsgDeleteNote,
+	})
+
+	env.hub.mu.RLock()
+	_, exists := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if !exists {
+		t.Fatal("room should remain when delete fails")
+	}
+}
+
+func TestHub_HandleHeartbeat(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+
+	before := c.LastPing
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{Type: MsgHeartbeat})
+	if c.LastPing <= before {
+		t.Fatal("expected LastPing to advance")
+	}
+}
+
+func TestHub_HandleHeartbeat_NoClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "ghost", WebSocketMessage{Type: MsgHeartbeat})
+}
+
+func TestHub_IsNoteOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New()
+	userID := uuid.New()
+	other := uuid.New()
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: userID}, nil, nil, nil)
+	if !env.hub.isNoteOwner(noteID.String(), userID.String()) {
+		t.Fatal("expected true when matching")
+	}
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(&models.Note{ID: noteID, UserID: other}, nil, nil, nil)
+	if env.hub.isNoteOwner(noteID.String(), userID.String()) {
+		t.Fatal("expected false when not matching")
+	}
+
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(nil, nil, nil, errors.New("boom"))
+	if env.hub.isNoteOwner(noteID.String(), userID.String()) {
+		t.Fatal("expected false on error")
+	}
+}
+
+func TestHub_CleanupInactiveRooms(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	oldEmpty := NewNoteRoom("old-empty")
+	oldEmpty.CreatedAt = time.Now().Unix() - 1000
+	env.hub.rooms["old-empty"] = oldEmpty
+
+	oldWithClient := NewNoteRoom("old-with-client")
+	oldWithClient.CreatedAt = time.Now().Unix() - 1000
+	oldWithClient.AddClient(newTestClient("u", "U", "old-with-client", 1))
+	env.hub.rooms["old-with-client"] = oldWithClient
+
+	fresh := NewNoteRoom("fresh")
+	env.hub.rooms["fresh"] = fresh
+
+	env.hub.cleanupInactiveRooms()
+
+	env.hub.mu.RLock()
+	defer env.hub.mu.RUnlock()
+	if _, ok := env.hub.rooms["old-empty"]; ok {
+		t.Error("old empty room should be cleaned up")
+	}
+	if _, ok := env.hub.rooms["old-with-client"]; !ok {
+		t.Error("old room with clients should not be cleaned up")
+	}
+	if _, ok := env.hub.rooms["fresh"]; !ok {
+		t.Error("fresh room should not be cleaned up")
+	}
+}
+
+func TestHub_SendHeartbeats(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+
+	env.hub.sendHeartbeats()
+
+	select {
+	case msg := <-c.Send:
+		if msg.Type != MsgHeartbeat {
+			t.Errorf("expected heartbeat, got %s", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected heartbeat message")
+	}
+}
+
+func TestHub_SendHeartbeats_FullBufferDropped(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 1)
+	room.AddClient(c)
+	c.Send <- WebSocketMessage{Type: MsgError}
+
+	env.hub.sendHeartbeats()
+
+	if len(c.Send) != 1 {
+		t.Errorf("expected the existing message to remain (full buffer drops heartbeat), got %d", len(c.Send))
+	}
+}
+
+func TestHub_Shutdown(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+
+	env.hub.shutdown()
+
+	if _, ok := <-c.Send; ok {
+		t.Fatal("send channel should be closed")
+	}
+}
+
+func TestHub_Run_ShutsDownOnCtxDone(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 4)
+	room.AddClient(c)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		env.hub.Run(ctx)
+		close(done)
 	}()
 
-	op := &CreateBlockOperation{
-		BlockTypeID: 1,
-		Position:    0,
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after ctx cancel")
 	}
 
-	hub.handleCreateBlock(room, "user1", op)
-
-	time.Sleep(50 * time.Millisecond)
-
-	if receivedMsg.Type != MsgError {
-		t.Errorf("Expected error message, got %s", receivedMsg.Type)
-	}
-}
-
-func TestHub_HandleDeleteBlock(t *testing.T) {
-	hub := createTestHub()
-
-	deleteCalled := false
-	mockNoteUsecase := &MockNoteUsecase{
-		DeleteBlockFunc: func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error {
-			deleteCalled = true
-			return nil
-		},
-	}
-	hub.noteUsecase = mockNoteUsecase
-
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	room.SetCRDTDocument("block1", NewCRDTDocument("user1"))
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
-
-	op := &DeleteBlockOperation{
-		BlockID: "block1",
-	}
-
-	hub.handleDeleteBlock(room, "user1", op)
-
-	if !deleteCalled {
-		t.Error("DeleteBlock should be called")
-	}
-
-	_, exists := room.GetCRDTDocument("block1")
-	if exists {
-		t.Error("CRDT document should be deleted")
+	if _, ok := <-c.Send; ok {
+		t.Fatal("client send should be closed after shutdown")
 	}
 }
 
-func TestHub_HandleMoveBlock(t *testing.T) {
-	hub := createTestHub()
+func TestHub_Run_RegisterUnregisterRoundTrip(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	moveCalled := false
-	mockNoteUsecase := &MockNoteUsecase{
-		MoveBlockFunc: func(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error) {
-			moveCalled = true
-			return &models.Block{Position: newPosition}, nil
-		},
-	}
-	hub.noteUsecase = mockNoteUsecase
+	noteID := uuid.New()
+	userID := uuid.New()
+	blockID := uuid.New()
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
+	env.noteUC.EXPECT().
+		GetNote(gomock.Any(), noteID, userID).
+		Return(
+			&models.Note{ID: noteID, UserID: userID},
+			[]models.Block{{ID: blockID, BlockTypeID: 1}},
+			map[string]models.BlockFormatting{},
+			nil,
+		).
+		AnyTimes()
 
-	op := &MoveBlockOperation{
-		BlockID:     "block1",
-		NewPosition: 5,
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go env.hub.Run(ctx)
 
-	hub.handleMoveBlock(room, "user1", op)
+	client := newTestClient(userID.String(), "Alice", noteID.String(), 8)
+	env.hub.register <- client
 
-	if !moveCalled {
-		t.Error("MoveBlock should be called")
-	}
-}
-
-func TestHub_HandleUpdateNoteTitle(t *testing.T) {
-	hub := createTestHub()
-
-	updateCalled := false
-	mockNoteUsecase := &MockNoteUsecase{
-		GetNoteFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
-			return &models.Note{Title: "Old Title"}, nil, nil, nil
-		},
-		UpdateNoteFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error) {
-			updateCalled = true
-			if note.Title != "New Title" {
-				t.Errorf("Expected title 'New Title', got '%s'", note.Title)
+	// Wait for the room to exist AND for sendSyncState to finish delivering
+	// (MsgSyncState in the buffer) so we don't race the goroutine when we
+	// unregister the client and the hub closes Send.
+	deadline := time.Now().Add(2 * time.Second)
+	sawSync := false
+	for time.Now().Before(deadline) && !sawSync {
+		select {
+		case msg := <-client.Send:
+			if msg.Type == MsgSyncState {
+				sawSync = true
 			}
-			return &note, nil
-		},
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
-	hub.noteUsecase = mockNoteUsecase
+	if !sawSync {
+		t.Fatal("did not observe sync state delivery")
+	}
+	env.hub.mu.RLock()
+	_, ok := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if !ok {
+		t.Fatal("room was not created via register channel")
+	}
 
-	room := NewNoteRoom("note123")
-	client := createTestClient("user1", "Test User", "note123")
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms["note123"] = room
-	hub.mu.Unlock()
-
-	hub.handleUpdateNoteTitle(room, "user1", "New Title")
-
-	if !updateCalled {
-		t.Error("UpdateNote should be called")
+	env.hub.unregister <- client
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		env.hub.mu.RLock()
+		_, stillThere := env.hub.rooms[noteID.String()]
+		env.hub.mu.RUnlock()
+		if !stillThere {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	env.hub.mu.RLock()
+	_, stillThere := env.hub.rooms[noteID.String()]
+	env.hub.mu.RUnlock()
+	if stillThere {
+		t.Fatal("room should be removed after last client unregister")
 	}
 }
 
-func TestHub_HandleUpdateNotePublic_Owner(t *testing.T) {
-	hub := createTestHub()
+func TestHub_ErrorMessage(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
 
-	userUUID := uuid.New()
-	noteUUID := uuid.New()
-	noteIDStr := noteUUID.String()
-	userIDStr := userUUID.String()
+	c := &ClientInfo{UserID: "u1", NoteID: "n1"}
+	msg := env.hub.errorMessage("oops", c)
 
-	updateCalled := false
-	mockNoteUsecase := &MockNoteUsecase{
-		GetNoteFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
-			return &models.Note{
-				ID:       noteUUID,
-				UserID:   userUUID,
-				IsPublic: false,
-			}, nil, nil, nil
-		},
-		UpdateNoteFunc: func(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error) {
-			updateCalled = true
-			if !note.IsPublic {
-				t.Error("IsPublic should be true")
-			}
-			return &note, nil
-		},
+	if msg.Type != MsgError {
+		t.Errorf("expected MsgError, got %s", msg.Type)
 	}
-	hub.noteUsecase = mockNoteUsecase
+	if msg.UserID != "u1" || msg.NoteID != "n1" {
+		t.Error("expected user/note IDs to be set")
+	}
+	m, ok := msg.Msg.(map[string]string)
+	if !ok || m["error"] != "oops" {
+		t.Error("expected error string")
+	}
+}
 
-	room := NewNoteRoom(noteIDStr)
-	client := createTestClient(userIDStr, "Test User", noteIDStr)
-	room.AddClient(client)
-	hub.mu.Lock()
-	hub.rooms[noteIDStr] = room
-	hub.mu.Unlock()
+func TestMapToStruct_Success(t *testing.T) {
+	type tgt struct {
+		Foo string `json:"foo"`
+	}
+	src := map[string]string{"foo": "bar"}
+	var dest tgt
+	if err := mapToStruct(src, &dest); err != nil {
+		t.Fatal(err)
+	}
+	if dest.Foo != "bar" {
+		t.Errorf("expected 'bar', got %q", dest.Foo)
+	}
+}
 
-	hub.handleUpdateNotePublic(room, userIDStr, true)
+func TestMapToStruct_MarshalError(t *testing.T) {
+	src := make(chan int)
+	var dest map[string]string
+	if err := mapToStruct(src, &dest); err == nil {
+		t.Fatal("expected error marshaling channel")
+	}
+}
 
-	if !updateCalled {
-		t.Error("UpdateNote should be called for owner")
+func TestGetMaxSizeByMimeType(t *testing.T) {
+	cases := map[string]int64{
+		"image/png":  MAX_IMAGE_SIZE,
+		"image/gif":  MAX_GIF_SIZE,
+		"audio/mpeg": MAX_AUDIO_SIZE,
+		"video/mp4":  MAX_VIDEO_SIZE,
+	}
+	for mime, want := range cases {
+		got, err := getMaxSizeByMimeType(mime)
+		if err != nil {
+			t.Errorf("mime %s: unexpected error %v", mime, err)
+		}
+		if got != want {
+			t.Errorf("mime %s: expected %d, got %d", mime, want, got)
+		}
+	}
+
+	if _, err := getMaxSizeByMimeType("application/x-bogus"); err == nil {
+		t.Fatal("expected ErrInvalidMimeType for unsupported type")
+	}
+}
+
+func TestHub_UpdateCursorsAfterOperation(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	blockID := "b1"
+	room := NewNoteRoom(noteID)
+	c := newTestClient("u1", "A", noteID, 4)
+	c.UpdateCursor(CursorPosition{BlockID: blockID, Position: 5})
+	room.AddClient(c)
+
+	op := &InsertCharOperation{BlockID: blockID, Position: 2}
+	env.hub.updateCursorsAfterOperation(room, MsgInsertChar, op, blockID)
+
+	if c.GetCursor().Position != 6 {
+		t.Errorf("expected cursor at 6 after insert at 2, got %d", c.GetCursor().Position)
+	}
+}
+
+// Sanity check that the Hub satisfies the websocket interfaces by exercising
+// HandleOperation across all message types with prepared rooms; mostly serves as
+// a compile-time / smoke test that no panic occurs on unknown messages.
+func TestHub_HandleOperation_UnknownTypeNoop(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+
+	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{Type: MessageType("not_a_real_type")})
+}
+
+// Guarantees that AttachmentUsecaseAdapter and ProfileUsecaseInterface are wired in
+// the test env even though we don't call them in most tests.
+func TestHub_AttachmentAdapterAndProfileWired(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	if env.hub.attachmentUsecase == nil {
+		t.Fatal("attachment usecase should be set")
+	}
+	if env.hub.profileUsecase == nil {
+		t.Fatal("profile usecase should be set")
+	}
+
+	// Trigger profile mock once so generated EXPECT helpers are usable from tests in the future.
+	env.profileUC.EXPECT().GetProfile(gomock.Any(), gomock.Any()).Return(&models.Profile{}, nil)
+	if _, err := env.hub.profileUsecase.GetProfile(context.Background(), uuid.New()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Race smoke test: concurrent broadcasts to the same room shouldn't panic.
+func TestHub_HandleBroadcast_Concurrent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	noteID := uuid.New().String()
+	room := NewNoteRoom(noteID)
+	env.hub.rooms[noteID] = room
+	c := newTestClient("u1", "A", noteID, 32)
+	room.AddClient(c)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			env.hub.handleBroadcast(&BroadcastMessage{
+				NoteID:  noteID,
+				Message: WebSocketMessage{Type: MsgHeartbeat},
+			})
+		}()
+	}
+	wg.Wait()
+
+	if len(c.Send) == 0 {
+		t.Fatal("expected at least one broadcast delivered")
+	}
+}
+
+func TestHub_ErrorMessageContainsErrorText(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	env := newHubTestEnv(ctrl)
+
+	c := &ClientInfo{UserID: "u1", NoteID: "n1"}
+	msg := env.hub.errorMessage("specific reason", c)
+	m, ok := msg.Msg.(map[string]string)
+	if !ok || !strings.Contains(m["error"], "specific reason") {
+		t.Errorf("expected error to contain 'specific reason', got %v", msg.Msg)
 	}
 }
