@@ -6,6 +6,7 @@ import (
 	attachmentsgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type AttachmentsServiceClient interface {
@@ -22,7 +23,7 @@ type attachmentsServiceClient struct {
 }
 
 func NewAttachmentsServiceClient(addr string) (AttachmentsServiceClient, error) {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

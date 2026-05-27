@@ -7,7 +7,9 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,41 +32,59 @@ func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig c
 	}, nil
 }
 
-func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (userID string, err error) {
+func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (*dto.Profile, error) {
 	if err := u.validate.Var(username, "required,username"); err != nil {
-		return "", auth.ErrInvalidUsername
+		return nil, auth.ErrInvalidUsername
 	}
 
 	if err := u.validate.Var(password, "required,password"); err != nil {
-		return "", auth.ErrInvalidPassword
+		return nil, auth.ErrInvalidPassword
 	}
 
-	userUUID, err := u.profilesClient.SignupUser(ctx, username, password)
+	profile, err := u.profilesClient.SignupUser(ctx, username, password)
 	if err != nil {
 		if err == auth.ErrUserExist {
-			return "", auth.ErrUserExist
+			return nil, auth.ErrUserExist
 		}
-		return "", err
+		return nil, err
 	}
 
-	return userUUID.String(), nil
+	userID, err := uuid.Parse(profile.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.Profile{
+		ID:       userID,
+		Username: profile.GetUsername(),
+		Avatar:   profile.GetAvatar(),
+	}, nil
 }
 
-func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (userID string, err error) {
-	userUUID, passwordHash, err := u.profilesClient.SigninUser(ctx, username)
+func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*dto.Profile, error) {
+	profile, err := u.profilesClient.SigninUser(ctx, username)
 	if err != nil {
 		if err == auth.ErrUserNotExist {
-			return "", auth.ErrUserNotExist
+			return nil, auth.ErrUserNotExist
 		}
-		return "", err
+		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(profile.GetPassword()), []byte(password))
 	if err != nil {
-		return "", auth.ErrBadCredentials
+		return nil, auth.ErrBadCredentials
 	}
 
-	return userUUID.String(), nil
+	userID, err := uuid.Parse(profile.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.Profile{
+		ID:       userID,
+		Username: profile.GetUsername(),
+		Avatar:   profile.GetAvatar(),
+	}, nil
 }
 
 func (u *authUsecase) Logout(ctx context.Context, w http.ResponseWriter) {

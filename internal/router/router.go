@@ -111,6 +111,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
 	r.HandleFunc("POST /logout", authHandler.LogoutUser)
 
+	r.HandleFunc("GET /public/notes/{noteId}", noteHandler.GetPublicNote)
+
 	r.Handle("GET /notes", authMiddleware(http.HandlerFunc(noteHandler.GetNotes)))
 	r.Handle("GET /notes/{noteId}", authMiddleware(http.HandlerFunc(noteHandler.GetNote)))
 	r.Handle("GET /notes/{noteId}/pdf", authMiddleware(http.HandlerFunc(noteHandler.GetNotePDF)))

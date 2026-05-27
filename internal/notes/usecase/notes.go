@@ -99,6 +99,19 @@ func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid
 	return note, blocks, formattings, nil
 }
 
+func (u *noteUsecase) GetPublicNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
+	note, err := u.noteRepository.GetNote(ctx, noteID)
+	if err != nil {
+		return nil, err
+	}
+
+	if note == nil || !note.IsPublic {
+		return nil, notes.ErrNoteNotFound
+	}
+
+	return note, nil
+}
+
 func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
 	if note.Title == "" {
 		return nil, notes.ErrInvalidNoteData
@@ -435,11 +448,23 @@ func (u *noteUsecase) GenerateNotePDF(ctx context.Context, noteID uuid.UUID, use
 		return nil, err
 	}
 
+	subnotesMap := make(map[string]models.Note)
+	for _, block := range blocks {
+		if block.BlockTypeID == 5 {
+			for _, subnote := range subnotes {
+				if subnote.ID.String() == block.Content {
+					subnotesMap[block.ID.String()] = subnote
+					break
+				}
+			}
+		}
+	}
+
 	noteContent := &pdf.NoteContent{
 		Note:       note,
 		Blocks:     blocks,
 		Formatting: formattings,
-		Subnotes:   subnotes,
+		Subnotes:   subnotesMap,
 		HeaderURL:  headerURL,
 	}
 

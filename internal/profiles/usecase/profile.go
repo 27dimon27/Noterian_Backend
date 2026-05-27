@@ -224,5 +224,19 @@ func (u *profileUsecase) SignupUser(ctx context.Context, username, password stri
 }
 
 func (u *profileUsecase) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
-	return u.profileRepository.SigninUser(ctx, username)
+	profile, err := u.profileRepository.SigninUser(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	avatar, err := u.profileRepository.GetAvatar(ctx, profile.ID)
+	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, err
+	}
+
+	if avatar != nil {
+		profile.Avatar = avatar.AvatarURL
+	}
+
+	return profile, nil
 }

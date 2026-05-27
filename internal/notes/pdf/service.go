@@ -7,15 +7,40 @@ import (
 	"net/http"
 	"strings"
 
+	_ "embed"
+
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/jung-kurt/gofpdf/v2"
 )
+
+//go:embed fonts/arial.ttf
+var arialRegularTTF []byte
+
+//go:embed fonts/arialbd.ttf
+var arialBoldTTF []byte
+
+//go:embed fonts/ariali.ttf
+var arialItalicTTF []byte
+
+//go:embed fonts/arialbi.ttf
+var arialBoldItalicTTF []byte
+
+//go:embed fonts/dejavusans.ttf
+var dejavuSansTTF []byte
+
+func registerPDFFonts(pdf *gofpdf.Fpdf) {
+	pdf.AddUTF8FontFromBytes("Arial", "", arialRegularTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "B", arialBoldTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "I", arialItalicTTF)
+	pdf.AddUTF8FontFromBytes("Arial", "BI", arialBoldItalicTTF)
+	pdf.AddUTF8FontFromBytes("DejaVuSans", "", dejavuSansTTF)
+}
 
 type NoteContent struct {
 	Note       *models.Note
 	Blocks     []models.Block
 	Formatting map[string]models.BlockFormatting
-	Subnotes   []models.Note
+	Subnotes   map[string]models.Note
 	HeaderURL  string
 }
 
@@ -29,6 +54,7 @@ var mimeToExt = map[string]string{
 
 func GeneratePDF(content *NoteContent) (*bytes.Buffer, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
+	registerPDFFonts(pdf)
 	pdf.AddPage()
 
 	addTitle(pdf, content.Note.Title)
@@ -38,11 +64,10 @@ func GeneratePDF(content *NoteContent) (*bytes.Buffer, error) {
 	}
 
 	for _, block := range content.Blocks {
+		if block.BlockTypeID == 5 {
+			block.Content = content.Subnotes[block.ID.String()].Title
+		}
 		addBlock(pdf, block, content.Formatting[block.ID.String()])
-	}
-
-	if len(content.Subnotes) > 0 {
-		addSubnotesSection(pdf, content.Subnotes)
 	}
 
 	var buf bytes.Buffer
@@ -115,10 +140,6 @@ func addBlock(pdf *gofpdf.Fpdf, block models.Block, formatting models.BlockForma
 		addQuoteBlock(pdf, block.Content)
 	case 5:
 		addSubnoteBlock(pdf, block.Content)
-	case 6:
-		addMusicAttachment(pdf, block.Content)
-	case 7:
-		addVideoAttachment(pdf, block.Content)
 	default:
 		addTextBlock(pdf, block.Content, formatting)
 	}
@@ -155,7 +176,7 @@ func addFormattedText(pdf *gofpdf.Fpdf, content string, ranges []models.Formatti
 		bold      bool
 		italic    bool
 		underline bool
-		textAlign int // 0: left, 1: center, 2: right
+		textAlign int
 	}
 
 	var segments []segment
@@ -321,25 +342,6 @@ func addImageAttachment(pdf *gofpdf.Fpdf, imageURL string) {
 	pdf.Ln(5)
 }
 
-// func addFileAttachment(pdf *gofpdf.Fpdf, fileURL string) {
-// 	if fileURL == "" {
-// 		return
-// 	}
-
-// 	pdf.SetFont("Arial", "", 11)
-// 	pdf.SetTextColor(0, 0, 0)
-
-// 	// Extract filename from URL
-// 	filename := extractFilename(fileURL)
-
-// 	pdf.SetTextColor(0, 0, 255)
-// 	pdf.Write(6, "📎 "+filename)
-// 	pdf.SetTextColor(128, 128, 128)
-// 	pdf.Write(6, " ("+fileURL+")")
-// 	pdf.SetTextColor(0, 0, 0)
-// 	pdf.Ln(6)
-// }
-
 func addCodeBlock(pdf *gofpdf.Fpdf, content string) {
 	if content == "" {
 		return
@@ -373,70 +375,12 @@ func addSubnoteBlock(pdf *gofpdf.Fpdf, subnoteTitle string) {
 		label = "Subnote"
 	}
 
-	pdf.SetFont("Arial", "B", 12)
+	pdf.SetFont("DejaVuSans", "", 11)
 	pdf.SetTextColor(100, 100, 100)
-	pdf.Write(8, "↳ ")
-	pdf.Write(8, label)
-	pdf.SetTextColor(0, 0, 0)
-	pdf.Ln(6)
-}
-
-func addMusicAttachment(pdf *gofpdf.Fpdf, audioURL string) {
-	if audioURL == "" {
-		return
-	}
-
+	pdf.Write(6, "    ↳ ")
 	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0)
-	pdf.Write(6, "🎵 Audio: ")
-	pdf.SetTextColor(0, 0, 255)
-	pdf.Write(6, audioURL)
-	pdf.Ln(6)
-}
-
-func addVideoAttachment(pdf *gofpdf.Fpdf, videoURL string) {
-	if videoURL == "" {
-		return
-	}
-
-	pdf.SetFont("Arial", "B", 11)
-	pdf.SetTextColor(0, 0, 0)
-	pdf.Write(6, "🎬 Video: ")
-	pdf.SetTextColor(0, 0, 255)
-	pdf.Write(6, videoURL)
-	pdf.Ln(6)
-}
-
-func addSubnotesSection(pdf *gofpdf.Fpdf, subnotes []models.Note) {
-	if len(subnotes) == 0 {
-		return
-	}
-
-	pdf.SetDrawColor(100, 100, 100)
-	pageWidth, _ := pdf.GetPageSize()
-	y := pdf.GetY()
-	pdf.Line(10, y, pageWidth-10, y)
-	pdf.Ln(3)
-
-	pdf.SetFont("Arial", "B", 14)
-	pdf.SetTextColor(50, 50, 50)
-	pdf.MultiCell(0, 8, "Sub-notes", "", "L", false)
-	pdf.Ln(2)
-
-	for _, subnote := range subnotes {
-		pdf.SetFont("Arial", "B", 11)
-		pdf.SetTextColor(0, 0, 0)
-		pdf.MultiCell(0, 7, "• "+subnote.Title, "", "L", false)
-
-		if subnote.UpdatedAt.Year() > 1 {
-			pdf.SetFont("Arial", "I", 9)
-			pdf.SetTextColor(128, 128, 128)
-			pdf.MultiCell(0, 5, "Updated: "+subnote.UpdatedAt.Format("2006-01-02 15:04"), "", "L", false)
-			pdf.SetTextColor(0, 0, 0)
-		}
-
-		pdf.Ln(1)
-	}
+	pdf.Write(6, label)
+	pdf.Write(10, "\n")
 }
 
 func getTextAlign(alignPtr *int) int {
