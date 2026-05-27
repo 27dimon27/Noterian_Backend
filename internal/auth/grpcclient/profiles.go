@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+//go:generate mockgen -source=profiles.go -destination=mocks/mock_grpcclient_profiles.go -package=mocks
+
 type ProfilesServiceClient interface {
 	SignupUser(ctx context.Context, username, password string) (profile *profilesgrpc.ProfileResponse, err error)
 	SigninUser(ctx context.Context, username string) (profile *profilesgrpc.ProfileResponse, err error)
