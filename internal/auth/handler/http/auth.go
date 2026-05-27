@@ -15,6 +15,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
 )
 
+//go:generate mockgen -source=auth.go -destination=mocks/mock_handler_auth.go -package=mocks
+
 type AuthUsecase interface {
 	SignupUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
 	SigninUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
