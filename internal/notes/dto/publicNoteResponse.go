@@ -6,15 +6,15 @@ import (
 )
 
 type PublicNoteResponse struct {
-    ID    uuid.UUID `json:"id"`
-    Title string    `json:"title"`
-    Icon  string    `json:"icon"`
+	ID    uuid.UUID `json:"id"`
+	Title string    `json:"title"`
+	Icon  string    `json:"icon"`
 }
 
 func ToPublicNoteResponse(note models.Note) PublicNoteResponse {
-    return PublicNoteResponse{
-        ID:    note.ID,
-        Title: note.Title,
-        Icon:  note.Icon,
-    }
+	return PublicNoteResponse{
+		ID:    note.ID,
+		Title: note.Title,
+		Icon:  note.Icon,
+	}
 }

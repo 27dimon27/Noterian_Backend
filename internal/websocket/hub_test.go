@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	attachMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http/mocks"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	noteMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/handler/http/mocks"
 	profileMocks "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http/mocks"
 	"github.com/google/uuid"
