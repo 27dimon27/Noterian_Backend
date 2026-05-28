@@ -409,14 +409,14 @@ func TestHub_HandleCursorMove(t *testing.T) {
 	c := newTestClient("u1", "A", noteID, 4)
 	room.AddClient(c)
 
-	cursor := CursorPosition{BlockID: "b1", Position: 7}
+	cursor := CursorPosition{BlockID: "b1", StartPosition: 7, EndPosition: 7}
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
 		Type: MsgCursorMove,
 		Msg:  cursor,
 	})
 
-	if c.GetCursor().Position != 7 {
-		t.Errorf("expected position 7, got %d", c.GetCursor().Position)
+	if c.GetCursor().StartPosition != 7 {
+		t.Errorf("expected start position 7, got %d", c.GetCursor().StartPosition)
 	}
 
 	msgs := drainBroadcast(env.hub)
@@ -436,7 +436,7 @@ func TestHub_HandleCursorMove_ClientNotInRoom(t *testing.T) {
 
 	env.hub.HandleOperation(noteID, "ghost", WebSocketMessage{
 		Type: MsgCursorMove,
-		Msg:  CursorPosition{Position: 1},
+		Msg:  CursorPosition{StartPosition: 1, EndPosition: 1},
 	})
 }
 
@@ -452,13 +452,13 @@ func TestHub_HandleInsertChar_Local(t *testing.T) {
 	c := newTestClient("u1", "A", noteID, 4)
 	room.AddClient(c)
 
-	op := InsertCharOperation{
+	op := InsertCharsOperation{
 		BlockID: blockID,
 		Char:    "x",
 	}
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgInsertChar,
+		Type:    MsgInsertChars,
 		IsLocal: true,
 		Msg:     op,
 	})
@@ -489,17 +489,17 @@ func TestHub_HandleInsertChar_Remote(t *testing.T) {
 	doc := NewCRDTDocument("u1")
 	room.SetCRDTDocument(blockID, doc)
 
-	op := InsertCharOperation{
-		BlockID:  blockID,
-		Char:     "y",
-		UniqueID: "u1:1:1",
-		PrevID:   "root:0:0",
-		Lamport:  10,
-		UserID:   "u1",
+	op := InsertCharsOperation{
+		BlockID:   blockID,
+		Char:      "y",
+		UniqueIDs: []string{"u1:1:1"},
+		PrevID:    "root:0:0",
+		Lamport:   10,
+		UserID:    "u1",
 	}
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgInsertChar,
+		Type:    MsgInsertChars,
 		IsLocal: false,
 		Msg:     op,
 	})
@@ -519,9 +519,9 @@ func TestHub_HandleInsertChar_RemoteNoDocNoop(t *testing.T) {
 	env.hub.rooms[noteID] = room
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgInsertChar,
+		Type:    MsgInsertChars,
 		IsLocal: false,
-		Msg:     InsertCharOperation{BlockID: "no-doc", Char: "y", UniqueID: "z", PrevID: "root:0:0"},
+		Msg:     InsertCharsOperation{BlockID: "no-doc", Char: "y", UniqueIDs: []string{"z"}, PrevID: "root:0:0"},
 	})
 }
 
@@ -535,9 +535,9 @@ func TestHub_HandleInsertChar_LocalClientMissing(t *testing.T) {
 	env.hub.rooms[noteID] = room
 
 	env.hub.HandleOperation(noteID, "ghost", WebSocketMessage{
-		Type:    MsgInsertChar,
+		Type:    MsgInsertChars,
 		IsLocal: true,
-		Msg:     InsertCharOperation{BlockID: "b", Char: "z"},
+		Msg:     InsertCharsOperation{BlockID: "b", Char: "z"},
 	})
 }
 
@@ -556,12 +556,12 @@ func TestHub_HandleDeleteChar_Local(t *testing.T) {
 	doc := NewCRDTDocument("u1")
 	doc.LoadText("ab", "u1")
 	room.SetCRDTDocument(blockID, doc)
-	c.UpdateCursor(CursorPosition{BlockID: blockID, Position: 2})
+	c.UpdateCursor(CursorPosition{BlockID: blockID, StartPosition: 2, EndPosition: 2})
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgDeleteChar,
+		Type:    MsgDeleteChars,
 		IsLocal: true,
-		Msg:     DeleteCharOperation{BlockID: blockID},
+		Msg:     DeleteCharsOperation{BlockID: blockID},
 	})
 
 	if doc.GetText() != "a" {
@@ -584,9 +584,9 @@ func TestHub_HandleDeleteChar_Local_NoCursor(t *testing.T) {
 	room.SetCRDTDocument(blockID, doc)
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgDeleteChar,
+		Type:    MsgDeleteChars,
 		IsLocal: true,
-		Msg:     DeleteCharOperation{BlockID: blockID},
+		Msg:     DeleteCharsOperation{BlockID: blockID},
 	})
 }
 
@@ -602,9 +602,9 @@ func TestHub_HandleDeleteChar_LocalNoDoc(t *testing.T) {
 	room.AddClient(c)
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgDeleteChar,
+		Type:    MsgDeleteChars,
 		IsLocal: true,
-		Msg:     DeleteCharOperation{BlockID: "no-doc"},
+		Msg:     DeleteCharsOperation{BlockID: "no-doc"},
 	})
 }
 
@@ -625,9 +625,9 @@ func TestHub_HandleDeleteChar_Remote(t *testing.T) {
 	delID := state[0].ID
 
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{
-		Type:    MsgDeleteChar,
+		Type:    MsgDeleteChars,
 		IsLocal: false,
-		Msg:     DeleteCharOperation{BlockID: blockID, UniqueID: delID, Lamport: 100},
+		Msg:     DeleteCharsOperation{BlockID: blockID, UniqueIDs: []string{delID}, Lamport: 100},
 	})
 
 	if doc.GetText() != "bc" {
@@ -1553,9 +1553,6 @@ func TestHub_Run_RegisterUnregisterRoundTrip(t *testing.T) {
 	client := newTestClient(userID.String(), "Alice", noteID.String(), 8)
 	env.hub.register <- client
 
-	// Wait for the room to exist AND for sendSyncState to finish delivering
-	// (MsgSyncState in the buffer) so we don't race the goroutine when we
-	// unregister the client and the hub closes Send.
 	deadline := time.Now().Add(2 * time.Second)
 	sawSync := false
 	for time.Now().Before(deadline) && !sawSync {
@@ -1669,20 +1666,17 @@ func TestHub_UpdateCursorsAfterOperation(t *testing.T) {
 	blockID := "b1"
 	room := NewNoteRoom(noteID)
 	c := newTestClient("u1", "A", noteID, 4)
-	c.UpdateCursor(CursorPosition{BlockID: blockID, Position: 5})
+	c.UpdateCursor(CursorPosition{BlockID: blockID, StartPosition: 5, EndPosition: 5})
 	room.AddClient(c)
 
-	op := &InsertCharOperation{BlockID: blockID, Position: 2}
-	env.hub.updateCursorsAfterOperation(room, MsgInsertChar, op, blockID)
+	op := &InsertCharsOperation{BlockID: blockID, Position: 2, Char: "X"}
+	env.hub.updateCursorsAfterOperation(room, MsgInsertChars, op, blockID)
 
-	if c.GetCursor().Position != 6 {
-		t.Errorf("expected cursor at 6 after insert at 2, got %d", c.GetCursor().Position)
+	if c.GetCursor().StartPosition != 6 {
+		t.Errorf("expected cursor at 6 after insert at 2, got %d", c.GetCursor().StartPosition)
 	}
 }
 
-// Sanity check that the Hub satisfies the websocket interfaces by exercising
-// HandleOperation across all message types with prepared rooms; mostly serves as
-// a compile-time / smoke test that no panic occurs on unknown messages.
 func TestHub_HandleOperation_UnknownTypeNoop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -1695,8 +1689,6 @@ func TestHub_HandleOperation_UnknownTypeNoop(t *testing.T) {
 	env.hub.HandleOperation(noteID, "u1", WebSocketMessage{Type: MessageType("not_a_real_type")})
 }
 
-// Guarantees that AttachmentUsecaseAdapter and ProfileUsecaseInterface are wired in
-// the test env even though we don't call them in most tests.
 func TestHub_AttachmentAdapterAndProfileWired(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -1709,14 +1701,12 @@ func TestHub_AttachmentAdapterAndProfileWired(t *testing.T) {
 		t.Fatal("profile usecase should be set")
 	}
 
-	// Trigger profile mock once so generated EXPECT helpers are usable from tests in the future.
 	env.profileUC.EXPECT().GetProfile(gomock.Any(), gomock.Any()).Return(&models.Profile{}, nil)
 	if _, err := env.hub.profileUsecase.GetProfile(context.Background(), uuid.New()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// Race smoke test: concurrent broadcasts to the same room shouldn't panic.
 func TestHub_HandleBroadcast_Concurrent(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

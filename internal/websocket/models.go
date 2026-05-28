@@ -57,9 +57,11 @@ const (
 	MsgSyncState  MessageType = "sync_state"
 	MsgHeartbeat  MessageType = "heartbeat"
 
-	MsgCursorMove       MessageType = "cursor_move"
-	MsgInsertChar       MessageType = "insert_char"
-	MsgDeleteChar       MessageType = "delete_char"
+	MsgCursorMove MessageType = "cursor_move"
+	// MsgInsertChar MessageType = "insert_char"
+	MsgInsertChars MessageType = "insert_chars"
+	// MsgDeleteChar       MessageType = "delete_char"
+	MsgDeleteChars      MessageType = "delete_chars"
 	MsgApplyFormatting  MessageType = "apply_formatting"
 	MsgCreateBlock      MessageType = "create_block"
 	MsgDeleteBlock      MessageType = "delete_block"
@@ -86,11 +88,12 @@ type WebSocketMessage struct {
 }
 
 type CursorPosition struct {
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	UserID    string `json:"userId"`
-	UserName  string `json:"userName"`
-	Timestamp int64  `json:"timestamp"`
+	BlockID       string `json:"blockId"`
+	StartPosition int    `json:"start_position"`
+	EndPosition   int    `json:"end_position"`
+	UserID        string `json:"userId"`
+	UserName      string `json:"userName"`
+	Timestamp     int64  `json:"timestamp"`
 }
 
 type UserCursor struct {
@@ -99,26 +102,51 @@ type UserCursor struct {
 	Cursor   CursorPosition `json:"cursor"`
 }
 
-type InsertCharOperation struct {
-	ID        string `json:"id"`
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	Char      string `json:"char"`
-	Lamport   int64  `json:"lamport"`
-	UniqueID  string `json:"uniqueId"`
-	PrevID    string `json:"prevId"`
-	UserID    string `json:"userId"`
-	Timestamp int64  `json:"timestamp"`
+// type InsertCharOperation struct {
+// 	ID        string `json:"id"`
+// 	BlockID   string `json:"blockId"`
+// 	Position  int    `json:"position"`
+// 	Char      string `json:"char"`
+// 	Lamport   int64  `json:"lamport"`
+// 	UniqueID  string `json:"uniqueId"`
+// 	PrevID    string `json:"prevId"`
+// 	UserID    string `json:"userId"`
+// 	Timestamp int64  `json:"timestamp"`
+// }
+
+type InsertCharsOperation struct {
+	ID       string `json:"id"`
+	BlockID  string `json:"blockId"`
+	Position int    `json:"position"`
+	// StartPosition int      `json:"startPosition"`
+	// EndPosition   int      `json:"endPosition"`
+	Char      string   `json:"char"`
+	Lamport   int64    `json:"lamport"`
+	UniqueIDs []string `json:"uniqueIds"`
+	PrevID    string   `json:"prevId"`
+	UserID    string   `json:"userId"`
+	Timestamp int64    `json:"timestamp"`
 }
 
-type DeleteCharOperation struct {
-	ID        string `json:"id"`
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	UniqueID  string `json:"uniqueId"`
-	Lamport   int64  `json:"lamport"`
-	UserID    string `json:"userId"`
-	Timestamp int64  `json:"timestamp"`
+// type DeleteCharOperation struct {
+// 	ID        string `json:"id"`
+// 	BlockID   string `json:"blockId"`
+// 	Position  int    `json:"position"`
+// 	UniqueID  string `json:"uniqueId"`
+// 	Lamport   int64  `json:"lamport"`
+// 	UserID    string `json:"userId"`
+// 	Timestamp int64  `json:"timestamp"`
+// }
+
+type DeleteCharsOperation struct {
+	ID            string   `json:"id"`
+	BlockID       string   `json:"blockId"`
+	StartPosition int      `json:"startPosition"`
+	EndPosition   int      `json:"endPosition"`
+	UniqueIDs     []string `json:"uniqueIds"`
+	Lamport       int64    `json:"lamport"`
+	UserID        string   `json:"userId"`
+	Timestamp     int64    `json:"timestamp"`
 }
 
 type FormattingOperation struct {

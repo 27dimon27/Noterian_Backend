@@ -211,10 +211,11 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 	}
 
 	client.UpdateCursor(CursorPosition{
-		BlockID:  blocks[0].ID.String(),
-		Position: 0,
-		UserID:   client.UserID,
-		UserName: client.UserName,
+		BlockID:       blocks[0].ID.String(),
+		StartPosition: 0,
+		EndPosition:   0,
+		UserID:        client.UserID,
+		UserName:      client.UserName,
 	})
 
 	client.Send <- WebSocketMessage{
@@ -247,16 +248,16 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 			h.handleCursorMove(room, userID, cursor)
 		}
 
-	case MsgInsertChar:
-		var op InsertCharOperation
+	case MsgInsertChars:
+		var op InsertCharsOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
-			h.handleInsertChar(room, userID, msg, &op)
+			h.handleInsertChars(room, userID, msg, &op)
 		}
 
-	case MsgDeleteChar:
-		var op DeleteCharOperation
+	case MsgDeleteChars:
+		var op DeleteCharsOperation
 		if err := mapToStruct(msg.Msg, &op); err == nil {
-			h.handleDeleteChar(room, userID, msg, &op)
+			h.handleDeleteChars(room, userID, msg, &op)
 		}
 
 	case MsgApplyFormatting:
@@ -325,11 +326,11 @@ func (h *Hub) handleCursorMove(room *NoteRoom, userID string, cursor CursorPosit
 	}, userID)
 }
 
-func (h *Hub) handleInsertChar(room *NoteRoom, userID string, msg WebSocketMessage, op *InsertCharOperation) {
+func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMessage, op *InsertCharsOperation) {
 	if !msg.IsLocal {
 		doc, exists := room.GetCRDTDocument(op.BlockID)
 		if exists {
-			doc.ApplyInsert(op)
+			doc.ApplyInserts(op)
 		}
 		return
 	}
@@ -345,46 +346,112 @@ func (h *Hub) handleInsertChar(room *NoteRoom, userID string, msg WebSocketMessa
 		room.SetCRDTDocument(op.BlockID, doc)
 	}
 
-	cursorPos := client.GetCursor().Position
+	startCursorPos := client.GetCursor().StartPosition
+	endCursorPos := client.GetCursor().EndPosition
 
-	ch := []rune(op.Char)[0]
-	newID := doc.InsertChar(cursorPos, ch, userID)
+	if startCursorPos != endCursorPos {
+		deletedChars := []string{}
+		for pos := endCursorPos - 1; pos > startCursorPos; pos-- {
+			deletedChars = append(deletedChars, doc.DeleteChar(pos))
+		}
 
-	transformedPos := doc.findPositionByID(newID)
+		tempOp := &DeleteCharsOperation{
+			ID:            uuid.New().String(),
+			BlockID:       op.BlockID,
+			StartPosition: startCursorPos,
+			EndPosition:   endCursorPos,
+			UniqueIDs:     deletedChars,
+			Lamport:       doc.GetLamport(),
+			UserID:        userID,
+			Timestamp:     time.Now().UnixNano(),
+		}
 
-	broadcastOp := &InsertCharOperation{
-		ID:        uuid.New().String(),
-		BlockID:   op.BlockID,
-		Position:  transformedPos,
-		Char:      op.Char,
-		Lamport:   doc.GetLamport(),
-		UniqueID:  newID,
-		PrevID:    doc.findPrevID(cursorPos),
-		UserID:    userID,
-		Timestamp: time.Now().UnixNano(),
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type:     MsgDeleteChars,
+			UserID:   userID,
+			UserName: client.UserName,
+			Msg:      tempOp,
+		}, userID)
+
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, tempOp, op.BlockID)
+
+		chars := []rune(op.Char)
+		newID := ""
+		for i, char := range chars {
+			tempID := doc.InsertChar(startCursorPos+i, char, userID)
+			if newID == "" {
+				newID = tempID
+			}
+		}
+
+		transformedPos := doc.findPositionByID(newID)
+
+		broadcastOp := &InsertCharsOperation{
+			ID:        uuid.New().String(),
+			BlockID:   op.BlockID,
+			Position:  transformedPos,
+			Char:      op.Char,
+			Lamport:   doc.GetLamport(),
+			UniqueIDs: []string{newID},
+			PrevID:    doc.findPrevID(startCursorPos),
+			UserID:    userID,
+			Timestamp: time.Now().UnixNano(),
+		}
+
+		h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
+
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type:     MsgInsertChars,
+			UserID:   userID,
+			UserName: client.UserName,
+			Msg:      broadcastOp,
+		}, userID)
+
+		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
+	} else {
+		ch := []rune(op.Char)[0]
+		newID := doc.InsertChar(startCursorPos, ch, userID)
+
+		transformedPos := doc.findPositionByID(newID)
+
+		broadcastOp := &InsertCharsOperation{
+			ID:        uuid.New().String(),
+			BlockID:   op.BlockID,
+			Position:  transformedPos,
+			Char:      op.Char,
+			Lamport:   doc.GetLamport(),
+			UniqueIDs: []string{newID},
+			PrevID:    doc.findPrevID(startCursorPos),
+			UserID:    userID,
+			Timestamp: time.Now().UnixNano(),
+		}
+
+		h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
+
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type:     MsgInsertChars,
+			UserID:   userID,
+			UserName: client.UserName,
+			Msg:      broadcastOp,
+		}, userID)
+
+		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
 	}
-
-	h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
-
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type:     MsgInsertChar,
-		UserID:   userID,
-		UserName: client.UserName,
-		Msg:      broadcastOp,
-	}, userID)
-
-	h.updateCursorsAfterOperation(room, MsgInsertChar, broadcastOp, op.BlockID)
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgCursorMove,
-		Msg:  room.GetAllCursors(),
-	}, "")
 }
 
-func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, msg WebSocketMessage, op *DeleteCharOperation) {
+func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMessage, op *DeleteCharsOperation) {
 	if !msg.IsLocal {
 		doc, exists := room.GetCRDTDocument(op.BlockID)
 		if exists {
-			doc.ApplyDelete(op)
+			doc.ApplyDeletes(op)
 		}
 		return
 	}
@@ -399,42 +466,77 @@ func (h *Hub) handleDeleteChar(room *NoteRoom, userID string, msg WebSocketMessa
 		return
 	}
 
-	cursorPos := client.GetCursor().Position
-	deletePos := cursorPos - 1
+	startCursorPos := client.GetCursor().StartPosition
+	endCursorPos := client.GetCursor().EndPosition
 
-	if deletePos < 0 {
-		return
+	if startCursorPos != endCursorPos {
+		deletedChars := []string{}
+		for pos := endCursorPos - 1; pos > startCursorPos; pos-- {
+			deletedChars = append(deletedChars, doc.DeleteChar(pos))
+		}
+
+		broadcastOp := &DeleteCharsOperation{
+			ID:            uuid.New().String(),
+			BlockID:       op.BlockID,
+			StartPosition: startCursorPos,
+			EndPosition:   endCursorPos,
+			UniqueIDs:     deletedChars,
+			Lamport:       doc.GetLamport(),
+			UserID:        userID,
+			Timestamp:     time.Now().UnixNano(),
+		}
+
+		h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
+
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type:     MsgDeleteChars,
+			UserID:   userID,
+			UserName: client.UserName,
+			Msg:      broadcastOp,
+		}, userID)
+
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
+	} else {
+		deletePos := startCursorPos - 1
+		if deletePos < 0 {
+			return
+		}
+
+		deletedID := doc.DeleteChar(deletePos)
+		if deletedID == "" {
+			return
+		}
+
+		broadcastOp := &DeleteCharsOperation{
+			ID:            uuid.New().String(),
+			BlockID:       op.BlockID,
+			StartPosition: deletePos,
+			EndPosition:   deletePos + 1,
+			UniqueIDs:     []string{deletedID},
+			Lamport:       doc.GetLamport(),
+			UserID:        userID,
+			Timestamp:     time.Now().UnixNano(),
+		}
+
+		h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
+
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type:     MsgDeleteChars,
+			UserID:   userID,
+			UserName: client.UserName,
+			Msg:      broadcastOp,
+		}, userID)
+
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+		h.broadcastToRoom(room.NoteID, WebSocketMessage{
+			Type: MsgCursorMove,
+			Msg:  room.GetAllCursors(),
+		}, "")
 	}
-
-	deletedID := doc.DeleteChar(deletePos)
-	if deletedID == "" {
-		return
-	}
-
-	broadcastOp := &DeleteCharOperation{
-		ID:        uuid.New().String(),
-		BlockID:   op.BlockID,
-		Position:  deletePos,
-		UniqueID:  deletedID,
-		Lamport:   doc.GetLamport(),
-		UserID:    userID,
-		Timestamp: time.Now().UnixNano(),
-	}
-
-	h.storage.SaveBlockContent(room.NoteID, op.BlockID, userID, doc.GetText())
-
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type:     MsgDeleteChar,
-		UserID:   userID,
-		UserName: client.UserName,
-		Msg:      broadcastOp,
-	}, userID)
-
-	h.updateCursorsAfterOperation(room, MsgDeleteChar, broadcastOp, op.BlockID)
-	h.broadcastToRoom(room.NoteID, WebSocketMessage{
-		Type: MsgCursorMove,
-		Msg:  room.GetAllCursors(),
-	}, "")
 }
 
 func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *FormattingOperation) {
@@ -749,10 +851,11 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 
 	for _, client := range room.Clients {
 		cursor := client.GetCursor()
-		newPos := TransformCursorPosition(cursor.Position, opType, op, blockID, client.UserID)
+		newStartPos, newEndPos := TransformCursorPosition(cursor.StartPosition, cursor.EndPosition, opType, op, blockID, client.UserID)
 
-		if newPos != cursor.Position {
-			cursor.Position = newPos
+		if newStartPos != cursor.StartPosition || newEndPos != cursor.EndPosition {
+			cursor.StartPosition = newStartPos
+			cursor.EndPosition = newEndPos
 			client.UpdateCursor(cursor)
 		}
 	}
