@@ -210,13 +210,15 @@ func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 		}
 	}
 
-	client.UpdateCursor(CursorPosition{
-		BlockID:       blocks[0].ID.String(),
-		StartPosition: 0,
-		EndPosition:   0,
-		UserID:        client.UserID,
-		UserName:      client.UserName,
-	})
+	if len(blocks) > 0 {
+		client.UpdateCursor(CursorPosition{
+			BlockID:       blocks[0].ID.String(),
+			StartPosition: 0,
+			EndPosition:   0,
+			UserID:        client.UserID,
+			UserName:      client.UserName,
+		})
+	}
 
 	client.Send <- WebSocketMessage{
 		Type:   MsgSyncState,
@@ -413,8 +415,14 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:  room.GetAllCursors(),
 		}, "")
 	} else {
-		ch := []rune(op.Char)[0]
-		newID := doc.InsertChar(startCursorPos, ch, userID)
+		chars := []rune(op.Char)
+		newID := ""
+		for i, char := range chars {
+			tempID := doc.InsertChar(startCursorPos+i, char, userID)
+			if newID == "" {
+				newID = tempID
+			}
+		}
 
 		transformedPos := doc.findPositionByID(newID)
 
@@ -471,7 +479,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 
 	if startCursorPos != endCursorPos {
 		deletedChars := []string{}
-		for pos := endCursorPos - 1; pos > startCursorPos; pos-- {
+		for pos := endCursorPos - 1; pos >= startCursorPos; pos-- {
 			deletedChars = append(deletedChars, doc.DeleteChar(pos))
 		}
 

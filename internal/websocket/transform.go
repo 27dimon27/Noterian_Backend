@@ -7,8 +7,15 @@ func TransformCursorPosition(cursorStarPos int, cursorEndPos int, operationType 
 	switch operationType {
 	case MsgInsertChars:
 		if insertOp, ok := operation.(*InsertCharsOperation); ok {
+			insertLen := len([]rune(insertOp.Char))
+
+			if insertOp.UserID == userID {
+				transformedStartPos += insertLen
+				transformedEndPos = transformedStartPos
+				return transformedStartPos, transformedEndPos
+			}
+
 			if insertOp.BlockID == blockID {
-				insertLen := len([]rune(insertOp.Char))
 				switch {
 				case insertOp.Position < transformedStartPos:
 					transformedStartPos += insertLen
@@ -20,22 +27,33 @@ func TransformCursorPosition(cursorStarPos int, cursorEndPos int, operationType 
 		}
 
 	case MsgDeleteChars:
-		if deleteCharsOp, ok := operation.(*DeleteCharsOperation); ok {
-			if deleteCharsOp.BlockID == blockID {
+		if deleteOp, ok := operation.(*DeleteCharsOperation); ok {
+			if deleteOp.UserID == userID {
+				if transformedStartPos != transformedEndPos {
+					transformedEndPos = transformedStartPos
+					return transformedStartPos, transformedEndPos
+				}
+
+				transformedStartPos--
+				transformedEndPos--
+				return transformedStartPos, transformedEndPos
+			}
+
+			if deleteOp.BlockID == blockID {
 				switch {
-				case deleteCharsOp.EndPosition <= transformedStartPos:
-					transformedStartPos -= (deleteCharsOp.EndPosition - deleteCharsOp.StartPosition)
-					transformedEndPos -= (deleteCharsOp.EndPosition - deleteCharsOp.StartPosition)
-				case deleteCharsOp.StartPosition < transformedStartPos && deleteCharsOp.EndPosition < transformedEndPos && deleteCharsOp.EndPosition > transformedStartPos:
-					transformedStartPos = deleteCharsOp.StartPosition
-					transformedEndPos -= deleteCharsOp.EndPosition - deleteCharsOp.StartPosition
-				case deleteCharsOp.StartPosition >= transformedStartPos && deleteCharsOp.EndPosition <= transformedEndPos:
-					transformedEndPos -= deleteCharsOp.EndPosition - deleteCharsOp.StartPosition
-				case deleteCharsOp.StartPosition < transformedStartPos && deleteCharsOp.EndPosition > transformedEndPos:
-					transformedStartPos = deleteCharsOp.StartPosition
-					transformedEndPos = deleteCharsOp.StartPosition
-				case deleteCharsOp.StartPosition > transformedStartPos && deleteCharsOp.EndPosition > transformedEndPos && deleteCharsOp.StartPosition < transformedEndPos:
-					transformedEndPos = deleteCharsOp.StartPosition
+				case deleteOp.EndPosition <= transformedStartPos:
+					transformedStartPos -= (deleteOp.EndPosition - deleteOp.StartPosition)
+					transformedEndPos -= (deleteOp.EndPosition - deleteOp.StartPosition)
+				case deleteOp.StartPosition < transformedStartPos && deleteOp.EndPosition < transformedEndPos && deleteOp.EndPosition > transformedStartPos:
+					transformedStartPos = deleteOp.StartPosition
+					transformedEndPos -= deleteOp.EndPosition - deleteOp.StartPosition
+				case deleteOp.StartPosition >= transformedStartPos && deleteOp.EndPosition <= transformedEndPos:
+					transformedEndPos -= deleteOp.EndPosition - deleteOp.StartPosition
+				case deleteOp.StartPosition < transformedStartPos && deleteOp.EndPosition > transformedEndPos:
+					transformedStartPos = deleteOp.StartPosition
+					transformedEndPos = deleteOp.StartPosition
+				case deleteOp.StartPosition > transformedStartPos && deleteOp.EndPosition > transformedEndPos && deleteOp.StartPosition < transformedEndPos:
+					transformedEndPos = deleteOp.StartPosition
 				}
 			}
 		}

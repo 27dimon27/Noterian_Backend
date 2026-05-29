@@ -89,8 +89,8 @@ type WebSocketMessage struct {
 
 type CursorPosition struct {
 	BlockID       string `json:"blockId"`
-	StartPosition int    `json:"start_position"`
-	EndPosition   int    `json:"end_position"`
+	StartPosition int    `json:"startPosition"`
+	EndPosition   int    `json:"endPosition"`
 	UserID        string `json:"userId"`
 	UserName      string `json:"userName"`
 	Timestamp     int64  `json:"timestamp"`
@@ -115,11 +115,9 @@ type UserCursor struct {
 // }
 
 type InsertCharsOperation struct {
-	ID       string `json:"id"`
-	BlockID  string `json:"blockId"`
-	Position int    `json:"position"`
-	// StartPosition int      `json:"startPosition"`
-	// EndPosition   int      `json:"endPosition"`
+	ID        string   `json:"id"`
+	BlockID   string   `json:"blockId"`
+	Position  int      `json:"position"`
 	Char      string   `json:"char"`
 	Lamport   int64    `json:"lamport"`
 	UniqueIDs []string `json:"uniqueIds"`
@@ -190,10 +188,8 @@ type MoveBlockOperation struct {
 }
 
 type UploadAttachmentOperation struct {
-	ID       string `json:"id"`
-	FileName string `json:"fileName"`
-	// FileSize    int64  `json:"fileSize"`
-	// MimeType    string `json:"mimeType"`
+	ID          string `json:"id"`
+	FileName    string `json:"fileName"`
 	FileData    []byte `json:"fileData"`
 	HasPosition bool   `json:"hasPosition"`
 	Position    int    `json:"position"`
