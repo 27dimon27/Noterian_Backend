@@ -581,36 +581,45 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 	room.SequenceID++
 	room.mu.Unlock()
 
-	go func() {
-		blockID, _ := uuid.Parse(op.BlockID)
-		noteID, _ := uuid.Parse(room.NoteID)
-		userUUID, _ := uuid.Parse(userID)
+	blockID, _ := uuid.Parse(op.BlockID)
+	noteID, _ := uuid.Parse(room.NoteID)
+	userUUID, _ := uuid.Parse(userID)
 
-		author, ok := room.GetClient(userID)
-		if !ok {
-			return
-		}
+	author, ok := room.GetClient(userID)
+	if !ok {
+		return
+	}
 
-		formattingRange := models.FormattingRange{
-			StartPos:  author.LastCursor.StartPosition,
-			EndPos:    author.LastCursor.EndPosition,
-			Bold:      op.Bold,
-			Italic:    op.Italic,
-			Underline: op.Underline,
-			TextAlign: op.TextAlign,
-		}
+	formattingRange := models.FormattingRange{
+		StartPos:  author.LastCursor.StartPosition,
+		EndPos:    author.LastCursor.EndPosition,
+		Bold:      op.Bold,
+		Italic:    op.Italic,
+		Underline: op.Underline,
+		TextAlign: op.TextAlign,
+	}
 
-		_, err := h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
-		if err != nil {
-			client.Send <- h.errorMessage(err.Error(), client)
-		}
-	}()
+	_, err := h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
+	}
+
+	broadcastOp := FormattingOperation{
+		ID:        uuid.New().String(),
+		BlockID:   op.BlockID,
+		StartPos:  author.LastCursor.StartPosition,
+		EndPos:    author.LastCursor.EndPosition,
+		Bold:      op.Bold,
+		Italic:    op.Italic,
+		Underline: op.Underline,
+		TextAlign: op.TextAlign,
+	}
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
 		Type:     MsgApplyFormatting,
 		UserID:   userID,
 		UserName: client.UserName,
-		Msg:      op,
+		Msg:      broadcastOp,
 	}, userID)
 }
 
