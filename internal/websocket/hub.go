@@ -631,7 +631,7 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 
 	creationBlockOp := CreateBlockOperation{
 		ID:          uuid.New().String(),
-		BlockID:     op.BlockID,
+		BlockID:     createdBlock.ID.String(),
 		BlockTypeID: createdBlock.BlockTypeID,
 		Position:    createdBlock.Position,
 		Content:     createdBlock.Content,
