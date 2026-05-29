@@ -1669,7 +1669,7 @@ func TestHub_UpdateCursorsAfterOperation(t *testing.T) {
 	room.AddClient(c)
 
 	op := &InsertCharsOperation{BlockID: blockID, Position: 2, Char: "X"}
-	env.hub.updateCursorsAfterOperation(room, MsgInsertChars, op, blockID)
+	env.hub.updateCursorsAfterOperation(room, MsgInsertChars, op)
 
 	if c.GetCursor().StartPosition != 6 {
 		t.Errorf("expected cursor at 6 after insert at 2, got %d", c.GetCursor().StartPosition)

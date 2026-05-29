@@ -388,7 +388,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:      tempOp,
 		}, userID)
 
-		h.updateCursorsAfterOperation(room, MsgDeleteChars, tempOp, op.BlockID)
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, tempOp)
 
 		chars := []rune(op.Char)
 		newID := ""
@@ -422,7 +422,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:      broadcastOp,
 		}, userID)
 
-		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp)
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
@@ -461,7 +461,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:      broadcastOp,
 		}, userID)
 
-		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp)
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
@@ -518,7 +518,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:      broadcastOp,
 		}, userID)
 
-		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp)
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
@@ -555,7 +555,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 			Msg:      broadcastOp,
 		}, userID)
 
-		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp)
 
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
@@ -1027,13 +1027,13 @@ func (h *Hub) handleHeartbeat(room *NoteRoom, userID string) {
 	}
 }
 
-func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op any, blockID string) {
+func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op any) {
 	room.mu.RLock()
 	defer room.mu.RUnlock()
 
 	for i, client := range room.Clients {
 		cursor := client.GetCursor()
-		newStartPos, newEndPos := TransformCursorPosition(cursor, opType, op, blockID, client.UserID)
+		newStartPos, newEndPos := TransformCursorPosition(cursor, opType, op, cursor.BlockID, client.UserID)
 
 		if newStartPos != cursor.StartPosition || newEndPos != cursor.EndPosition {
 			cursor.StartPosition = newStartPos
