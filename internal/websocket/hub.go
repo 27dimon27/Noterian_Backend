@@ -695,7 +695,7 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 		Timestamp: time.Now().UnixNano(),
 	}
 
-	h.updateCursorsAfterBlockOperation(room, MsgCreateBlock, deleteBlockOp, userID, prevBlock)
+	h.updateCursorsAfterBlockOperation(room, MsgDeleteBlock, deleteBlockOp, userID, prevBlock)
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
 		Type: MsgCursorMove,
@@ -982,14 +982,14 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 	room.mu.RLock()
 	defer room.mu.RUnlock()
 
-	for _, client := range room.Clients {
+	for i, client := range room.Clients {
 		cursor := client.GetCursor()
 		newStartPos, newEndPos := TransformCursorPosition(cursor, opType, op, blockID, client.UserID)
 
 		if newStartPos != cursor.StartPosition || newEndPos != cursor.EndPosition {
 			cursor.StartPosition = newStartPos
 			cursor.EndPosition = newEndPos
-			client.UpdateCursor(cursor)
+			room.Clients[i].UpdateCursor(cursor)
 		}
 	}
 }
@@ -1003,10 +1003,10 @@ func (h *Hub) updateCursorsAfterBlockOperation(room *NoteRoom, opType MessageTyp
 		return
 	}
 
-	for _, client := range room.Clients {
+	for i, client := range room.Clients {
 		cursor := client.GetCursor()
 		newCursor := TransformCursorPositionAfterBlockOperation(cursor, opType, op, author.LastCursor, block)
-		client.UpdateCursor(newCursor)
+		room.Clients[i].UpdateCursor(newCursor)
 	}
 }
 
