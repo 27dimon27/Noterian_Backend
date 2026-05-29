@@ -628,6 +628,23 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		UserName: client.UserName,
 		Msg:      createdBlock,
 	}, "")
+
+	creationBlockOp := CreateBlockOperation{
+		ID:          uuid.New().String(),
+		BlockID:     op.BlockID,
+		BlockTypeID: createdBlock.BlockTypeID,
+		Position:    createdBlock.Position,
+		Content:     createdBlock.Content,
+		UserID:      userID,
+		Timestamp:   time.Now().UnixNano(),
+	}
+
+	h.updateCursorsAfterBlockOperation(room, MsgCreateBlock, creationBlockOp, userID, nil)
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  room.GetAllCursors(),
+	}, "")
 }
 
 func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOperation) {
@@ -640,7 +657,23 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 	userUUID, _ := uuid.Parse(userID)
 	blockUUID, _ := uuid.Parse(op.BlockID)
 
-	err := h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
+	_, blocks, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	prevBlock := &models.Block{}
+	for i, block := range blocks {
+		if block.ID == blockUUID {
+			if i == 0 {
+				break
+			}
+			prevBlock = &blocks[i]
+		}
+	}
+
+	err = h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -654,6 +687,20 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 		UserName: client.UserName,
 		Msg:      op.BlockID,
 	}, userID)
+
+	deleteBlockOp := DeleteBlockOperation{
+		ID:        uuid.New().String(),
+		BlockID:   op.BlockID,
+		UserID:    userID,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	h.updateCursorsAfterBlockOperation(room, MsgCreateBlock, deleteBlockOp, userID, prevBlock)
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type: MsgCursorMove,
+		Msg:  room.GetAllCursors(),
+	}, "")
 }
 
 func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, op *MoveBlockOperation) {
@@ -937,13 +984,29 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 
 	for _, client := range room.Clients {
 		cursor := client.GetCursor()
-		newStartPos, newEndPos := TransformCursorPosition(cursor.StartPosition, cursor.EndPosition, opType, op, blockID, client.UserID)
+		newStartPos, newEndPos := TransformCursorPosition(cursor, opType, op, blockID, client.UserID)
 
 		if newStartPos != cursor.StartPosition || newEndPos != cursor.EndPosition {
 			cursor.StartPosition = newStartPos
 			cursor.EndPosition = newEndPos
 			client.UpdateCursor(cursor)
 		}
+	}
+}
+
+func (h *Hub) updateCursorsAfterBlockOperation(room *NoteRoom, opType MessageType, op any, userID string, block *models.Block) {
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+
+	author, ok := room.GetClient(userID)
+	if !ok {
+		return
+	}
+
+	for _, client := range room.Clients {
+		cursor := client.GetCursor()
+		newCursor := TransformCursorPositionAfterBlockOperation(cursor, opType, op, author.LastCursor, block)
+		client.UpdateCursor(newCursor)
 	}
 }
 

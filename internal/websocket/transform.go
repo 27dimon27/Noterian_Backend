@@ -1,8 +1,10 @@
 package websocket
 
-func TransformCursorPosition(cursorStarPos int, cursorEndPos int, operationType MessageType, operation any, blockID string, userID string) (int, int) {
-	transformedStartPos := cursorStarPos
-	transformedEndPos := cursorEndPos
+import "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+
+func TransformCursorPosition(cursor CursorPosition, operationType MessageType, operation any, blockID string, userID string) (int, int) {
+	transformedStartPos := cursor.StartPosition
+	transformedEndPos := cursor.EndPosition
 
 	switch operationType {
 	case MsgInsertChars:
@@ -70,4 +72,51 @@ func TransformCursorPosition(cursorStarPos int, cursorEndPos int, operationType 
 	}
 
 	return transformedStartPos, transformedEndPos
+}
+
+func TransformCursorPositionAfterBlockOperation(cursor CursorPosition, operationType MessageType, operation any, authorCursor CursorPosition, block *models.Block) CursorPosition {
+	switch operationType {
+	case MsgCreateBlock:
+		if createBlockOp, ok := operation.(*CreateBlockOperation); ok {
+			if authorCursor.UserID == cursor.UserID {
+				cursor.StartPosition = 0
+				cursor.EndPosition = 0
+				cursor.BlockID = createBlockOp.BlockID
+				return cursor
+			}
+
+			if authorCursor.BlockID != cursor.BlockID {
+				return cursor
+			}
+
+			if authorCursor.EndPosition < cursor.StartPosition {
+				cursor.StartPosition = 0
+				cursor.EndPosition = 0
+				cursor.BlockID = createBlockOp.BlockID
+				return cursor
+			} else if authorCursor.StartPosition > cursor.StartPosition && authorCursor.EndPosition < cursor.EndPosition {
+				cursor.EndPosition = authorCursor.StartPosition
+				cursor.BlockID = createBlockOp.BlockID
+				return cursor
+			}
+		}
+
+	case MsgDeleteBlock:
+		if _, ok := operation.(*DeleteBlockOperation); ok {
+			if authorCursor.BlockID == cursor.BlockID {
+				if block != nil {
+					cursor.StartPosition = len(block.Content)
+					cursor.EndPosition = len(block.Content)
+					cursor.BlockID = block.ID.String()
+				} else {
+					cursor.StartPosition = 0
+					cursor.EndPosition = 0
+					cursor.BlockID = ""
+				}
+				return cursor
+			}
+		}
+	}
+
+	return cursor
 }
