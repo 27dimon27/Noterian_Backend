@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -304,6 +305,12 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 			h.handleUploadAttachment(room, userID, &op)
 		}
 
+	case MsgUploadHeader:
+		var op UploadHeaderOperation
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleUploadHeader(room, userID, &op)
+		}
+
 	case MsgDeleteNote:
 		h.handleDeleteNote(room, userID)
 
@@ -410,6 +417,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 		}, userID)
 
 		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
 			Msg:  room.GetAllCursors(),
@@ -448,6 +456,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 		}, userID)
 
 		h.updateCursorsAfterOperation(room, MsgInsertChars, broadcastOp, op.BlockID)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
 			Msg:  room.GetAllCursors(),
@@ -504,6 +513,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 		}, userID)
 
 		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
 			Msg:  room.GetAllCursors(),
@@ -540,6 +550,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 		}, userID)
 
 		h.updateCursorsAfterOperation(room, MsgDeleteChars, broadcastOp, op.BlockID)
+
 		h.broadcastToRoom(room.NoteID, WebSocketMessage{
 			Type: MsgCursorMove,
 			Msg:  room.GetAllCursors(),
@@ -782,7 +793,7 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 		op.FileName,
 		fileSize,
 		mimeType,
-		op.FileData,
+		bytes.NewReader(op.FileData),
 		op.HasPosition,
 		op.Position,
 	)
@@ -806,6 +817,73 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 			"updated_at":  attachment.UpdatedAt.Unix(),
 			"note_id":     room.NoteID,
 			"position":    op.Position,
+			"mime_type":   mimeType,
+		},
+	}, "")
+}
+
+func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeaderOperation) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	buffer := make([]byte, 512)
+	copy(buffer, op.FileData)
+
+	mimeType := http.DetectContentType(buffer)
+
+	if !AllowedMimeTypesForImage[mimeType] {
+		client.Send <- h.errorMessage("Invalid MIME-type of file", client)
+		return
+	}
+
+	fileSize := int64(len(op.FileData))
+
+	if fileSize > MAX_IMAGE_SIZE {
+		client.Send <- h.errorMessage("File too large", client)
+		return
+	}
+
+	header, err := h.attachmentUsecase.UploadHeader(
+		context.Background(),
+		noteID,
+		userUUID,
+		op.FileName,
+		fileSize,
+		mimeType,
+		bytes.NewReader(op.FileData),
+	)
+	if err != nil {
+		log.Printf("Failed to upload header: %v", err)
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type:     MsgUploadHeader,
+		UserID:   userID,
+		UserName: client.UserName,
+		Msg: map[string]any{
+			"id":          header.ID,
+			"minio_key":   header.MinioKey,
+			"header_url":  header.HeaderURL,
+			"url_expires": header.URLExpiresAt.Unix(),
+			"created_at":  header.CreatedAt.Unix(),
+			"updated_at":  header.UpdatedAt.Unix(),
+			"note_id":     room.NoteID,
 			"mime_type":   mimeType,
 		},
 	}, "")

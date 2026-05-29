@@ -29,8 +29,7 @@ func newHubTestEnv(ctrl *gomock.Controller) *hubTestEnv {
 	profileUC := profileMocks.NewMockProfileUsecase(ctrl)
 	attachUC := attachMocks.NewMockAttachmentUsecase(ctrl)
 
-	adapter := NewAttachmentUsecaseAdapter(attachUC.UploadAttachment)
-	hub := NewHub(noteUC, profileUC, adapter)
+	hub := NewHub(noteUC, profileUC, attachUC)
 
 	return &hubTestEnv{
 		hub:       hub,

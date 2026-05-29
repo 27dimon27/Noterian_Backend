@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
@@ -71,6 +72,7 @@ const (
 	MsgDeleteNote       MessageType = "delete_note"
 
 	MsgUploadAttachment MessageType = "upload_attachment"
+	MsgUploadHeader     MessageType = "upload_header"
 
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
@@ -197,13 +199,12 @@ type UploadAttachmentOperation struct {
 	Timestamp   int64  `json:"timestamp"`
 }
 
-type AttachmentResponse struct {
-	ID           string `json:"id"`
-	BlockID      string `json:"blockId"`
-	AttachURL    string `json:"attachUrl"`
-	URLExpiresAt int64  `json:"urlExpiresAt"`
-	CreatedAt    int64  `json:"createdAt"`
-	UpdatedAt    int64  `json:"updatedAt"`
+type UploadHeaderOperation struct {
+	ID        string `json:"id"`
+	FileName  string `json:"fileName"`
+	FileData  []byte `json:"fileData"`
+	UserID    string `json:"userId"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type BroadcastMessage struct {
@@ -228,5 +229,6 @@ type ProfileUsecaseInterface interface {
 }
 
 type AttachmentUsecaseInterface interface {
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error)
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
 }
