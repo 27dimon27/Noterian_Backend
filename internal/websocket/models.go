@@ -58,10 +58,8 @@ const (
 	MsgSyncState  MessageType = "sync_state"
 	MsgHeartbeat  MessageType = "heartbeat"
 
-	MsgCursorMove MessageType = "cursor_move"
-	// MsgInsertChar MessageType = "insert_char"
-	MsgInsertChars MessageType = "insert_chars"
-	// MsgDeleteChar       MessageType = "delete_char"
+	MsgCursorMove       MessageType = "cursor_move"
+	MsgInsertChars      MessageType = "insert_chars"
 	MsgDeleteChars      MessageType = "delete_chars"
 	MsgApplyFormatting  MessageType = "apply_formatting"
 	MsgCreateBlock      MessageType = "create_block"
@@ -74,6 +72,7 @@ const (
 	MsgUploadAttachment MessageType = "upload_attachment"
 	MsgUploadHeader     MessageType = "upload_header"
 	MsgDeleteHeader     MessageType = "delete_header"
+	MsgChangeIcon       MessageType = "change_icon"
 
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
@@ -105,18 +104,6 @@ type UserCursor struct {
 	Cursor   CursorPosition `json:"cursor"`
 }
 
-// type InsertCharOperation struct {
-// 	ID        string `json:"id"`
-// 	BlockID   string `json:"blockId"`
-// 	Position  int    `json:"position"`
-// 	Char      string `json:"char"`
-// 	Lamport   int64  `json:"lamport"`
-// 	UniqueID  string `json:"uniqueId"`
-// 	PrevID    string `json:"prevId"`
-// 	UserID    string `json:"userId"`
-// 	Timestamp int64  `json:"timestamp"`
-// }
-
 type InsertCharsOperation struct {
 	ID        string   `json:"id"`
 	BlockID   string   `json:"blockId"`
@@ -128,16 +115,6 @@ type InsertCharsOperation struct {
 	UserID    string   `json:"userId"`
 	Timestamp int64    `json:"timestamp"`
 }
-
-// type DeleteCharOperation struct {
-// 	ID        string `json:"id"`
-// 	BlockID   string `json:"blockId"`
-// 	Position  int    `json:"position"`
-// 	UniqueID  string `json:"uniqueId"`
-// 	Lamport   int64  `json:"lamport"`
-// 	UserID    string `json:"userId"`
-// 	Timestamp int64  `json:"timestamp"`
-// }
 
 type DeleteCharsOperation struct {
 	ID            string   `json:"id"`

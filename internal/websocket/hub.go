@@ -317,6 +317,12 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 			h.handleDeleteHeader(room, userID, &op)
 		}
 
+	case MsgChangeIcon:
+		var icon string
+		if err := mapToStruct(msg.Msg, &icon); err == nil {
+			h.handleUpdateNoteIcon(room, userID, icon)
+		}
+
 	case MsgDeleteNote:
 		h.handleDeleteNote(room, userID)
 
@@ -983,6 +989,37 @@ func (h *Hub) handleDeleteHeader(room *NoteRoom, userID string, op *DeleteHeader
 			"timestamp": op.Timestamp,
 		},
 	}, "")
+}
+
+func (h *Hub) handleUpdateNoteIcon(room *NoteRoom, userID string, newIcon string) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, _ := uuid.Parse(room.NoteID)
+	userUUID, _ := uuid.Parse(userID)
+
+	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	note.Icon = newIcon
+
+	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type:     MsgChangeIcon,
+		UserID:   userID,
+		UserName: client.UserName,
+		Msg:      map[string]string{"icon": newIcon},
+	}, userID)
 }
 
 func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
