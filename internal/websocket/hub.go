@@ -311,6 +311,12 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 			h.handleUploadHeader(room, userID, &op)
 		}
 
+	case MsgDeleteHeader:
+		var op DeleteHeaderOperation
+		if err := mapToStruct(msg.Msg, &op); err == nil {
+			h.handleDeleteHeader(room, userID, &op)
+		}
+
 	case MsgDeleteNote:
 		h.handleDeleteNote(room, userID)
 
@@ -932,6 +938,49 @@ func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeader
 			"updated_at":  header.UpdatedAt.Unix(),
 			"note_id":     room.NoteID,
 			"mime_type":   mimeType,
+		},
+	}, "")
+}
+
+func (h *Hub) handleDeleteHeader(room *NoteRoom, userID string, op *DeleteHeaderOperation) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	err = h.attachmentUsecase.DeleteHeader(
+		context.Background(),
+		noteID,
+		userUUID,
+	)
+	if err != nil {
+		log.Printf("Failed to delete header: %v", err)
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	h.broadcastToRoom(room.NoteID, WebSocketMessage{
+		Type:     MsgDeleteHeader,
+		UserID:   userID,
+		UserName: client.UserName,
+		Msg: map[string]any{
+			"id":        op.ID,
+			"fileName":  op.FileName,
+			"note_id":   room.NoteID,
+			"user_id":   userID,
+			"timestamp": op.Timestamp,
 		},
 	}, "")
 }

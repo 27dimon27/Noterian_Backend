@@ -73,6 +73,7 @@ const (
 
 	MsgUploadAttachment MessageType = "upload_attachment"
 	MsgUploadHeader     MessageType = "upload_header"
+	MsgDeleteHeader     MessageType = "delete_header"
 
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
@@ -207,6 +208,13 @@ type UploadHeaderOperation struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
+type DeleteHeaderOperation struct {
+	ID        string `json:"id"`
+	FileName  string `json:"fileName"`
+	UserID    string `json:"userId"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 type BroadcastMessage struct {
 	NoteID  string
 	Message WebSocketMessage
@@ -231,4 +239,5 @@ type ProfileUsecaseInterface interface {
 type AttachmentUsecaseInterface interface {
 	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
 	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 }
