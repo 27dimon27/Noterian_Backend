@@ -586,9 +586,14 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 		noteID, _ := uuid.Parse(room.NoteID)
 		userUUID, _ := uuid.Parse(userID)
 
+		author, ok := room.GetClient(userID)
+		if !ok {
+			return
+		}
+
 		formattingRange := models.FormattingRange{
-			StartPos:  op.StartPos,
-			EndPos:    op.EndPos,
+			StartPos:  author.LastCursor.StartPosition,
+			EndPos:    author.LastCursor.EndPosition,
 			Bold:      op.Bold,
 			Italic:    op.Italic,
 			Underline: op.Underline,
