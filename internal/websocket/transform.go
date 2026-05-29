@@ -1,6 +1,8 @@
 package websocket
 
-import "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+import (
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+)
 
 func TransformCursorPosition(cursor CursorPosition, operationType MessageType, operation any, blockID string, userID string) (int, int) {
 	transformedStartPos := cursor.StartPosition
@@ -77,7 +79,7 @@ func TransformCursorPosition(cursor CursorPosition, operationType MessageType, o
 func TransformCursorPositionAfterBlockOperation(cursor CursorPosition, operationType MessageType, operation any, authorCursor CursorPosition, block *models.Block) CursorPosition {
 	switch operationType {
 	case MsgCreateBlock:
-		if createBlockOp, ok := operation.(*CreateBlockOperation); ok {
+		if createBlockOp, ok := operation.(CreateBlockOperation); ok {
 			if authorCursor.UserID == cursor.UserID {
 				cursor.StartPosition = 0
 				cursor.EndPosition = 0
@@ -102,7 +104,7 @@ func TransformCursorPositionAfterBlockOperation(cursor CursorPosition, operation
 		}
 
 	case MsgDeleteBlock:
-		if _, ok := operation.(*DeleteBlockOperation); ok {
+		if _, ok := operation.(DeleteBlockOperation); ok {
 			if authorCursor.BlockID == cursor.BlockID {
 				if block != nil {
 					cursor.StartPosition = len(block.Content)
