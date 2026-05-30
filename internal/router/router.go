@@ -20,6 +20,8 @@ import (
 	notesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/repository"
 	notesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/onboarding"
+
 	profilesHandler "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http"
 	profilesRepository "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository"
 	profilesUsecase "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase"
@@ -55,7 +57,8 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	}
 
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository)
-	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT)
+	onboardingSeeder := onboarding.NewSeeder(noteRepository)
+	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT, onboardingSeeder)
 	if err != nil {
 		return nil, err
 	}
