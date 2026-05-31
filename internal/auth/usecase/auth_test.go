@@ -25,7 +25,7 @@ var testJWT = config.JWTConfig{
 
 func newUsecase(t *testing.T, c *mocks.MockProfilesServiceClient) *authUsecase {
 	t.Helper()
-	u, err := NewAuthUsecase(c, testJWT)
+	u, err := NewAuthUsecase(c, testJWT, nil)
 	if err != nil {
 		t.Fatalf("NewAuthUsecase: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestNewAuthUsecase(t *testing.T) {
 	defer ctrl.Finish()
 	client := mocks.NewMockProfilesServiceClient(ctrl)
 
-	u, err := NewAuthUsecase(client, testJWT)
+	u, err := NewAuthUsecase(client, testJWT, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

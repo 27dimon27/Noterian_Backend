@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
@@ -13,13 +14,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type OnboardingSeeder interface {
+	SeedOnboardingNote(ctx context.Context, userID uuid.UUID) error
+}
+
 type authUsecase struct {
 	profilesClient grpcclient.ProfilesServiceClient
 	jwtConfig      config.JWTConfig
 	validate       *validator.Validate
+	onboarding     OnboardingSeeder
 }
 
-func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig config.JWTConfig) (*authUsecase, error) {
+func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig config.JWTConfig, onboarding OnboardingSeeder) (*authUsecase, error) {
 	validate := validator.New()
 	if err := initValidator(validate); err != nil {
 		return nil, err
@@ -29,6 +35,7 @@ func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig c
 		profilesClient: profilesClient,
 		jwtConfig:      jwtConfig,
 		validate:       validate,
+		onboarding:     onboarding,
 	}, nil
 }
 
@@ -52,6 +59,12 @@ func (u *authUsecase) SignupUser(ctx context.Context, username, password string)
 	userID, err := uuid.Parse(profile.GetId())
 	if err != nil {
 		return nil, err
+	}
+
+	if u.onboarding != nil {
+		if err := u.onboarding.SeedOnboardingNote(ctx, userID); err != nil {
+			slog.Default().WarnContext(ctx, "failed to seed onboarding note", "user_id", userID, "error", err)
+		}
 	}
 
 	return &dto.Profile{

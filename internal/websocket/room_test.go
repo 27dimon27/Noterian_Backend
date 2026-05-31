@@ -1,4 +1,3 @@
-// file: room_test.go
 package websocket
 
 import (
@@ -75,8 +74,9 @@ func TestNoteRoom_GetAllCursors(t *testing.T) {
 		UserID:   "user1",
 		UserName: "User One",
 		LastCursor: CursorPosition{
-			BlockID:  "block1",
-			Position: 5,
+			BlockID:       "block1",
+			StartPosition: 5,
+			EndPosition:   5,
 		},
 	}
 
@@ -84,8 +84,9 @@ func TestNoteRoom_GetAllCursors(t *testing.T) {
 		UserID:   "user2",
 		UserName: "User Two",
 		LastCursor: CursorPosition{
-			BlockID:  "block2",
-			Position: 10,
+			BlockID:       "block2",
+			StartPosition: 10,
+			EndPosition:   10,
 		},
 	}
 
@@ -98,10 +99,9 @@ func TestNoteRoom_GetAllCursors(t *testing.T) {
 		t.Errorf("Expected 2 cursors, got %d", len(cursors))
 	}
 
-	// Find cursor for user1
 	var found bool
 	for _, c := range cursors {
-		if c.UserID == "user1" && c.Cursor.Position == 5 {
+		if c.UserID == "user1" && c.Cursor.StartPosition == 5 {
 			found = true
 		}
 	}

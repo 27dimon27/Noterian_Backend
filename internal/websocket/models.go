@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"errors"
+	"io"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/google/uuid"
@@ -58,8 +59,8 @@ const (
 	MsgHeartbeat  MessageType = "heartbeat"
 
 	MsgCursorMove       MessageType = "cursor_move"
-	MsgInsertChar       MessageType = "insert_char"
-	MsgDeleteChar       MessageType = "delete_char"
+	MsgInsertChars      MessageType = "insert_chars"
+	MsgDeleteChars      MessageType = "delete_chars"
 	MsgApplyFormatting  MessageType = "apply_formatting"
 	MsgCreateBlock      MessageType = "create_block"
 	MsgDeleteBlock      MessageType = "delete_block"
@@ -69,6 +70,9 @@ const (
 	MsgDeleteNote       MessageType = "delete_note"
 
 	MsgUploadAttachment MessageType = "upload_attachment"
+	MsgUploadHeader     MessageType = "upload_header"
+	MsgDeleteHeader     MessageType = "delete_header"
+	MsgChangeIcon       MessageType = "change_icon"
 
 	MsgNotePrivate MessageType = "note_private"
 	MsgNoteDeleted MessageType = "note_deleted"
@@ -86,11 +90,12 @@ type WebSocketMessage struct {
 }
 
 type CursorPosition struct {
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	UserID    string `json:"userId"`
-	UserName  string `json:"userName"`
-	Timestamp int64  `json:"timestamp"`
+	BlockID       string `json:"blockId"`
+	StartPosition int    `json:"startPosition"`
+	EndPosition   int    `json:"endPosition"`
+	UserID        string `json:"userId"`
+	UserName      string `json:"userName"`
+	Timestamp     int64  `json:"timestamp"`
 }
 
 type UserCursor struct {
@@ -99,26 +104,27 @@ type UserCursor struct {
 	Cursor   CursorPosition `json:"cursor"`
 }
 
-type InsertCharOperation struct {
-	ID        string `json:"id"`
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	Char      string `json:"char"`
-	Lamport   int64  `json:"lamport"`
-	UniqueID  string `json:"uniqueId"`
-	PrevID    string `json:"prevId"`
-	UserID    string `json:"userId"`
-	Timestamp int64  `json:"timestamp"`
+type InsertCharsOperation struct {
+	ID        string   `json:"id"`
+	BlockID   string   `json:"blockId"`
+	Position  int      `json:"position"`
+	Char      string   `json:"char"`
+	Lamport   int64    `json:"lamport"`
+	UniqueIDs []string `json:"uniqueIds"`
+	PrevID    string   `json:"prevId"`
+	UserID    string   `json:"userId"`
+	Timestamp int64    `json:"timestamp"`
 }
 
-type DeleteCharOperation struct {
-	ID        string `json:"id"`
-	BlockID   string `json:"blockId"`
-	Position  int    `json:"position"`
-	UniqueID  string `json:"uniqueId"`
-	Lamport   int64  `json:"lamport"`
-	UserID    string `json:"userId"`
-	Timestamp int64  `json:"timestamp"`
+type DeleteCharsOperation struct {
+	ID            string   `json:"id"`
+	BlockID       string   `json:"blockId"`
+	StartPosition int      `json:"startPosition"`
+	EndPosition   int      `json:"endPosition"`
+	UniqueIDs     []string `json:"uniqueIds"`
+	Lamport       int64    `json:"lamport"`
+	UserID        string   `json:"userId"`
+	Timestamp     int64    `json:"timestamp"`
 }
 
 type FormattingOperation struct {
@@ -162,10 +168,8 @@ type MoveBlockOperation struct {
 }
 
 type UploadAttachmentOperation struct {
-	ID       string `json:"id"`
-	FileName string `json:"fileName"`
-	// FileSize    int64  `json:"fileSize"`
-	// MimeType    string `json:"mimeType"`
+	ID          string `json:"id"`
+	FileName    string `json:"fileName"`
 	FileData    []byte `json:"fileData"`
 	HasPosition bool   `json:"hasPosition"`
 	Position    int    `json:"position"`
@@ -173,13 +177,19 @@ type UploadAttachmentOperation struct {
 	Timestamp   int64  `json:"timestamp"`
 }
 
-type AttachmentResponse struct {
-	ID           string `json:"id"`
-	BlockID      string `json:"blockId"`
-	AttachURL    string `json:"attachUrl"`
-	URLExpiresAt int64  `json:"urlExpiresAt"`
-	CreatedAt    int64  `json:"createdAt"`
-	UpdatedAt    int64  `json:"updatedAt"`
+type UploadHeaderOperation struct {
+	ID        string `json:"id"`
+	FileName  string `json:"fileName"`
+	FileData  []byte `json:"fileData"`
+	UserID    string `json:"userId"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+type DeleteHeaderOperation struct {
+	ID        string `json:"id"`
+	FileName  string `json:"fileName"`
+	UserID    string `json:"userId"`
+	Timestamp int64  `json:"timestamp"`
 }
 
 type BroadcastMessage struct {
@@ -204,5 +214,7 @@ type ProfileUsecaseInterface interface {
 }
 
 type AttachmentUsecaseInterface interface {
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileData []byte, hasPosition bool, position int) (*models.Attachment, error)
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
 }
