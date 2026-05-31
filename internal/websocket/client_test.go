@@ -1,4 +1,3 @@
-// file: client_test.go
 package websocket
 
 import (
@@ -10,14 +9,16 @@ func TestClientInfo_UpdateCursor(t *testing.T) {
 		UserID:   "user1",
 		UserName: "Test User",
 		LastCursor: CursorPosition{
-			BlockID:  "block1",
-			Position: 0,
+			BlockID:       "block1",
+			StartPosition: 0,
+			EndPosition:   0,
 		},
 	}
 
 	cursor := CursorPosition{
-		BlockID:  "block2",
-		Position: 10,
+		BlockID:       "block2",
+		StartPosition: 10,
+		EndPosition:   10,
 	}
 
 	client.UpdateCursor(cursor)
@@ -28,8 +29,8 @@ func TestClientInfo_UpdateCursor(t *testing.T) {
 		t.Errorf("Expected BlockID 'block2', got '%s'", result.BlockID)
 	}
 
-	if result.Position != 10 {
-		t.Errorf("Expected Position 10, got %d", result.Position)
+	if result.StartPosition != 10 {
+		t.Errorf("Expected StartPosition 10, got %d", result.StartPosition)
 	}
 
 	if result.Timestamp == 0 {
@@ -41,8 +42,9 @@ func TestClientInfo_GetCursor(t *testing.T) {
 	client := &ClientInfo{
 		UserID: "user1",
 		LastCursor: CursorPosition{
-			BlockID:  "block1",
-			Position: 5,
+			BlockID:       "block1",
+			StartPosition: 5,
+			EndPosition:   5,
 		},
 	}
 
@@ -52,7 +54,7 @@ func TestClientInfo_GetCursor(t *testing.T) {
 		t.Errorf("Expected BlockID 'block1', got '%s'", cursor.BlockID)
 	}
 
-	if cursor.Position != 5 {
-		t.Errorf("Expected Position 5, got %d", cursor.Position)
+	if cursor.StartPosition != 5 {
+		t.Errorf("Expected StartPosition 5, got %d", cursor.StartPosition)
 	}
 }

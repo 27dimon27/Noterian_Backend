@@ -1,4 +1,3 @@
-// file: crdt_test.go
 package websocket
 
 import (
@@ -44,7 +43,6 @@ func TestCRDTDocument_GenerateID(t *testing.T) {
 func TestCRDTDocument_InsertChar(t *testing.T) {
 	doc := NewCRDTDocument("user1")
 
-	// Insert first character
 	id1 := doc.InsertChar(0, 'a', "user1")
 	if id1 == "" {
 		t.Error("InsertChar should return a valid ID")
@@ -55,14 +53,12 @@ func TestCRDTDocument_InsertChar(t *testing.T) {
 		t.Errorf("Expected text 'a', got '%s'", text)
 	}
 
-	// Insert second character at position 1
 	id2 := doc.InsertChar(1, 'b', "user1")
 	text = doc.GetText()
 	if text != "ab" {
 		t.Errorf("Expected text 'ab', got '%s'", text)
 	}
 
-	// Insert character in the middle
 	id3 := doc.InsertChar(1, 'c', "user1")
 	text = doc.GetText()
 	if text != "acb" {
@@ -85,7 +81,6 @@ func TestCRDTDocument_DeleteChar(t *testing.T) {
 		t.Errorf("Expected 'abc', got '%s'", text)
 	}
 
-	// Delete character at position 1 ('b')
 	deletedID := doc.DeleteChar(1)
 	if deletedID == "" {
 		t.Error("DeleteChar should return the deleted ID")
@@ -96,7 +91,6 @@ func TestCRDTDocument_DeleteChar(t *testing.T) {
 		t.Errorf("Expected 'ac', got '%s'", text)
 	}
 
-	// Try to delete at invalid position
 	deletedID = doc.DeleteChar(10)
 	if deletedID != "" {
 		t.Error("DeleteChar should return empty string for invalid position")
@@ -141,25 +135,23 @@ func TestCRDTDocument_DeleteLastChar(t *testing.T) {
 func TestCRDTDocument_ApplyInsert(t *testing.T) {
 	doc := NewCRDTDocument("user1")
 
-	// Insert first character
 	id1 := doc.GenerateID("user2")
-	op := &InsertCharOperation{
-		UniqueID: id1,
-		Char:     "x",
-		UserID:   "user2",
-		Lamport:  1,
-		PrevID:   doc.head,
+	op := &InsertCharsOperation{
+		UniqueIDs: []string{id1},
+		Char:      "x",
+		UserID:    "user2",
+		Lamport:   1,
+		PrevID:    doc.head,
 	}
 
-	doc.ApplyInsert(op)
+	doc.ApplyInserts(op)
 
 	text := doc.GetText()
 	if text != "x" {
 		t.Errorf("Expected 'x', got '%s'", text)
 	}
 
-	// Apply same operation again (should be ignored)
-	doc.ApplyInsert(op)
+	doc.ApplyInserts(op)
 	text = doc.GetText()
 	if text != "x" {
 		t.Errorf("Expected still 'x', got '%s'", text)
@@ -171,12 +163,14 @@ func TestCRDTDocument_ApplyDelete(t *testing.T) {
 
 	id1 := doc.InsertChar(0, 'a', "user1")
 
-	op := &DeleteCharOperation{
-		UniqueID: id1,
-		Lamport:  2,
+	op := &DeleteCharsOperation{
+		UniqueIDs:     []string{id1},
+		StartPosition: 0,
+		EndPosition:   0,
+		Lamport:       2,
 	}
 
-	doc.ApplyDelete(op)
+	doc.ApplyDeletes(op)
 
 	text := doc.GetText()
 	if text != "" {
@@ -196,7 +190,6 @@ func TestCRDTDocument_GetCRDTState(t *testing.T) {
 		t.Errorf("Expected 2 chars in state, got %d", len(state))
 	}
 
-	// Check sorting by Lamport
 	if state[0].Lamport > state[1].Lamport {
 		t.Error("State should be sorted by Lamport timestamp")
 	}
@@ -217,13 +210,11 @@ func TestCRDTDocument_LoadText(t *testing.T) {
 func TestCRDTDocument_ConcurrentOperations(t *testing.T) {
 	doc := NewCRDTDocument("user1")
 
-	// Simulate concurrent inserts from different users
 	doc.InsertChar(0, 'a', "user1")
 	doc.InsertChar(1, 'c', "user2")
 	doc.InsertChar(1, 'b', "user1")
 
 	text := doc.GetText()
-	// Order might depend on CRDT logic
 	if len(text) != 3 {
 		t.Errorf("Expected 3 characters, got %d", len(text))
 	}
@@ -250,7 +241,6 @@ func TestCRDTDocument_FindPositionByID(t *testing.T) {
 		t.Errorf("Expected position 2 for id3, got %d", pos3)
 	}
 
-	// Test with non-existent ID
 	pos := doc.findPositionByID("nonexistent")
 	if pos != -1 {
 		t.Errorf("Expected -1 for non-existent ID, got %d", pos)
@@ -260,7 +250,6 @@ func TestCRDTDocument_FindPositionByID(t *testing.T) {
 func TestCRDTDocument_InsertInOrder(t *testing.T) {
 	doc := NewCRDTDocument("user1")
 
-	// Insert characters in different orders
 	id1 := doc.GenerateID("user1")
 	doc.insertInOrder(doc.head, id1)
 
@@ -270,8 +259,7 @@ func TestCRDTDocument_InsertInOrder(t *testing.T) {
 	id3 := doc.GenerateID("user1")
 	doc.insertInOrder(doc.head, id3)
 
-	// Check order
-	if len(doc.order) != 4 { // including root
+	if len(doc.order) != 4 {
 		t.Errorf("Expected 4 items in order, got %d", len(doc.order))
 	}
 }

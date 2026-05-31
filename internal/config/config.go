@@ -162,12 +162,12 @@ func Load() *Config {
 
 	dbOpenConnsMaxLifetime, err := strconv.Atoi(os.Getenv("DB_OPEN_CONNECTIONS_MAX_LIFETIME"))
 	if err != nil {
-		dbMaxIdleConns = DEFAULT_DB_OPEN_CONNECTIONS_MAX_LIFETIME
+		dbOpenConnsMaxLifetime = DEFAULT_DB_OPEN_CONNECTIONS_MAX_LIFETIME
 	}
 
 	dbIdleConnsMaxLifetime, err := strconv.Atoi(os.Getenv("DB_IDLE_CONNECTIONS_MAX_LIFETIME"))
 	if err != nil {
-		dbMaxIdleConns = DEFAULT_DB_IDLE_CONNECTIONS_MAX_LIFETIME
+		dbIdleConnsMaxLifetime = DEFAULT_DB_IDLE_CONNECTIONS_MAX_LIFETIME
 	}
 
 	csrfCookieName := os.Getenv("CSRF_COOKIE_NAME")

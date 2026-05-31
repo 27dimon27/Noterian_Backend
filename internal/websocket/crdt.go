@@ -162,33 +162,75 @@ func (doc *CRDTDocument) insertInOrder(afterID, newID string) {
 	doc.order = newOrder
 }
 
-func (doc *CRDTDocument) ApplyInsert(op *InsertCharOperation) {
+// func (doc *CRDTDocument) ApplyInsert(op *InsertCharOperation) {
+// 	doc.mu.Lock()
+// 	defer doc.mu.Unlock()
+
+// 	if _, exists := doc.chars[op.UniqueID]; exists {
+// 		return
+// 	}
+
+// 	if op.Lamport > doc.lamportClock {
+// 		doc.lamportClock = op.Lamport
+// 	}
+
+// 	newChar := &CRDTChar{
+// 		ID:        op.UniqueID,
+// 		Char:      []rune(op.Char)[0],
+// 		UserID:    op.UserID,
+// 		Lamport:   op.Lamport,
+// 		Visible:   true,
+// 		PrevID:    op.PrevID,
+// 		Timestamp: op.Timestamp,
+// 	}
+
+// 	doc.chars[op.UniqueID] = newChar
+// 	doc.insertInOrder(op.PrevID, op.UniqueID)
+// }
+
+func (doc *CRDTDocument) ApplyInserts(op *InsertCharsOperation) {
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
-	if _, exists := doc.chars[op.UniqueID]; exists {
-		return
-	}
+	for _, uniqueID := range op.UniqueIDs {
+		if _, exists := doc.chars[uniqueID]; exists {
+			return
+		}
 
-	if op.Lamport > doc.lamportClock {
-		doc.lamportClock = op.Lamport
-	}
+		if op.Lamport > doc.lamportClock {
+			doc.lamportClock = op.Lamport
+		}
 
-	newChar := &CRDTChar{
-		ID:        op.UniqueID,
-		Char:      []rune(op.Char)[0],
-		UserID:    op.UserID,
-		Lamport:   op.Lamport,
-		Visible:   true,
-		PrevID:    op.PrevID,
-		Timestamp: op.Timestamp,
-	}
+		newChar := &CRDTChar{
+			ID:        uniqueID,
+			Char:      []rune(op.Char)[0],
+			UserID:    op.UserID,
+			Lamport:   op.Lamport,
+			Visible:   true,
+			PrevID:    op.PrevID,
+			Timestamp: op.Timestamp,
+		}
 
-	doc.chars[op.UniqueID] = newChar
-	doc.insertInOrder(op.PrevID, op.UniqueID)
+		doc.chars[uniqueID] = newChar
+		doc.insertInOrder(op.PrevID, uniqueID)
+	}
 }
 
-func (doc *CRDTDocument) ApplyDelete(op *DeleteCharOperation) {
+// func (doc *CRDTDocument) ApplyDelete(op *DeleteCharOperation) {
+// 	doc.mu.Lock()
+// 	defer doc.mu.Unlock()
+
+// 	if op.Lamport > doc.lamportClock {
+// 		doc.lamportClock = op.Lamport
+// 	}
+
+// 	if ch, exists := doc.chars[op.UniqueID]; exists {
+// 		ch.Visible = false
+// 		ch.Timestamp = op.Timestamp
+// 	}
+// }
+
+func (doc *CRDTDocument) ApplyDeletes(op *DeleteCharsOperation) {
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
@@ -196,9 +238,11 @@ func (doc *CRDTDocument) ApplyDelete(op *DeleteCharOperation) {
 		doc.lamportClock = op.Lamport
 	}
 
-	if ch, exists := doc.chars[op.UniqueID]; exists {
-		ch.Visible = false
-		ch.Timestamp = op.Timestamp
+	for _, uniqueID := range op.UniqueIDs {
+		if ch, exists := doc.chars[uniqueID]; exists {
+			ch.Visible = false
+			ch.Timestamp = op.Timestamp
+		}
 	}
 }
 

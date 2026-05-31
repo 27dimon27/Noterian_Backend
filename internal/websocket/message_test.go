@@ -1,4 +1,3 @@
-// file: message_test.go
 package websocket
 
 import (
@@ -8,14 +7,16 @@ import (
 
 func TestWebSocketMessage_JSONSerialization(t *testing.T) {
 	msg := WebSocketMessage{
-		Type:      MsgInsertChar,
+		Type:      MsgInsertChars,
 		UserID:    "user1",
 		UserName:  "Test User",
 		NoteID:    "note123",
 		Timestamp: 1234567890,
 		Msg: map[string]interface{}{
-			"position": 5,
-			"char":     "a",
+			"blockId":       "block1",
+			"startPosition": 5,
+			"endPosition":   5,
+			"char":          "a",
 		},
 	}
 
@@ -41,11 +42,12 @@ func TestWebSocketMessage_JSONSerialization(t *testing.T) {
 
 func TestCursorPosition_JSONSerialization(t *testing.T) {
 	cursor := CursorPosition{
-		BlockID:   "block1",
-		Position:  42,
-		UserID:    "user1",
-		UserName:  "Test User",
-		Timestamp: 1234567890,
+		BlockID:       "block1",
+		StartPosition: 42,
+		EndPosition:   42,
+		UserID:        "user1",
+		UserName:      "Test User",
+		Timestamp:     1234567890,
 	}
 
 	data, err := json.Marshal(cursor)
@@ -63,19 +65,23 @@ func TestCursorPosition_JSONSerialization(t *testing.T) {
 		t.Errorf("Expected BlockID '%s', got '%s'", cursor.BlockID, unmarshaled.BlockID)
 	}
 
-	if unmarshaled.Position != cursor.Position {
-		t.Errorf("Expected Position %d, got %d", cursor.Position, unmarshaled.Position)
+	if unmarshaled.StartPosition != cursor.StartPosition {
+		t.Errorf("Expected StartPosition %d, got %d", cursor.StartPosition, unmarshaled.StartPosition)
+	}
+
+	if unmarshaled.EndPosition != cursor.EndPosition {
+		t.Errorf("Expected EndPosition %d, got %d", cursor.EndPosition, unmarshaled.EndPosition)
 	}
 }
 
 func TestInsertCharOperation_JSONSerialization(t *testing.T) {
-	op := InsertCharOperation{
+	op := InsertCharsOperation{
 		ID:        "op1",
 		BlockID:   "block1",
 		Position:  5,
 		Char:      "a",
 		Lamport:   100,
-		UniqueID:  "user1:1:100",
+		UniqueIDs: []string{"user1:1:100"},
 		PrevID:    "root:0:0",
 		UserID:    "user1",
 		Timestamp: 1234567890,
@@ -86,7 +92,7 @@ func TestInsertCharOperation_JSONSerialization(t *testing.T) {
 		t.Fatalf("Failed to marshal operation: %v", err)
 	}
 
-	var unmarshaled InsertCharOperation
+	var unmarshaled InsertCharsOperation
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal operation: %v", err)
@@ -102,14 +108,15 @@ func TestInsertCharOperation_JSONSerialization(t *testing.T) {
 }
 
 func TestDeleteCharOperation_JSONSerialization(t *testing.T) {
-	op := DeleteCharOperation{
-		ID:        "op1",
-		BlockID:   "block1",
-		Position:  5,
-		UniqueID:  "user1:1:100",
-		Lamport:   101,
-		UserID:    "user1",
-		Timestamp: 1234567890,
+	op := DeleteCharsOperation{
+		ID:            "op1",
+		BlockID:       "block1",
+		StartPosition: 5,
+		EndPosition:   5,
+		UniqueIDs:     []string{"user1:1:100"},
+		Lamport:       101,
+		UserID:        "user1",
+		Timestamp:     1234567890,
 	}
 
 	data, err := json.Marshal(op)
@@ -117,14 +124,14 @@ func TestDeleteCharOperation_JSONSerialization(t *testing.T) {
 		t.Fatalf("Failed to marshal operation: %v", err)
 	}
 
-	var unmarshaled DeleteCharOperation
+	var unmarshaled DeleteCharsOperation
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal operation: %v", err)
 	}
 
-	if unmarshaled.UniqueID != op.UniqueID {
-		t.Errorf("Expected UniqueID '%s', got '%s'", op.UniqueID, unmarshaled.UniqueID)
+	if unmarshaled.UniqueIDs[0] != op.UniqueIDs[0] {
+		t.Errorf("Expected UniqueID '%s', got '%s'", op.UniqueIDs[0], unmarshaled.UniqueIDs[0])
 	}
 }
 
@@ -173,8 +180,8 @@ func TestAllMessageTypes(t *testing.T) {
 		MsgSyncState,
 		MsgHeartbeat,
 		MsgCursorMove,
-		MsgInsertChar,
-		MsgDeleteChar,
+		MsgInsertChars,
+		MsgDeleteChars,
 		MsgApplyFormatting,
 		MsgCreateBlock,
 		MsgDeleteBlock,
