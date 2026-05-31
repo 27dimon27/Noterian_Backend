@@ -1,9 +1,0 @@
-Requests      [total, rate, throughput]         30000, 500.02, 470.51
-Duration      [total, attack, wait]             1m0s, 59.998s, 2.222ms
-Latencies     [min, mean, 50, 90, 95, 99, max]  1.677ms, 5.626ms, 5.054ms, 6.856ms, 7.838ms, 17.417ms, 152.026ms
-Bytes In      [total, mean]                     4205493182, 140183.11
-Bytes Out     [total, mean]                     0, 0.00
-Success       [ratio]                           94.10%
-Status Codes  [code:count]                      200:28231  502:1769
-Error Set:
-502 Bad Gateway
