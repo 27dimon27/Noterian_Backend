@@ -24,7 +24,11 @@ func main() {
 		log.Error("Failed to connect to database", "error", err)
 		return
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error("failed to close database connection in profiles", "error", err)
+		}
+	}()
 
 	log.Info("Connected to database successfully")
 

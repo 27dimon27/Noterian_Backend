@@ -25,7 +25,11 @@ func main() {
 		log.Error("Failed to connect to database", "error", err)
 		return
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error("failed to close database connection in attachments", "error", err)
+		}
+	}()
 
 	log.Info("Connected to database successfully")
 
@@ -42,7 +46,11 @@ func main() {
 		log.Error("Failed to create notes service client", "error", err)
 		return
 	}
-	defer notesClient.Close()
+	defer func() {
+		if err := notesClient.Close(); err != nil {
+			log.Error("failed to close notes service grpc client", "error", err)
+		}
+	}()
 
 	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
 	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, notesClient)

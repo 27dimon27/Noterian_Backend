@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
@@ -90,21 +92,42 @@ func (u *attachmentUsecase) UploadAttachment(
 		Content:     "",
 	})
 	if err != nil {
-		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
+		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
+			return nil, fmt.Errorf("create block failed: %w, and rollback failed: %w", err, shiftErr)
+		}
 		return nil, u.mapGrpcError(err)
 	}
 
 	blockID, err := uuid.Parse(createdBlock.Id)
 	if err != nil {
-		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
-		return nil, err
+		var errs []error
+		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
+
+		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
+			errs = append(errs, fmt.Errorf("failed to delete block during rollback: %w", deleteErr))
+		}
+
+		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
+			errs = append(errs, fmt.Errorf("failed to shift block positions during rollback: %w", shiftErr))
+		}
+
+		return nil, errors.Join(errs...)
 	}
 
 	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
-		_, _ = u.notesClient.DeleteBlock(ctx, blockID, noteID, userID)
-		_ = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1)
-		return nil, err
+		var errs []error
+		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
+
+		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
+			errs = append(errs, fmt.Errorf("failed to delete block during rollback: %w", deleteErr))
+		}
+
+		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
+			errs = append(errs, fmt.Errorf("failed to shift block positions during rollback: %w", shiftErr))
+		}
+
+		return nil, errors.Join(errs...)
 	}
 
 	return attachment, nil

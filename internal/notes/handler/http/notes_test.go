@@ -164,7 +164,8 @@ func TestNoteHandler_CreateNote(t *testing.T) {
 			IsFavorite: false,
 			Icon:       "📝",
 		}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		createdNote := &models.Note{ID: uuid.New(), UserID: userID, Title: "New Note"}
 
@@ -201,7 +202,8 @@ func TestNoteHandler_CreateNote(t *testing.T) {
 
 	t.Run("unauthorized", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: "New Note"}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/notes", bytes.NewReader(body))
 		w := httptest.NewRecorder()
@@ -213,7 +215,8 @@ func TestNoteHandler_CreateNote(t *testing.T) {
 
 	t.Run("usecase error - invalid data", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: ""}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		mockUsecase.EXPECT().CreateNote(gomock.Any(), gomock.Any()).Return(nil, notes.ErrInvalidNoteData)
 
@@ -244,7 +247,8 @@ func TestNoteHandler_UpdateNote(t *testing.T) {
 			IsFavorite: true,
 			Icon:       "⭐",
 		}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		updatedNote := &models.Note{ID: noteID, UserID: userID, Title: "Updated Note"}
 
@@ -262,7 +266,8 @@ func TestNoteHandler_UpdateNote(t *testing.T) {
 
 	t.Run("note not found", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: "Updated"}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		mockUsecase.EXPECT().UpdateNote(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, notes.ErrNoteNotFound)
 
@@ -330,7 +335,8 @@ func TestNoteHandler_CreateBlock(t *testing.T) {
 			Position:    0,
 			Content:     "Hello",
 		}
-		body, _ := json.Marshal(blockRequest)
+		body, err := json.Marshal(blockRequest)
+		require.NoError(t, err)
 
 		createdBlock := &models.Block{ID: uuid.New(), NoteID: noteID, BlockTypeID: 1, Position: 0}
 
@@ -348,7 +354,8 @@ func TestNoteHandler_CreateBlock(t *testing.T) {
 
 	t.Run("invalid block type", func(t *testing.T) {
 		blockRequest := dto.BlockRequest{BlockTypeID: 0, Position: 0}
-		body, _ := json.Marshal(blockRequest)
+		body, err := json.Marshal(blockRequest)
+		require.NoError(t, err)
 
 		mockUsecase.EXPECT().CreateBlock(gomock.Any(), noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidBlockType)
 
@@ -376,7 +383,8 @@ func TestNoteHandler_UpdateBlockContent(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		updateRequest := dto.UpdateBlockContentRequest{Content: "New content"}
-		body, _ := json.Marshal(updateRequest)
+		body, err := json.Marshal(updateRequest)
+		require.NoError(t, err)
 
 		updatedBlock := &models.Block{ID: blockID, Content: "New content"}
 
@@ -407,7 +415,8 @@ func TestNoteHandler_MoveBlock(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		moveRequest := dto.MoveBlockRequest{NewPosition: 5}
-		body, _ := json.Marshal(moveRequest)
+		body, err := json.Marshal(moveRequest)
+		require.NoError(t, err)
 
 		movedBlock := &models.Block{ID: blockID, Position: 5}
 
@@ -426,7 +435,8 @@ func TestNoteHandler_MoveBlock(t *testing.T) {
 
 	t.Run("invalid position", func(t *testing.T) {
 		moveRequest := dto.MoveBlockRequest{NewPosition: -1}
-		body, _ := json.Marshal(moveRequest)
+		body, err := json.Marshal(moveRequest)
+		require.NoError(t, err)
 
 		mockUsecase.EXPECT().MoveBlock(gomock.Any(), blockID, noteID, userID, -1).Return(nil, notes.ErrInvalidPosition)
 
@@ -485,7 +495,8 @@ func TestNoteHandler_UpdateBlockFormatting(t *testing.T) {
 			EndPos:   5,
 			Bold:     boolPtr(true),
 		}
-		body, _ := json.Marshal(formattingRequest)
+		body, err := json.Marshal(formattingRequest)
+		require.NoError(t, err)
 
 		updatedFormatting := &models.BlockFormatting{BlockID: blockID.String()}
 
@@ -504,7 +515,8 @@ func TestNoteHandler_UpdateBlockFormatting(t *testing.T) {
 
 	t.Run("invalid formatting range", func(t *testing.T) {
 		formattingRequest := dto.FormattingRange{StartPos: 10, EndPos: 5}
-		body, _ := json.Marshal(formattingRequest)
+		body, err := json.Marshal(formattingRequest)
+		require.NoError(t, err)
 
 		mockUsecase.EXPECT().UpdateBlockFormatting(gomock.Any(), blockID, noteID, userID, gomock.Any()).Return(nil, notes.ErrInvalidFormattingRange)
 
@@ -561,7 +573,8 @@ func TestNoteHandler_CreateSubnote(t *testing.T) {
 
 	t.Run("success with position", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: "New Subnote"}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		createdNote := &models.Note{ID: uuid.New(), Title: "New Subnote"}
 		blockID := uuid.New()
@@ -580,7 +593,8 @@ func TestNoteHandler_CreateSubnote(t *testing.T) {
 
 	t.Run("success without position", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: "New Subnote"}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		createdNote := &models.Note{ID: uuid.New(), Title: "New Subnote"}
 		blockID := uuid.New()
@@ -599,7 +613,8 @@ func TestNoteHandler_CreateSubnote(t *testing.T) {
 
 	t.Run("invalid position query param", func(t *testing.T) {
 		noteRequest := dto.NoteRequest{Title: "New Subnote"}
-		body, _ := json.Marshal(noteRequest)
+		body, err := json.Marshal(noteRequest)
+		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodPost, "/notes/"+noteID.String()+"/subnote?position=invalid", bytes.NewReader(body))
 		req = req.WithContext(context.WithValue(req.Context(), types.UserIDKey, userID))

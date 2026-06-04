@@ -581,9 +581,23 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 	room.SequenceID++
 	room.mu.Unlock()
 
-	blockID, _ := uuid.Parse(op.BlockID)
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	blockID, err := uuid.Parse(op.BlockID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid block ID", client)
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
 
 	author, ok := room.GetClient(userID)
 	if !ok {
@@ -599,7 +613,7 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 		TextAlign: op.TextAlign,
 	}
 
-	_, err := h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
+	_, err = h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 	}
@@ -629,8 +643,17 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
 
 	block := models.Block{
 		BlockTypeID: op.BlockTypeID,
@@ -679,9 +702,23 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
-	blockUUID, _ := uuid.Parse(op.BlockID)
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	blockUUID, err := uuid.Parse(op.BlockID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid block ID", client)
+		return
+	}
 
 	_, blocks, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
@@ -735,11 +772,25 @@ func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, op *MoveBlockOperat
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
-	blockUUID, _ := uuid.Parse(op.BlockID)
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
 
-	_, err := h.noteUsecase.MoveBlock(context.Background(), blockUUID, noteID, userUUID, op.NewPosition)
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	blockUUID, err := uuid.Parse(op.BlockID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid block ID", client)
+		return
+	}
+
+	_, err = h.noteUsecase.MoveBlock(context.Background(), blockUUID, noteID, userUUID, op.NewPosition)
 	if err != nil {
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
@@ -759,8 +810,17 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
 
 	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
@@ -789,11 +849,26 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
+
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
 
 	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
@@ -801,6 +876,7 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 
 	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
 	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
@@ -1011,8 +1087,17 @@ func (h *Hub) handleUpdateNoteIcon(room *NoteRoom, userID string, newIcon string
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	noteID, err := uuid.Parse(room.NoteID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
 
 	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
 	if err != nil {
@@ -1041,11 +1126,25 @@ func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
 		return
 	}
 
-	noteID, _ := uuid.Parse(room.NoteID)
-	userUUID, _ := uuid.Parse(userID)
+	client, exists := room.GetClient(userID)
+	if !exists {
+		return
+	}
 
-	err := h.noteUsecase.DeleteNote(context.Background(), noteID, userUUID)
+	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
+		client.Send <- h.errorMessage("Invalid note ID", client)
+		return
+	}
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		client.Send <- h.errorMessage("Invalid user ID", client)
+		return
+	}
+
+	err = h.noteUsecase.DeleteNote(context.Background(), noteID, userUUID)
+	if err != nil {
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
@@ -1111,8 +1210,15 @@ func (h *Hub) updateCursorsAfterBlockOperation(room *NoteRoom, opType MessageTyp
 }
 
 func (h *Hub) isNoteOwner(noteID string, userID string) bool {
-	noteUUID, _ := uuid.Parse(noteID)
-	userUUID, _ := uuid.Parse(userID)
+	noteUUID, err := uuid.Parse(noteID)
+	if err != nil {
+		return false
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return false
+	}
 
 	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
 	if err != nil || note == nil {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -95,7 +96,11 @@ func addHeaderImage(pdf *gofpdf.Fpdf, imageURL string) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body in addHeaderImage: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return
@@ -310,7 +315,11 @@ func addImageAttachment(pdf *gofpdf.Fpdf, imageURL string) {
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("failed to close response body in addImageAttachment: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return

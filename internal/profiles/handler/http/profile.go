@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -91,7 +92,11 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in UpdateProfile: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -239,7 +244,11 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("failed to close file in UploadAvatar: %v", err)
+		}
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
@@ -317,7 +326,11 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in ChangePassword: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {

@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockMinioClient is a mock implementation of minio.Client interface
 type MockMinioClient struct {
 	mock.Mock
 }
@@ -29,9 +28,9 @@ func (m *MockMinioClient) MakeBucket(ctx context.Context, bucketName string, opt
 	return args.Error(0)
 }
 
-func (m *MockMinioClient) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
+func (m *MockMinioClient) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (any, error) {
 	args := m.Called(ctx, bucketName, objectName, reader, objectSize, opts)
-	return args.Get(0).(minio.UploadInfo), args.Error(1)
+	return args.Get(0), args.Error(1)
 }
 
 func (m *MockMinioClient) RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error {
@@ -42,12 +41,14 @@ func (m *MockMinioClient) RemoveObject(ctx context.Context, bucketName, objectNa
 func (m *MockMinioClient) PresignedGetObject(ctx context.Context, bucketName, objectName string, expiry time.Duration, reqParams map[string]string) (*string, error) {
 	args := m.Called(ctx, bucketName, objectName, expiry, reqParams)
 	if args.Get(0) != nil {
-		return args.Get(0).(*string), args.Error(1)
+		if url, ok := args.Get(0).(*string); ok {
+			return url, args.Error(1)
+		}
+		return nil, args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-// MinIOServiceWithMock is a test wrapper
 type MinIOServiceWithMock struct {
 	*MinIOService
 	MockClient *MockMinioClient
@@ -93,8 +94,6 @@ func TestNewMinIOService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This would actually try to connect to MinIO
-			// For unit tests, we should mock minio.New
 			t.Skip("Requires actual MinIO connection or better mocking")
 		})
 	}
@@ -149,8 +148,6 @@ func TestMinIOService_CreateBucketIfNotExists(t *testing.T) {
 			tt.setupMock(mockClient)
 			ctx := context.Background()
 
-			// Create service with mock (requires interface implementation)
-			// For now, we'll test the logic directly
 			err := mockCreateBucketLogic(ctx, mockClient, tt.bucketName)
 
 			if tt.expectError {
@@ -218,7 +215,7 @@ func TestMinIOService_UploadFile(t *testing.T) {
 			name:        "upload large file",
 			bucketName:  "my-bucket",
 			key:         "large.bin",
-			content:     bytes.Repeat([]byte("A"), 1024*1024), // 1MB
+			content:     bytes.Repeat([]byte("A"), 1024*1024),
 			contentType: "application/octet-stream",
 			setupMock: func(m *MockMinioClient) {
 				m.On("PutObject", mock.Anything, "my-bucket", "large.bin", mock.Anything, mock.Anything, mock.Anything).

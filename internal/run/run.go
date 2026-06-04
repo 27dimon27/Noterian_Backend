@@ -26,25 +26,33 @@ func Run() error {
 		log.Error("Failed to connect to database", "error", err)
 		return err
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error("failed to close database connection in main", "error", err)
+		}
+	}()
 
 	log.Info("Connected to database successfully")
 
 	minioService, err := minio.NewMinIOService(cfg.MinIO)
 	if err != nil {
+		log.Error("Failed to create MinIO service", "error", err)
 		return err
 	}
 
 	ctx := context.Background()
 	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AttachmentsBucket); err != nil {
+		log.Error("Failed to create attachments bucket", "error", err)
 		return err
 	}
 	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.AttachmentsBucket))
 	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.AvatarsBucket); err != nil {
+		log.Error("Failed to create avatars bucket", "error", err)
 		return err
 	}
 	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.AvatarsBucket))
 	if err := minioService.CreateBucketIfNotExists(ctx, cfg.MinIO.HeadersBucket); err != nil {
+		log.Error("Failed to create headers bucket", "error", err)
 		return err
 	}
 	log.Info(fmt.Sprintf("Created %s bucket successfully", cfg.MinIO.HeadersBucket))
@@ -56,21 +64,33 @@ func Run() error {
 		log.Error("Failed to connect to attachments service", "error", err)
 		return err
 	}
-	defer attachmentsConn.Close()
+	defer func() {
+		if err := attachmentsConn.Close(); err != nil {
+			log.Error("failed to close attachments gRPC connection", "error", err)
+		}
+	}()
 
 	notesConn, err := grpc.NewClient(cfg.Services.NotesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Failed to connect to notes service", "error", err)
 		return err
 	}
-	defer notesConn.Close()
+	defer func() {
+		if err := notesConn.Close(); err != nil {
+			log.Error("failed to close notes gRPC connection", "error", err)
+		}
+	}()
 
 	profilesConn, err := grpc.NewClient(cfg.Services.ProfilesAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("Failed to connect to profiles service", "error", err)
 		return err
 	}
-	defer profilesConn.Close()
+	defer func() {
+		if err := profilesConn.Close(); err != nil {
+			log.Error("failed to close profiles gRPC connection", "error", err)
+		}
+	}()
 
 	log.Info("Connected to gRPC services successfully")
 

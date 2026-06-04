@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -153,7 +154,9 @@ func (r *profileRepository) UploadAvatar(
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, minioKey, profiles.PRESIGNED_URL_EXPIRY)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.avatarBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, profiles.ErrFailedToGenerateURL
 	}
 
@@ -186,7 +189,9 @@ func (r *profileRepository) UploadAvatar(
 		&avatar.UpdatedAt,
 	)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.avatarBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, err
 	}
 

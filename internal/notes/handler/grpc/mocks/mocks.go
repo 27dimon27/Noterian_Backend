@@ -3,6 +3,7 @@ package mocks
 
 import (
 	"context"
+	"errors"
 	"reflect"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -32,10 +33,22 @@ func (m *MockNoteUsecase) EXPECT() *MockNoteUsecaseMockRecorder {
 func (m *MockNoteUsecase) GetNote(ctx context.Context, noteID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNote", ctx, noteID, userID)
-	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].([]models.Block)
-	ret2, _ := ret[2].(map[string]models.BlockFormatting)
-	ret3, _ := ret[3].(error)
+	ret0, ok := ret[0].(*models.Note)
+	if !ok {
+		return nil, nil, nil, errors.New("failed to retrieve note: ret0")
+	}
+	ret1, ok := ret[1].([]models.Block)
+	if !ok {
+		return nil, nil, nil, errors.New("failed to retrieve note: ret1")
+	}
+	ret2, ok := ret[2].(map[string]models.BlockFormatting)
+	if !ok {
+		return nil, nil, nil, errors.New("failed to retrieve note: ret2")
+	}
+	ret3, ok := ret[3].(error)
+	if !ok {
+		return nil, nil, nil, errors.New("failed to retrieve note: ret3")
+	}
 	return ret0, ret1, ret2, ret3
 }
 
@@ -46,8 +59,14 @@ func (mr *MockNoteUsecaseMockRecorder) GetNote(ctx, noteID, userID interface{}) 
 func (m *MockNoteUsecase) GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlock", ctx, blockID, noteID, userID)
-	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret0, ok := ret[0].(*models.Block)
+	if !ok {
+		return nil, errors.New("failed to retrieve block: ret0")
+	}
+	ret1, ok := ret[1].(error)
+	if !ok {
+		return nil, errors.New("failed to retrieve block: ret1")
+	}
 	return ret0, ret1
 }
 
@@ -58,8 +77,14 @@ func (mr *MockNoteUsecaseMockRecorder) GetBlock(ctx, blockID, noteID, userID int
 func (m *MockNoteUsecase) CreateBlock(ctx context.Context, noteID, userID uuid.UUID, block models.Block) (*models.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateBlock", ctx, noteID, userID, block)
-	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret0, ok := ret[0].(*models.Block)
+	if !ok {
+		return nil, errors.New("failed to create block: ret0")
+	}
+	ret1, ok := ret[1].(error)
+	if !ok {
+		return nil, errors.New("failed to create block: ret1")
+	}
 	return ret0, ret1
 }
 
@@ -70,7 +95,10 @@ func (mr *MockNoteUsecaseMockRecorder) CreateBlock(ctx, noteID, userID, block in
 func (m *MockNoteUsecase) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ShiftBlockPositions", ctx, noteID, fromPosition, direction)
-	ret0, _ := ret[0].(error)
+	ret0, ok := ret[0].(error)
+	if !ok {
+		return errors.New("failed to shift block positions: ret0")
+	}
 	return ret0
 }
 
@@ -81,7 +109,10 @@ func (mr *MockNoteUsecaseMockRecorder) ShiftBlockPositions(ctx, noteID, fromPosi
 func (m *MockNoteUsecase) DeleteBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBlock", ctx, blockID, noteID, userID)
-	ret0, _ := ret[0].(error)
+	ret0, ok := ret[0].(error)
+	if !ok {
+		return errors.New("failed to delete block: ret0")
+	}
 	return ret0
 }
 

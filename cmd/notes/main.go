@@ -24,7 +24,11 @@ func main() {
 		log.Error("Failed to connect to database", "error", err)
 		return
 	}
-	defer database.Close()
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error("failed to close database connection in notes", "error", err)
+		}
+	}()
 
 	log.Info("Connected to database successfully")
 
@@ -33,7 +37,11 @@ func main() {
 		log.Error("Failed to create attachments service client", "error", err)
 		return
 	}
-	defer attachmentsClient.Close()
+	defer func() {
+		if err := attachmentsClient.Close(); err != nil {
+			log.Error("failed to close attachments service grpc client", "error", err)
+		}
+	}()
 
 	repo := repository.NewNoteRepository(database)
 	noteUsecase := notesUsecase.NewNoteUsecase(repo, attachmentsClient)

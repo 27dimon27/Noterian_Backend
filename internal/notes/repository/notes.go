@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"sort"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -27,7 +28,11 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in GetNotes: %v", err)
+		}
+	}()
 
 	var notes []models.Note
 	for rows.Next() {
@@ -87,7 +92,11 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in GetBlocks: %v", err)
+		}
+	}()
 
 	var blocks []models.Block
 
@@ -306,7 +315,11 @@ func (r *noteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UU
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in GetBlockFormatting: %v", err)
+		}
+	}()
 
 	formatting := &models.BlockFormatting{
 		BlockID: blockID.String(),
@@ -351,7 +364,11 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in GetBlocksFormatting: %v", err)
+		}
+	}()
 
 	result := make(map[string]models.BlockFormatting)
 
@@ -450,7 +467,11 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in GetSubnotes: %v", err)
+		}
+	}()
 
 	var subnotes []models.Note
 
@@ -477,7 +498,11 @@ func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("failed to close sql rows in getFormattingRangesInTx: %v", err)
+		}
+	}()
 
 	var ranges []models.FormattingRange
 

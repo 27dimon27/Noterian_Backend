@@ -39,9 +39,10 @@ func TestErrorTypes(t *testing.T) {
 		"user_id": userID,
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	})
-	tokenStr, _ := token.SigningString()
+	tokenStr, err := token.SigningString()
+	require.NoError(t, err)
 
-	_, err := ValidateToken(tokenStr, secretKey)
+	_, err = ValidateToken(tokenStr, secretKey)
 	assert.Error(t, err)
 	if err != nil {
 		t.Logf("Error type: %v", err)
