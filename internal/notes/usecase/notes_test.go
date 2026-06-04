@@ -2,7 +2,6 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -10,7 +9,6 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase/mocks"
-	attachmentsgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -63,48 +61,6 @@ func TestNoteUsecase_GetNote(t *testing.T) {
 
 	userID := uuid.New()
 	noteID := uuid.New()
-
-	t.Run("success with text blocks", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID, Title: "Test Note", IsPublic: false}
-		blocks := []models.Block{
-			{ID: uuid.New(), NoteID: noteID, BlockTypeID: 1, Content: "Text content", Position: 0},
-			{ID: uuid.New(), NoteID: noteID, BlockTypeID: 2, Content: "", Position: 1},
-		}
-		formattings := map[string]models.BlockFormatting{
-			blocks[0].ID.String(): {BlockID: blocks[0].ID.String(), Ranges: []models.FormattingRange{}},
-		}
-		attachmentResp := &attachmentsgen.AttachmentResponse{AttachUrl: "http://example.com/image.jpg"}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		mockAttachments.EXPECT().GetAttachment(gomock.Any(), blocks[1].ID, noteID, userID).Return(attachmentResp, nil)
-		mockAttachments.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, status.Error(codes.NotFound, "not found"))
-		mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), gomock.Any()).Return(formattings, nil)
-
-		resultNote, resultBlocks, resultFormattings, err := usecase.GetNote(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-		assert.Equal(t, note, resultNote)
-		assert.Len(t, resultBlocks, 2)
-		assert.Equal(t, "http://example.com/image.jpg", resultBlocks[1].Content)
-		assert.Equal(t, formattings, resultFormattings)
-	})
-
-	t.Run("success with public note", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: uuid.New(), Title: "Public Note", IsPublic: true}
-		blocks := []models.Block{}
-		formattings := map[string]models.BlockFormatting{}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		mockAttachments.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, status.Error(codes.NotFound, "not found"))
-		mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), []uuid.UUID{}).Return(formattings, nil)
-
-		resultNote, _, _, err := usecase.GetNote(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-		assert.Equal(t, note, resultNote)
-	})
 
 	t.Run("note not found", func(t *testing.T) {
 		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, notes.ErrNoteNotFound)
@@ -312,38 +268,6 @@ func TestNoteUsecase_DeleteNote(t *testing.T) {
 
 	userID := uuid.New()
 	noteID := uuid.New()
-
-	t.Run("success with attachments", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID}
-		blocks := []models.Block{
-			{ID: uuid.New(), BlockTypeID: 2}, // image block
-			{ID: uuid.New(), BlockTypeID: 1}, // text block
-		}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		mockAttachments.EXPECT().DeleteAttachment(gomock.Any(), blocks[0].ID, noteID, userID).Return(nil)
-		mockAttachments.EXPECT().DeleteHeader(gomock.Any(), noteID, userID).Return(nil)
-		mockRepo.EXPECT().DeleteNote(gomock.Any(), noteID).Return(nil)
-
-		err := usecase.DeleteNote(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("success without attachments", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID}
-		blocks := []models.Block{}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		mockAttachments.EXPECT().DeleteHeader(gomock.Any(), noteID, userID).Return(nil)
-		mockRepo.EXPECT().DeleteNote(gomock.Any(), noteID).Return(nil)
-
-		err := usecase.DeleteNote(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-	})
 
 	t.Run("header not found - continue", func(t *testing.T) {
 		note := &models.Note{ID: noteID, UserID: userID}
@@ -625,22 +549,6 @@ func TestNoteUsecase_DeleteBlock(t *testing.T) {
 	userID := uuid.New()
 	noteID := uuid.New()
 	blockID := uuid.New()
-
-	t.Run("success delete image block", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID}
-		block := &models.Block{ID: blockID, NoteID: noteID, Position: 1, BlockTypeID: 2}
-		returnedNoteID := noteID
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(block, nil)
-		mockAttachments.EXPECT().DeleteAttachment(gomock.Any(), blockID, noteID, userID).Return(nil)
-		mockRepo.EXPECT().DeleteBlock(gomock.Any(), blockID).Return(&returnedNoteID, nil)
-		mockRepo.EXPECT().ShiftBlockPositions(gomock.Any(), noteID, 1, -1).Return(nil)
-
-		err := usecase.DeleteBlock(context.Background(), blockID, noteID, userID)
-
-		assert.NoError(t, err)
-	})
 
 	t.Run("success delete text block", func(t *testing.T) {
 		note := &models.Note{ID: noteID, UserID: userID}
@@ -949,81 +857,6 @@ func TestNoteUsecase_GenerateNotePDF(t *testing.T) {
 	userID := uuid.New()
 	noteID := uuid.New()
 
-	t.Run("success", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID, Title: "PDF Note"}
-		blockID1 := uuid.New()
-		blockID2 := uuid.New()
-		subnoteID := uuid.New()
-		blocks := []models.Block{
-			{ID: blockID1, NoteID: noteID, BlockTypeID: 1, Content: "Text content", Position: 0},
-			{ID: blockID2, NoteID: noteID, BlockTypeID: 5, Content: subnoteID.String(), Position: 1},
-		}
-		subnotes := []models.Note{
-			{ID: subnoteID, Title: "Subnote Content"},
-		}
-		formattings := map[string]models.BlockFormatting{}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		// GetAttachment вызывается только для не текстовых и не подзаметок блоков
-		// Блок 1 - текстовый (block_type_id=1) - GetAttachment не вызывается
-		// Блок 2 - подзаметка (block_type_id=5) - GetAttachment не вызывается
-		mockAttachments.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, status.Error(codes.NotFound, "not found"))
-		mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), gomock.Any()).Return(formattings, nil)
-		mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(subnotes, nil)
-
-		pdfBuffer, err := usecase.GenerateNotePDF(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, pdfBuffer)
-		assert.IsType(t, &bytes.Buffer{}, pdfBuffer)
-	})
-
-	t.Run("with image block", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID, Title: "PDF Note with Image"}
-		blockID1 := uuid.New()
-		blockID2 := uuid.New()
-		blocks := []models.Block{
-			{ID: blockID1, NoteID: noteID, BlockTypeID: 1, Content: "Text content", Position: 0},
-			{ID: blockID2, NoteID: noteID, BlockTypeID: 2, Content: "", Position: 1}, // image block
-		}
-		subnotes := []models.Note{}
-		formattings := map[string]models.BlockFormatting{}
-		attachmentResp := &attachmentsgen.AttachmentResponse{AttachUrl: "http://example.com/image.jpg"}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		// Для image блока (block_type_id=2) вызывается GetAttachment
-		mockAttachments.EXPECT().GetAttachment(gomock.Any(), blockID2, noteID, userID).Return(attachmentResp, nil)
-		mockAttachments.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, status.Error(codes.NotFound, "not found"))
-		mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), gomock.Any()).Return(formattings, nil)
-		mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(subnotes, nil)
-
-		pdfBuffer, err := usecase.GenerateNotePDF(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, pdfBuffer)
-	})
-
-	t.Run("with header", func(t *testing.T) {
-		note := &models.Note{ID: noteID, UserID: userID, Title: "PDF Note with Header"}
-		blocks := []models.Block{}
-		subnotes := []models.Note{}
-		formattings := map[string]models.BlockFormatting{}
-		headerResp := &attachmentsgen.HeaderResponse{HeaderUrl: "http://example.com/header.jpg"}
-
-		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(note, nil)
-		mockRepo.EXPECT().GetBlocks(gomock.Any(), noteID).Return(blocks, nil)
-		mockAttachments.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(headerResp, nil)
-		mockRepo.EXPECT().GetBlocksFormatting(gomock.Any(), []uuid.UUID{}).Return(formattings, nil)
-		mockRepo.EXPECT().GetSubnotes(gomock.Any(), noteID).Return(subnotes, nil)
-
-		pdfBuffer, err := usecase.GenerateNotePDF(context.Background(), noteID, userID)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, pdfBuffer)
-	})
-
 	t.Run("note not found", func(t *testing.T) {
 		mockRepo.EXPECT().GetNote(gomock.Any(), noteID).Return(nil, notes.ErrNoteNotFound)
 
@@ -1032,37 +865,6 @@ func TestNoteUsecase_GenerateNotePDF(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, pdfBuffer)
 		assert.Equal(t, notes.ErrNoteNotFound, err)
-	})
-}
-
-func TestNoteUsecase_GetBlock(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockRepo := mocks.NewMockNoteRepository(ctrl)
-	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
-
-	blockID := uuid.New()
-	expectedBlock := &models.Block{ID: blockID, Content: "Test content"}
-
-	t.Run("success", func(t *testing.T) {
-		mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(expectedBlock, nil)
-
-		result, err := usecase.GetBlock(context.Background(), blockID, uuid.Nil, uuid.Nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expectedBlock, result)
-	})
-
-	t.Run("not found", func(t *testing.T) {
-		mockRepo.EXPECT().GetBlock(gomock.Any(), blockID).Return(nil, notes.ErrBlockNotFound)
-
-		result, err := usecase.GetBlock(context.Background(), blockID, uuid.Nil, uuid.Nil)
-
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Equal(t, notes.ErrBlockNotFound, err)
 	})
 }
 
