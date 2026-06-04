@@ -1,4 +1,3 @@
-// repository/notes_test.go (исправленная версия)
 package repository
 
 import (
@@ -18,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// anyArgument представляет любой аргумент для sqlmock
 type anyArgument struct{}
 
 func (a anyArgument) Match(v driver.Value) bool {
@@ -28,7 +26,12 @@ func (a anyArgument) Match(v driver.Value) bool {
 func TestNoteRepository_GetNotes(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	userID := uuid.New()
@@ -81,7 +84,12 @@ func TestNoteRepository_GetNotes(t *testing.T) {
 func TestNoteRepository_GetNote(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -117,7 +125,12 @@ func TestNoteRepository_GetNote(t *testing.T) {
 func TestNoteRepository_GetBlocks(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -154,7 +167,12 @@ func TestNoteRepository_GetBlocks(t *testing.T) {
 func TestNoteRepository_GetBlockType(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 
@@ -190,7 +208,12 @@ func TestNoteRepository_GetBlockType(t *testing.T) {
 func TestNoteRepository_CreateNote(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	userID := uuid.New()
@@ -223,7 +246,12 @@ func TestNoteRepository_CreateNote(t *testing.T) {
 func TestNoteRepository_UpdateNote(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -254,7 +282,12 @@ func TestNoteRepository_UpdateNote(t *testing.T) {
 func TestNoteRepository_DeleteNote(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -275,7 +308,12 @@ func TestNoteRepository_DeleteNote(t *testing.T) {
 func TestNoteRepository_CreateBlock(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -305,7 +343,12 @@ func TestNoteRepository_CreateBlock(t *testing.T) {
 func TestNoteRepository_GetBlock(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	blockID := uuid.New()
@@ -329,7 +372,12 @@ func TestNoteRepository_GetBlock(t *testing.T) {
 func TestNoteRepository_UpdateBlockContent(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	blockID := uuid.New()
@@ -353,7 +401,12 @@ func TestNoteRepository_UpdateBlockContent(t *testing.T) {
 func TestNoteRepository_MoveBlock(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -409,7 +462,12 @@ func TestNoteRepository_MoveBlock(t *testing.T) {
 func TestNoteRepository_DeleteBlock(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	blockID := uuid.New()
@@ -434,7 +492,12 @@ func TestNoteRepository_DeleteBlock(t *testing.T) {
 func TestNoteRepository_ShiftBlockPositions(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	noteID := uuid.New()
@@ -469,7 +532,12 @@ func TestNoteRepository_ShiftBlockPositions(t *testing.T) {
 func TestNoteRepository_GetBlockFormatting(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	blockID := uuid.New()
@@ -509,7 +577,12 @@ func TestNoteRepository_GetBlockFormatting(t *testing.T) {
 func TestNoteRepository_GetBlocksFormatting(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 
@@ -546,7 +619,12 @@ func TestNoteRepository_GetBlocksFormatting(t *testing.T) {
 func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	blockID := uuid.New()
@@ -554,25 +632,21 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 	t.Run("success create new formatting", func(t *testing.T) {
 		mock.ExpectBegin()
 
-		// Ожидаем запрос существующих форматирований
 		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"})
 		mock.ExpectQuery(regexp.QuoteMeta(GET_BLOCK_FORMATTING)).
 			WithArgs(blockID).
 			WillReturnRows(existingRows)
 
-		// Ожидаем удаление старых форматирований
 		mock.ExpectExec(regexp.QuoteMeta(DELETE_BLOCK_FORMATTING)).
 			WithArgs(blockID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		// Ожидаем вставку нового форматирования - используем anyArgument для text_align
 		mock.ExpectExec(regexp.QuoteMeta(INSERT_BLOCK_FORMATTING)).
 			WithArgs(blockID, 0, 5, true, false, false, anyArgument{}).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		mock.ExpectCommit()
 
-		// После коммита - получаем обновленное форматирование
 		formattingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
 			AddRow(0, 5, true, false, false, nil)
 
@@ -590,7 +664,6 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 	t.Run("update existing formatting", func(t *testing.T) {
 		mock.ExpectBegin()
 
-		// Существующее форматирование
 		existingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
 			AddRow(0, 10, true, false, false, nil)
 
@@ -598,12 +671,10 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 			WithArgs(blockID).
 			WillReturnRows(existingRows)
 
-		// Удаление старых
 		mock.ExpectExec(regexp.QuoteMeta(DELETE_BLOCK_FORMATTING)).
 			WithArgs(blockID).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		// Вставка новых диапазонов
 		mock.ExpectExec(regexp.QuoteMeta(INSERT_BLOCK_FORMATTING)).
 			WithArgs(blockID, 0, 5, false, true, false, anyArgument{}).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -614,7 +685,6 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 
 		mock.ExpectCommit()
 
-		// Возвращаем обновленное форматирование
 		formattingRows := sqlmock.NewRows([]string{"start_pos", "end_pos", "bold", "italic", "underline", "text_align"}).
 			AddRow(0, 5, false, true, false, nil).
 			AddRow(5, 10, true, false, false, nil)
@@ -634,7 +704,12 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 func TestNoteRepository_GetSubnotes(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	repo := NewNoteRepository(db)
 	parentID := uuid.New()
@@ -668,7 +743,6 @@ func TestNoteRepository_GetSubnotes(t *testing.T) {
 	})
 }
 
-// Helper functions
 func boolPtr(b bool) *bool {
 	return &b
 }

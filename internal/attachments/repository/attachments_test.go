@@ -30,7 +30,9 @@ func newMockRepository(t *testing.T) (*AttachmentRepository, sqlmock.Sqlmock, *g
 	repo := NewAttachmentRepository(db, minioMock, "attachments-bucket", "headers-bucket")
 
 	t.Cleanup(func() {
-		_ = db.Close()
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
 		ctrl.Finish()
 	})
 

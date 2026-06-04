@@ -37,10 +37,14 @@ func newRepoEnv(t *testing.T) *repoEnv {
 	ctrl := gomock.NewController(t)
 	minio := mocks.NewMockMinIOService(ctrl)
 	repo := NewProfileRepository(db, minio, testBucket)
+
 	t.Cleanup(func() {
-		db.Close()
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
 		ctrl.Finish()
 	})
+
 	return &repoEnv{
 		repo:    repo,
 		db:      db,

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -149,7 +150,11 @@ func (h *NoteHandler) CreateNote(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in CreateNote: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -205,7 +210,11 @@ func (h *NoteHandler) UpdateNote(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in UpdateNote: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -324,7 +333,11 @@ func (h *NoteHandler) CreateBlock(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in CreateBlock: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -395,7 +408,11 @@ func (h *NoteHandler) UpdateBlockContent(w http.ResponseWriter, r *http.Request)
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in UpdateBlockContent: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -474,7 +491,11 @@ func (h *NoteHandler) MoveBlock(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in MoveBlock: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -617,7 +638,11 @@ func (h *NoteHandler) UpdateBlockFormatting(w http.ResponseWriter, r *http.Reque
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in UpdateBlockFormatting: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
@@ -750,7 +775,11 @@ func (h *NoteHandler) CreateSubnote(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrBodyRequired)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in CreateSubnote: %v", err)
+		}
+	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {

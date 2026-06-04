@@ -102,7 +102,12 @@ func TestNewPostgresConnection(t *testing.T) {
 func TestPostgresConnectionPoolSettings(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("failed to close db: %v", err)
+		}
+	})
 
 	mock.ExpectPing()
 

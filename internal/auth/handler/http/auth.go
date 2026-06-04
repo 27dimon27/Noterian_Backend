@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -53,7 +54,11 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in SignupUser: %v", err)
+		}
+	}()
 
 	var signUpUser dto.SignUpUser
 
@@ -99,7 +104,11 @@ func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("failed to close request body in SigninUser: %v", err)
+		}
+	}()
 
 	var signInUser dto.SignInUser
 

@@ -97,7 +97,9 @@ func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close WebSocket connection: %v", err)
+		}
 	}()
 
 	for {
@@ -138,7 +140,9 @@ func (h *WebSocketHandler) writePump(client *ClientInfo, conn *websocket.Conn) {
 func (h *WebSocketHandler) readPump(client *ClientInfo, conn *websocket.Conn) {
 	defer func() {
 		h.hub.unregister <- client
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close WebSocket connection: %v", err)
+		}
 	}()
 
 	conn.SetReadLimit(MAX_VIDEO_SIZE)

@@ -44,11 +44,15 @@ func TestHandler_GetToken(t *testing.T) {
 		handler.GetToken(w, req)
 
 		resp := w.Result()
-		defer resp.Body.Close()
+
+		t.Cleanup(func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("failed to close response body: %v", err)
+			}
+		})
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		// Check cookie
 		cookies := resp.Cookies()
 		require.Len(t, cookies, 1)
 		cookie := cookies[0]
@@ -56,13 +60,11 @@ func TestHandler_GetToken(t *testing.T) {
 		assert.True(t, cookie.HttpOnly)
 		assert.Equal(t, "/", cookie.Path)
 
-		// Check response body
 		var response TokenResponse
 		err := json.NewDecoder(resp.Body).Decode(&response)
 		require.NoError(t, err)
 		assert.NotEmpty(t, response.CSRFToken)
 
-		// Validate that the token in response matches the hashed token in cookie
 		hashedTokenFromCookie := cookie.Value
 		assert.True(t, Validate(response.CSRFToken, hashedTokenFromCookie))
 	})
@@ -85,7 +87,6 @@ func TestHandler_GetToken(t *testing.T) {
 			tokens = append(tokens, response.CSRFToken)
 		}
 
-		// Check that all tokens are unique
 		uniqueTokens := make(map[string]bool)
 		for _, token := range tokens {
 			uniqueTokens[token] = true
@@ -168,33 +169,32 @@ func TestHandler_GetToken(t *testing.T) {
 	})
 }
 
-// Integration test example
 func TestCSRFFlow(t *testing.T) {
 	handler, cfg := setupTestHandler()
 
-	// Step 1: Get CSRF token
 	req1 := httptest.NewRequest("GET", "/csrf-token", nil)
 	w1 := httptest.NewRecorder()
 	handler.GetToken(w1, req1)
 
 	resp1 := w1.Result()
-	defer resp1.Body.Close()
 
-	// Extract token from response
+	t.Cleanup(func() {
+		if err := resp1.Body.Close(); err != nil {
+			t.Logf("failed to close response_1 body: %v", err)
+		}
+	})
+
 	var tokenResp TokenResponse
 	err := json.NewDecoder(resp1.Body).Decode(&tokenResp)
 	require.NoError(t, err)
 
-	// Extract cookie
 	cookies := resp1.Cookies()
 	require.Len(t, cookies, 1)
 
-	// Step 2: Use token in subsequent request
 	req2 := httptest.NewRequest("POST", "/protected", nil)
 	req2.Header.Set("X-CSRF-Token", tokenResp.CSRFToken)
 	req2.AddCookie(cookies[0])
 
-	// Validate token
 	cookieToken, err := GetFromCookie(req2, cfg)
 	require.NoError(t, err)
 

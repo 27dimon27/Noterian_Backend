@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -102,7 +103,9 @@ func (r *AttachmentRepository) UploadAttachment(
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, minioKey, attachments.PRESIGNED_URL_EXPIRY)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, attachments.ErrFailedToGenerateURL
 	}
 
@@ -135,7 +138,9 @@ func (r *AttachmentRepository) UploadAttachment(
 		&attachment.UpdatedAt,
 	)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, err
 	}
 
@@ -222,7 +227,9 @@ func (r *AttachmentRepository) UploadHeader(
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.headerBucket, minioKey, attachments.PRESIGNED_URL_EXPIRY)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.headerBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.headerBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, attachments.ErrFailedToGenerateURL
 	}
 
@@ -255,7 +262,9 @@ func (r *AttachmentRepository) UploadHeader(
 		&header.UpdatedAt,
 	)
 	if err != nil {
-		_ = r.minio.DeleteFile(ctx, r.headerBucket, minioKey)
+		if delErr := r.minio.DeleteFile(ctx, r.headerBucket, minioKey); delErr != nil {
+			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+		}
 		return nil, err
 	}
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -169,7 +170,11 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("failed to close file in UploadAttachment: %v", err)
+		}
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
@@ -360,7 +365,11 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("failed to close file in UploadHeader: %v", err)
+		}
+	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)

@@ -3,6 +3,7 @@ package usecase
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -346,12 +347,17 @@ func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID,
 
 	createdBlock, err := u.noteRepository.CreateBlock(ctx, block)
 	if err != nil {
-		_ = u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, -1)
+		if shiftErr := u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, -1); shiftErr != nil {
+			return nil, uuid.Nil, fmt.Errorf("create block failed: %w, and rollback failed: %w", err, shiftErr)
+		}
 		return nil, uuid.Nil, err
 	}
 
 	createdNote, err := u.noteRepository.CreateNote(ctx, note)
 	if err != nil {
+		if _, delErr := u.noteRepository.DeleteBlock(ctx, createdBlock.ID); delErr != nil {
+			return nil, uuid.Nil, fmt.Errorf("create note failed: %w, and rollback failed: %w", err, delErr)
+		}
 		return nil, uuid.Nil, err
 	}
 
