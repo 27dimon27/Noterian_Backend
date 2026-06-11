@@ -95,7 +95,7 @@ func Run() error {
 	log.Info("Connected to gRPC services successfully")
 
 	addr := ":" + cfg.Server.Port
-	srvRouter, err := router.New(cfg, database, minioService, attachmentsConn, notesConn, profilesConn)
+	srvRouter, err := router.New(cfg, log, database, minioService, attachmentsConn, notesConn, profilesConn)
 	if err != nil {
 		log.Error("Failed to init router", "error", err)
 		return err

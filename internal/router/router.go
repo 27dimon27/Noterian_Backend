@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"net/http"
 
 	attachmentsGrpcClient "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
@@ -36,23 +37,26 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/websocket"
 )
 
-func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
+func New(cfg *config.Config, logger *slog.Logger, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
 	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
 	noteRepository := notesRepository.NewNoteRepository(db)
 	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
 
 	attachmentRemoteRepository, err := notesGrpcClient.NewAttachmentsServiceClient(cfg.Services.AttachmentsAddr)
 	if err != nil {
+		logger.Error("Failed to init attachments grpc client", "error", err)
 		return nil, err
 	}
 
 	noteRemoteRepository, err := attachmentsGrpcClient.NewNotesServiceClient(cfg.Services.NotesAddr)
 	if err != nil {
+		logger.Error("Failed to init notes grpc client", "error", err)
 		return nil, err
 	}
 
 	profileRemoteRepository, err := authGrpcClient.NewProfilesServiceClient(cfg.Services.ProfilesAddr)
 	if err != nil {
+		logger.Error("Failed to init profiles grpc client", "error", err)
 		return nil, err
 	}
 
@@ -60,18 +64,20 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 	onboardingSeeder := onboarding.NewSeeder(noteRepository)
 	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT, onboardingSeeder)
 	if err != nil {
+		logger.Error("Failed to init auth usecase", "error", err)
 		return nil, err
 	}
 	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRemoteRepository)
 	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
 	if err != nil {
+		logger.Error("Failed to init profiles usecase", "error", err)
 		return nil, err
 	}
 
-	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase)
-	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT)
-	noteHandler := notesHandler.NewNoteHandler(noteUsecase)
-	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT)
+	attachmentHandler := attachmentsHandler.NewAttachmentHandler(attachmentUsecase, logger)
+	authHandler := authHandler.NewAuthHandler(authUsecase, cfg.JWT, logger)
+	noteHandler := notesHandler.NewNoteHandler(noteUsecase, logger)
+	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT, logger)
 
 	wsHub := websocket.NewHub(noteUsecase, profileUsecase, attachmentUsecase)
 	go wsHub.Run(context.Background())
@@ -151,5 +157,5 @@ func New(cfg *config.Config, db *sql.DB, minioService *minio.MinIOService, attac
 
 	r.Handle("GET /ws/notes/{noteId}", authMiddleware(http.HandlerFunc(wsHandler.ServeWS)))
 
-	return metrics.MetricsMiddleware(middleware.Logger(r)), nil
+	return metrics.MetricsMiddleware(middleware.Logger(r, logger)), nil
 }

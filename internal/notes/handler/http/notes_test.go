@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/dto"
@@ -20,12 +21,14 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var log = logger.Init()
+
 func TestNoteHandler_GetNotes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 
@@ -78,7 +81,7 @@ func TestNoteHandler_GetNote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -153,7 +156,7 @@ func TestNoteHandler_CreateNote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 
@@ -235,7 +238,7 @@ func TestNoteHandler_UpdateNote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -287,7 +290,7 @@ func TestNoteHandler_DeleteNote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -324,7 +327,7 @@ func TestNoteHandler_CreateBlock(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -375,7 +378,7 @@ func TestNoteHandler_UpdateBlockContent(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -407,7 +410,7 @@ func TestNoteHandler_MoveBlock(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -457,7 +460,7 @@ func TestNoteHandler_DeleteBlock(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -483,7 +486,7 @@ func TestNoteHandler_UpdateBlockFormatting(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -537,7 +540,7 @@ func TestNoteHandler_GetSubnotes(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -566,7 +569,7 @@ func TestNoteHandler_CreateSubnote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -632,7 +635,7 @@ func TestNoteHandler_DeleteSubnote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -658,7 +661,7 @@ func TestNoteHandler_GetNotePDF(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -699,7 +702,7 @@ func TestNoteHandler_GetPublicNote(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockUsecase := mocks.NewMockNoteUsecase(ctrl)
-	handler := NewNoteHandler(mockUsecase)
+	handler := NewNoteHandler(mockUsecase, log)
 
 	noteID := uuid.New()
 

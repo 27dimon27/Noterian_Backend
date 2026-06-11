@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/handler/http/mocks"
@@ -19,6 +20,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
+
+var log = logger.Init()
 
 var testJWT = config.JWTConfig{
 	Secret:     "secret",
@@ -66,7 +69,7 @@ func TestGetProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodGet, "/profile", nil)
 		w := httptest.NewRecorder()
@@ -81,7 +84,7 @@ func TestGetProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetProfile(gomock.Any(), userID).Return(nil, profiles.ErrUserNotExist)
 
@@ -98,7 +101,7 @@ func TestGetProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetProfile(gomock.Any(), userID).Return(nil, errors.New("boom"))
 
@@ -115,7 +118,7 @@ func TestGetProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetProfile(gomock.Any(), userID).Return(&models.Profile{ID: userID, Username: "alice"}, nil)
 
@@ -140,7 +143,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodPut, "/profile", nil)
 		req.Body = nil
@@ -157,7 +160,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodPut, "/profile", strings.NewReader(validBody))
 		w := httptest.NewRecorder()
@@ -172,7 +175,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodPut, "/profile", strings.NewReader("not-json")), userID)
 		w := httptest.NewRecorder()
@@ -187,7 +190,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().UpdateProfile(gomock.Any(), userID, gomock.Any()).Return(nil, profiles.ErrInvalidProfileData)
 
@@ -204,7 +207,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().UpdateProfile(gomock.Any(), userID, gomock.Any()).Return(nil, errors.New("boom"))
 
@@ -221,7 +224,7 @@ func TestUpdateProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().UpdateProfile(gomock.Any(), userID, gomock.Any()).Return(&models.Profile{ID: userID, Username: "alice"}, nil)
 
@@ -242,7 +245,7 @@ func TestDeleteProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodDelete, "/profile", nil)
 		w := httptest.NewRecorder()
@@ -257,7 +260,7 @@ func TestDeleteProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteProfile(gomock.Any(), userID).Return(profiles.ErrUserNotExist)
 
@@ -274,7 +277,7 @@ func TestDeleteProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteProfile(gomock.Any(), userID).Return(errors.New("boom"))
 
@@ -291,7 +294,7 @@ func TestDeleteProfileHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteProfile(gomock.Any(), userID).Return(nil)
 
@@ -315,7 +318,7 @@ func TestGetAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodGet, "/profile/avatar", nil)
 		w := httptest.NewRecorder()
@@ -330,7 +333,7 @@ func TestGetAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetAvatar(gomock.Any(), userID).Return(nil, profiles.ErrAvatarNotFound)
 
@@ -347,7 +350,7 @@ func TestGetAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetAvatar(gomock.Any(), userID).Return(nil, errors.New("boom"))
 
@@ -364,7 +367,7 @@ func TestGetAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().GetAvatar(gomock.Any(), userID).Return(&models.Avatar{ID: uuid.New(), ProfileID: userID, AvatarURL: "https://x"}, nil)
 
@@ -385,7 +388,7 @@ func TestUploadAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := buildMultipartRequest(t, "file", "x.png", pngBytes(t))
 		w := httptest.NewRecorder()
@@ -400,7 +403,7 @@ func TestUploadAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		// Build content larger than MAX_FILE_SIZE
 		big := bytes.Repeat([]byte("A"), profiles.MAX_FILE_SIZE+1024)
@@ -417,7 +420,7 @@ func TestUploadAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "f.txt", bytes.Repeat([]byte("plain text content "), 50)), userID)
 		w := httptest.NewRecorder()
@@ -432,7 +435,7 @@ func TestUploadAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := withUserID(buildMultipartRequest(t, "other", "f.png", pngBytes(t)), userID)
 		w := httptest.NewRecorder()
@@ -447,7 +450,7 @@ func TestUploadAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().
 			UploadAvatar(gomock.Any(), userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any()).
@@ -470,7 +473,7 @@ func TestDeleteAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodDelete, "/profile/avatar", nil)
 		w := httptest.NewRecorder()
@@ -485,7 +488,7 @@ func TestDeleteAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteAvatar(gomock.Any(), userID).Return(profiles.ErrAvatarNotFound)
 
@@ -502,7 +505,7 @@ func TestDeleteAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteAvatar(gomock.Any(), userID).Return(errors.New("boom"))
 
@@ -519,7 +522,7 @@ func TestDeleteAvatarHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().DeleteAvatar(gomock.Any(), userID).Return(nil)
 
@@ -541,7 +544,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodPut, "/profile/password", nil)
 		req.Body = nil
@@ -558,7 +561,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := httptest.NewRequest(http.MethodPut, "/profile/password", strings.NewReader(validBody))
 		w := httptest.NewRecorder()
@@ -573,7 +576,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodPut, "/profile/password", strings.NewReader("garbage")), userID)
 		w := httptest.NewRecorder()
@@ -588,7 +591,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().ChangePassword(gomock.Any(), userID, "Old1", "New1").Return(nil, profiles.ErrUserNotExist)
 
@@ -605,7 +608,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().ChangePassword(gomock.Any(), userID, "Old1", "New1").Return(nil, profiles.ErrWrongPassword)
 
@@ -622,7 +625,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().ChangePassword(gomock.Any(), userID, "Old1", "New1").Return(nil, errors.New("boom"))
 
@@ -639,7 +642,7 @@ func TestChangePasswordHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockProfileUsecase(ctrl)
-		h := NewProfileHandler(uc, testJWT)
+		h := NewProfileHandler(uc, testJWT, log)
 
 		uc.EXPECT().ChangePassword(gomock.Any(), userID, "Old1", "New1").
 			Return(&models.Profile{ID: userID, Username: "alice"}, nil)

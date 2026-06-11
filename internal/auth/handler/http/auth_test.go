@@ -12,10 +12,13 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/handler/http/mocks"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	profilesdto "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
+
+var log = logger.Init()
 
 var testJWT = config.JWTConfig{
 	Secret:     "test-secret",
@@ -28,14 +31,14 @@ func newHandler(t *testing.T) (*AuthHandler, *mocks.MockAuthUsecase, *gomock.Con
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	uc := mocks.NewMockAuthUsecase(ctrl)
-	return NewAuthHandler(uc, testJWT), uc, ctrl
+	return NewAuthHandler(uc, testJWT, log), uc, ctrl
 }
 
 func TestNewAuthHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	uc := mocks.NewMockAuthUsecase(ctrl)
-	h := NewAuthHandler(uc, testJWT)
+	h := NewAuthHandler(uc, testJWT, log)
 	if h == nil {
 		t.Fatal("expected non-nil handler")
 	}

@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -31,55 +31,48 @@ type AttachmentUsecase interface {
 
 type AttachmentHandler struct {
 	attachmentUsecase AttachmentUsecase
+	logger            *slog.Logger
 }
 
-func NewAttachmentHandler(attachmentUsecase AttachmentUsecase) *AttachmentHandler {
+func NewAttachmentHandler(attachmentUsecase AttachmentUsecase, logger *slog.Logger) *AttachmentHandler {
 	return &AttachmentHandler{
 		attachmentUsecase: attachmentUsecase,
+		logger:            logger,
 	}
 }
 
-// GetAttachment godoc
-// @Summary      Получить аттач блока
-// @Tags         attachments
-// @Produce      json
-// @Param        noteId   path      string  true  "UUID заметки"
-// @Param        blockId  path      string  true  "UUID блока"
-// @Success      200      {object}  dto.Attachment
-// @Failure      400      {object}  map[string]string  "Некорректный noteId/blockId"
-// @Failure      401      {object}  map[string]string  "Неавторизован"
-// @Failure      403      {object}  map[string]string  "Доступ запрещён"
-// @Failure      404      {object}  map[string]string  "Заметка, блок или аттач не найдены"
-// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Router       /notes/{noteId}/blocks/{blockId}/attachments [get]
 func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
 
 	blockIDStr := r.PathValue("blockId")
 	if blockIDStr == "" {
+		h.logger.Warn("BlockID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrBlockIDRequired)
 		return
 	}
 
 	blockID, err := uuid.Parse(blockIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid blockID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidBlockID)
 		return
 	}
@@ -88,10 +81,13 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		switch {
 		case errors.Is(err, attachments.ErrForbidden):
+			h.logger.Warn("Access denied")
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
+			h.logger.Warn("Requested info not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -102,41 +98,24 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
-// UploadAttachment godoc
-// @Summary      Загрузить аттач в заметку
-// @Description  Загружает файл в MinIO и создаёт блок-аттач в заметке. Поддерживает image, gif, audio, video.
-// @Tags         attachments
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        noteId    path      string  true   "UUID заметки"
-// @Param        position  query     int     false  "Позиция вставки блока"
-// @Param        file      formData  file    true   "Файл вложения"
-// @Success      201       {object}  dto.Attachment
-// @Failure      400       {object}  map[string]string  "Недопустимый mime-type или позиция"
-// @Failure      401       {object}  map[string]string  "Неавторизован"
-// @Failure      403       {object}  map[string]string  "Доступ запрещён"
-// @Failure      404       {object}  map[string]string  "Заметка или блок не найдены"
-// @Failure      409       {object}  map[string]string  "У блока уже есть аттач"
-// @Failure      413       {object}  map[string]string  "Файл слишком большой"
-// @Failure      500       {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /notes/{noteId}/attachments [post]
 func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
@@ -147,6 +126,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	if positionStr != "" {
 		position, err = strconv.Atoi(positionStr)
 		if err != nil {
+			h.logger.Warn("Invalid position in url")
 			write.JSONErrorResponse(w, http.StatusBadRequest, notes.ErrInvalidPosition)
 			return
 		}
@@ -158,8 +138,10 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	if err := r.ParseMultipartForm(0); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
+			h.logger.Warn("Too large file")
 			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrFileTooLarge)
 		} else {
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -167,18 +149,20 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("failed to close file in UploadAttachment: %v", err)
+			h.logger.Error("Failed to close file in UploadAttachment", "error", err)
 		}
 	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -187,11 +171,13 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 
 	maxSize, contentType, err := getMaxSizeByMimeType(mimeType)
 	if err != nil {
+		h.logger.Warn("Invalid MIME-type of file")
 		write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if fileHeader.Size > maxSize {
+		h.logger.Warn("Too large file")
 		write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrSpecificFileTooLarge[contentType])
 		return
 	}
@@ -212,18 +198,23 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		switch {
 		case errors.Is(err, attachments.ErrForbidden):
+			h.logger.Warn("Access denied")
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
+			h.logger.Warn("Requested info not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		case errors.Is(err, attachments.ErrBlockAlreadyHasAttach):
+			h.logger.Warn("Block already has attach")
 			write.JSONErrorResponse(w, http.StatusConflict, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
 	}
 
 	if attachment == nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -233,48 +224,38 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
-// DeleteAttachment godoc
-// @Summary      Удалить аттач
-// @Tags         attachments
-// @Produce      json
-// @Param        noteId   path  string  true  "UUID заметки"
-// @Param        blockId  path  string  true  "UUID блока"
-// @Success      204      "Аттач удалён"
-// @Failure      400      {object}  map[string]string  "Некорректный noteId/blockId"
-// @Failure      401      {object}  map[string]string  "Неавторизован"
-// @Failure      403      {object}  map[string]string  "Доступ запрещён"
-// @Failure      404      {object}  map[string]string  "Заметка, блок или аттач не найдены"
-// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /notes/{noteId}/blocks/{blockId}/attachments [delete]
 func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
 
 	blockIDStr := r.PathValue("blockId")
 	if blockIDStr == "" {
+		h.logger.Warn("BlockID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrBlockIDRequired)
 		return
 	}
 
 	blockID, err := uuid.Parse(blockIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid blockID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidBlockID)
 		return
 	}
@@ -282,10 +263,13 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 	if err := h.attachmentUsecase.DeleteAttachment(r.Context(), noteID, blockID, userID); err != nil {
 		switch {
 		case errors.Is(err, attachments.ErrForbidden):
+			h.logger.Warn("Access denied")
 			write.JSONErrorResponse(w, http.StatusForbidden, err)
 		case errors.Is(err, attachments.ErrNoteNotFound), errors.Is(err, attachments.ErrBlockNotFound), errors.Is(err, attachments.ErrAttachmentNotFound):
+			h.logger.Warn("Requested info not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -297,18 +281,21 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 func (h *AttachmentHandler) GetHeader(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
@@ -317,8 +304,10 @@ func (h *AttachmentHandler) GetHeader(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, attachments.ErrHeaderNotFound):
+			h.logger.Warn("Requested info not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -332,18 +321,21 @@ func (h *AttachmentHandler) GetHeader(w http.ResponseWriter, r *http.Request) {
 func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
@@ -353,8 +345,10 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 	if err := r.ParseMultipartForm(0); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
+			h.logger.Warn("Too large file")
 			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrFileTooLarge)
 		} else {
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -362,18 +356,20 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("failed to close file in UploadHeader: %v", err)
+			h.logger.Error("Failed to close file in UploadHeader", "error", err)
 		}
 	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -381,11 +377,13 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 	mimeType := http.DetectContentType(buffer)
 
 	if !attachments.AllowedMimeTypesForImage[mimeType] {
+		h.logger.Warn("Invalid MIME-type of file")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidMimeType)
 		return
 	}
 
 	if fileHeader.Size > attachments.MAX_IMAGE_SIZE {
+		h.logger.Warn("Too large file")
 		write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, attachments.ErrSpecificFileTooLarge["IMAGE"])
 		return
 	}
@@ -402,11 +400,13 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 		fileToUpload,
 	)
 	if err != nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	if header == nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -419,18 +419,21 @@ func (h *AttachmentHandler) UploadHeader(w http.ResponseWriter, r *http.Request)
 func (h *AttachmentHandler) DeleteHeader(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, attachments.ErrInvalidUserID)
 		return
 	}
 
 	noteIDStr := r.PathValue("noteId")
 	if noteIDStr == "" {
+		h.logger.Warn("NoteID is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrNoteIDRequired)
 		return
 	}
 
 	noteID, err := uuid.Parse(noteIDStr)
 	if err != nil {
+		h.logger.Warn("Invalid noteID in url")
 		write.JSONErrorResponse(w, http.StatusBadRequest, attachments.ErrInvalidNoteID)
 		return
 	}
@@ -438,8 +441,10 @@ func (h *AttachmentHandler) DeleteHeader(w http.ResponseWriter, r *http.Request)
 	if err := h.attachmentUsecase.DeleteHeader(r.Context(), noteID, userID); err != nil {
 		switch {
 		case errors.Is(err, attachments.ErrHeaderNotFound):
+			h.logger.Warn("Requested info not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return

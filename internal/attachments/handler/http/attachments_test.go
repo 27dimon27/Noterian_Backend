@@ -13,11 +13,14 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/handler/http/mocks"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
+
+var log = logger.Init()
 
 func withUserID(r *http.Request, userID uuid.UUID) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), types.UserIDKey, userID))
@@ -60,7 +63,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
@@ -75,7 +78,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		w := httptest.NewRecorder()
@@ -90,7 +93,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		req.SetPathValue("noteId", "not-a-uuid")
@@ -106,7 +109,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -122,7 +125,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -139,7 +142,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().GetAttachment(gomock.Any(), noteID, blockID, userID).Return(nil, attachments.ErrForbidden)
 
@@ -158,7 +161,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().GetAttachment(gomock.Any(), noteID, blockID, userID).Return(nil, attachments.ErrAttachmentNotFound)
 
@@ -177,7 +180,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().GetAttachment(gomock.Any(), noteID, blockID, userID).Return(nil, errors.New("boom"))
 
@@ -196,7 +199,7 @@ func TestGetAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		expected := &models.Attachment{ID: uuid.New(), BlockID: blockID, AttachURL: "https://example.com/file"}
 		uc.EXPECT().GetAttachment(gomock.Any(), noteID, blockID, userID).Return(expected, nil)
@@ -224,7 +227,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := buildMultipartRequest(t, "file", "x.png", pngBytes(t))
 		w := httptest.NewRecorder()
@@ -239,7 +242,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", pngBytes(t)), userID)
 		w := httptest.NewRecorder()
@@ -254,7 +257,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", pngBytes(t)), userID)
 		req.SetPathValue("noteId", "not-uuid")
@@ -270,7 +273,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", pngBytes(t)), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -287,7 +290,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "f.txt", bytes.Repeat([]byte("plain text content "), 50)), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -303,7 +306,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "other", "f.png", pngBytes(t)), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -319,7 +322,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		// Image > MAX_IMAGE_SIZE but <= MAX_VIDEO_SIZE so MaxBytesReader doesn't trip
 		big := append([]byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}, bytes.Repeat([]byte{0}, attachments.MAX_IMAGE_SIZE+1024)...)
@@ -337,7 +340,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), false, 0).Return(nil, attachments.ErrForbidden)
 
@@ -355,7 +358,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), false, 0).Return(nil, attachments.ErrNoteNotFound)
 
@@ -373,7 +376,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), false, 0).Return(nil, attachments.ErrBlockAlreadyHasAttach)
 
@@ -391,7 +394,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), false, 0).Return(nil, errors.New("boom"))
 
@@ -409,7 +412,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		expected := &models.Attachment{ID: uuid.New(), BlockID: uuid.New(), AttachURL: "https://example.com/file"}
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), true, 3).Return(expected, nil)
@@ -432,7 +435,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		expected := &models.Attachment{ID: uuid.New(), BlockID: uuid.New(), AttachURL: "https://example.com/file"}
 		uc.EXPECT().UploadAttachment(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any(), false, 0).Return(expected, nil)
@@ -451,7 +454,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not a real multipart body"))
 		req.Header.Set("Content-Type", "multipart/form-data; boundary=nonexistent")
@@ -469,7 +472,7 @@ func TestUploadAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		body := &bytes.Buffer{}
 		mw := multipart.NewWriter(body)
@@ -505,7 +508,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodDelete, "/", nil)
 		w := httptest.NewRecorder()
@@ -520,7 +523,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		w := httptest.NewRecorder()
@@ -535,7 +538,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		req.SetPathValue("noteId", "not-uuid")
@@ -551,7 +554,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -567,7 +570,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -584,7 +587,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteAttachment(gomock.Any(), noteID, blockID, userID).Return(attachments.ErrForbidden)
 
@@ -603,7 +606,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteAttachment(gomock.Any(), noteID, blockID, userID).Return(attachments.ErrBlockNotFound)
 
@@ -622,7 +625,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteAttachment(gomock.Any(), noteID, blockID, userID).Return(errors.New("boom"))
 
@@ -641,7 +644,7 @@ func TestDeleteAttachmentHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteAttachment(gomock.Any(), noteID, blockID, userID).Return(nil)
 
@@ -665,7 +668,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
@@ -680,7 +683,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		w := httptest.NewRecorder()
@@ -695,7 +698,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodGet, "/", nil), userID)
 		req.SetPathValue("noteId", "not-uuid")
@@ -711,7 +714,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, attachments.ErrHeaderNotFound)
 
@@ -729,7 +732,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(nil, errors.New("boom"))
 
@@ -747,7 +750,7 @@ func TestGetHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		expected := &models.Header{ID: uuid.New(), NoteID: noteID, HeaderURL: "https://example.com/header"}
 		uc.EXPECT().GetHeader(gomock.Any(), noteID, userID).Return(expected, nil)
@@ -774,7 +777,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := buildMultipartRequest(t, "file", "x.png", pngBytes(t))
 		w := httptest.NewRecorder()
@@ -789,7 +792,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", pngBytes(t)), userID)
 		w := httptest.NewRecorder()
@@ -804,7 +807,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", pngBytes(t)), userID)
 		req.SetPathValue("noteId", "not-uuid")
@@ -820,7 +823,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("not a real multipart body"))
 		req.Header.Set("Content-Type", "multipart/form-data; boundary=nonexistent")
@@ -838,7 +841,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		big := bytes.Repeat([]byte("A"), attachments.MAX_IMAGE_SIZE+1024)
 		req := withUserID(buildMultipartRequest(t, "file", "x.png", big), userID)
@@ -855,7 +858,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "other", "f.png", pngBytes(t)), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -871,7 +874,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(buildMultipartRequest(t, "file", "f.txt", bytes.Repeat([]byte("plain text content "), 50)), userID)
 		req.SetPathValue("noteId", noteID.String())
@@ -887,7 +890,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().UploadHeader(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any()).Return(nil, errors.New("boom"))
 
@@ -905,7 +908,7 @@ func TestUploadHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		expected := &models.Header{ID: uuid.New(), NoteID: noteID, HeaderURL: "https://example.com/header"}
 		uc.EXPECT().UploadHeader(gomock.Any(), noteID, userID, gomock.Any(), gomock.Any(), "image/png", gomock.Any()).Return(expected, nil)
@@ -932,7 +935,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := httptest.NewRequest(http.MethodDelete, "/", nil)
 		w := httptest.NewRecorder()
@@ -947,7 +950,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		w := httptest.NewRecorder()
@@ -962,7 +965,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		req := withUserID(httptest.NewRequest(http.MethodDelete, "/", nil), userID)
 		req.SetPathValue("noteId", "not-uuid")
@@ -978,7 +981,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteHeader(gomock.Any(), noteID, userID).Return(attachments.ErrHeaderNotFound)
 
@@ -996,7 +999,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteHeader(gomock.Any(), noteID, userID).Return(errors.New("boom"))
 
@@ -1014,7 +1017,7 @@ func TestDeleteHeaderHandler(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		uc := mocks.NewMockAttachmentUsecase(ctrl)
-		h := NewAttachmentHandler(uc)
+		h := NewAttachmentHandler(uc, log)
 
 		uc.EXPECT().DeleteHeader(gomock.Any(), noteID, userID).Return(nil)
 

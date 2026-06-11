@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -33,28 +33,21 @@ type ProfileUsecase interface {
 type ProfileHandler struct {
 	profileUsecase ProfileUsecase
 	jwtConfig      config.JWTConfig
+	logger         *slog.Logger
 }
 
-func NewProfileHandler(profileUsecase ProfileUsecase, jwtConfig config.JWTConfig) *ProfileHandler {
+func NewProfileHandler(profileUsecase ProfileUsecase, jwtConfig config.JWTConfig, logger *slog.Logger) *ProfileHandler {
 	return &ProfileHandler{
 		profileUsecase: profileUsecase,
 		jwtConfig:      jwtConfig,
+		logger:         logger,
 	}
 }
 
-// GetProfile godoc
-// @Summary      Профиль текущего пользователя
-// @Tags         profile
-// @Produce      json
-// @Success      200  {object}  dto.Profile
-// @Failure      401  {object}  map[string]string  "Неавторизован"
-// @Failure      404  {object}  map[string]string  "Пользователь не найден"
-// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Router       /profile [get]
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -62,9 +55,11 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	profile, err := h.profileUsecase.GetProfile(r.Context(), userID)
 	if err != nil {
 		if errors.Is(err, profiles.ErrUserNotExist) {
+			h.logger.Warn("User not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 			return
 		}
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -74,32 +69,21 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
-// UpdateProfile godoc
-// @Summary      Обновить профиль
-// @Tags         profile
-// @Accept       json
-// @Produce      json
-// @Param        request  body      dto.Profile  true  "Новые данные профиля"
-// @Success      200      {object}  dto.Profile
-// @Failure      400      {object}  map[string]string  "Некорректные данные"
-// @Failure      401      {object}  map[string]string  "Неавторизован"
-// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /profile [put]
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
+		h.logger.Warn("Body is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			log.Printf("failed to close request body in UpdateProfile: %v", err)
+			h.logger.Error("Failed to close request body in UpdateProfile", "error", err)
 		}
 	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -107,6 +91,7 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	var dtoUpdateProfile dto.Profile
 
 	if err := body.GetBody(r, &dtoUpdateProfile); err != nil {
+		h.logger.Warn("Error during reading body")
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidProfileData)
 		return
 	}
@@ -117,8 +102,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrInvalidProfileData), errors.Is(err, profiles.ErrUsernameExists), errors.Is(err, profiles.ErrUserNotExist):
+			h.logger.Warn("Bad request from user")
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -129,21 +116,10 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
-// DeleteProfile godoc
-// @Summary      Удалить аккаунт
-// @Description  Удаляет профиль текущего пользователя и сбрасывает сессионную cookie.
-// @Tags         profile
-// @Produce      json
-// @Success      204  "Профиль удалён"
-// @Failure      400  {object}  map[string]string  "Пользователь не найден"
-// @Failure      401  {object}  map[string]string  "Неавторизован"
-// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /profile [delete]
 func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -152,8 +128,10 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrUserNotExist):
+			h.logger.Warn("Bad request from user")
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -172,20 +150,10 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
-// GetAvatar godoc
-// @Summary      Получить аватар
-// @Description  Возвращает аватар текущего пользователя со ссылкой на MinIO.
-// @Tags         profile
-// @Produce      json
-// @Success      200  {object}  dto.Avatar
-// @Failure      401  {object}  map[string]string  "Неавторизован"
-// @Failure      404  {object}  map[string]string  "Аватар не найден"
-// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Router       /profile/avatar [get]
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -194,8 +162,10 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrAvatarNotFound):
+			h.logger.Warn("Avatar not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -206,23 +176,10 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusOK, response)
 }
 
-// UploadAvatar godoc
-// @Summary      Загрузить аватар
-// @Tags         profile
-// @Accept       multipart/form-data
-// @Produce      json
-// @Param        file  formData  file  true  "Файл изображения"
-// @Success      201   {object}  dto.Avatar
-// @Failure      400   {object}  map[string]string  "Недопустимый mime-type"
-// @Failure      401   {object}  map[string]string  "Неавторизован"
-// @Failure      413   {object}  map[string]string  "Файл слишком большой"
-// @Failure      500   {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /profile/avatar [post]
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -232,8 +189,10 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(0); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
+			h.logger.Warn("Too large file for avatar")
 			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, profiles.ErrFileTooLarge)
 		} else {
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -241,18 +200,20 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			log.Printf("failed to close file in UploadAvatar: %v", err)
+			h.logger.Error("Failed to close file in UploadAvatar", "error", err)
 		}
 	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -262,12 +223,14 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	mimeType := http.DetectContentType(buffer)
 
 	if !profiles.AllowedMimeTypes[mimeType] {
+		h.logger.Warn("Invalid MIME-type of file")
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidMimeType)
 		return
 	}
 
 	avatar, err := h.profileUsecase.UploadAvatar(r.Context(), userID, fileHeader.Filename, fileHeader.Size, mimeType, fileToUpload)
 	if err != nil {
+		h.logger.Error("Internal server error", "error", err)
 		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 	}
 
@@ -276,20 +239,10 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusCreated, response)
 }
 
-// DeleteAvatar godoc
-// @Summary      Удалить аватар
-// @Tags         profile
-// @Produce      json
-// @Success      204  "Аватар удалён"
-// @Failure      401  {object}  map[string]string  "Неавторизован"
-// @Failure      404  {object}  map[string]string  "Аватар не найден"
-// @Failure      500  {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /profile/avatar [delete]
 func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -297,8 +250,10 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	if err := h.profileUsecase.DeleteAvatar(r.Context(), userID); err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrAvatarNotFound):
+			h.logger.Warn("Avatar not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
@@ -307,33 +262,21 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	write.JSONResponse(w, http.StatusNoContent, nil)
 }
 
-// ChangePassword godoc
-// @Summary      Сменить пароль
-// @Tags         profile
-// @Accept       json
-// @Produce      json
-// @Param        request  body      dto.UpdatePassword  true  "Старый и новый пароли"
-// @Success      200      {object}  dto.Profile
-// @Failure      400      {object}  map[string]string  "Некорректные данные или неверный старый пароль"
-// @Failure      401      {object}  map[string]string  "Неавторизован"
-// @Failure      404      {object}  map[string]string  "Пользователь не найден"
-// @Failure      500      {object}  map[string]string  "Внутренняя ошибка сервера"
-// @Security     ApiKeyAuth
-// @Security     CsrfToken
-// @Router       /profile/password [put]
 func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
+		h.logger.Warn("Body is required")
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			log.Printf("failed to close request body in ChangePassword: %v", err)
+			h.logger.Error("Failed to close request body in ChangePassword", "error", err)
 		}
 	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
+		h.logger.Warn("Invalid userID in context")
 		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
 		return
 	}
@@ -341,6 +284,7 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	var dtoUpdatePassword dto.UpdatePassword
 
 	if err := body.GetBody(r, &dtoUpdatePassword); err != nil {
+		h.logger.Warn("Error during reading body")
 		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidPasswordData)
 		return
 	}
@@ -349,10 +293,13 @@ func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		switch {
 		case errors.Is(err, profiles.ErrUserNotExist):
+			h.logger.Warn("User not found")
 			write.JSONErrorResponse(w, http.StatusNotFound, err)
 		case errors.Is(err, profiles.ErrWrongPassword), errors.Is(err, profiles.ErrInvalidPasswordData):
+			h.logger.Warn("Wrong credentials")
 			write.JSONErrorResponse(w, http.StatusBadRequest, err)
 		default:
+			h.logger.Error("Internal server error", "error", err)
 			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		}
 		return
