@@ -13,9 +13,12 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/repository/mocks"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
+
+var log = logger.Init()
 
 func newMockRepository(t *testing.T) (*AttachmentRepository, sqlmock.Sqlmock, *gomock.Controller, *mocks.MockMinIOService) {
 	t.Helper()
@@ -27,7 +30,7 @@ func newMockRepository(t *testing.T) (*AttachmentRepository, sqlmock.Sqlmock, *g
 
 	ctrl := gomock.NewController(t)
 	minioMock := mocks.NewMockMinIOService(ctrl)
-	repo := NewAttachmentRepository(db, minioMock, "attachments-bucket", "headers-bucket")
+	repo := NewAttachmentRepository(db, minioMock, "attachments-bucket", "headers-bucket", log)
 
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {

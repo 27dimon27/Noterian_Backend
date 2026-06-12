@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes/usecase/mocks"
@@ -16,13 +17,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var log = logger.Init()
+
 func TestNoteUsecase_GetNotes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	expectedNotes := []models.Note{
@@ -57,7 +60,7 @@ func TestNoteUsecase_GetNote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -111,7 +114,7 @@ func TestNoteUsecase_GetPublicNote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	noteID := uuid.New()
 
@@ -154,7 +157,7 @@ func TestNoteUsecase_CreateNote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 
@@ -200,7 +203,7 @@ func TestNoteUsecase_UpdateNote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -264,7 +267,7 @@ func TestNoteUsecase_DeleteNote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -299,7 +302,7 @@ func TestNoteUsecase_CreateBlock(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -402,7 +405,7 @@ func TestNoteUsecase_UpdateBlockContent(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -457,7 +460,7 @@ func TestNoteUsecase_MoveBlock(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -544,7 +547,7 @@ func TestNoteUsecase_DeleteBlock(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -587,7 +590,7 @@ func TestNoteUsecase_UpdateBlockFormatting(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -701,7 +704,7 @@ func TestNoteUsecase_GetSubnotes(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -729,7 +732,7 @@ func TestNoteUsecase_CreateSubnote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	parentNoteID := uuid.New()
@@ -824,7 +827,7 @@ func TestNoteUsecase_DeleteSubnote(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -852,7 +855,7 @@ func TestNoteUsecase_GenerateNotePDF(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	userID := uuid.New()
 	noteID := uuid.New()
@@ -874,7 +877,7 @@ func TestNoteUsecase_ShiftBlockPositions(t *testing.T) {
 
 	mockRepo := mocks.NewMockNoteRepository(ctrl)
 	mockAttachments := mocks.NewMockAttachmentsServiceClient(ctrl)
-	usecase := NewNoteUsecase(mockRepo, mockAttachments)
+	usecase := NewNoteUsecase(mockRepo, mockAttachments, log)
 
 	noteID := uuid.New()
 

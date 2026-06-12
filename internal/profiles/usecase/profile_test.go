@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/usecase/mocks"
@@ -18,9 +19,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var log = logger.Init()
+
 func newUsecase(t *testing.T, repo *mocks.MockProfileRepository) *profileUsecase {
 	t.Helper()
-	u, err := NewProfileUsecase(repo)
+	u, err := NewProfileUsecase(repo, log)
 	if err != nil {
 		t.Fatalf("NewProfileUsecase: %v", err)
 	}
@@ -32,7 +35,7 @@ func TestNewProfileUsecase(t *testing.T) {
 	defer ctrl.Finish()
 
 	repo := mocks.NewMockProfileRepository(ctrl)
-	u, err := NewProfileUsecase(repo)
+	u, err := NewProfileUsecase(repo, log)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -942,5 +945,7 @@ func TestValidation(t *testing.T) {
 }
 
 // guard against unused import in some builds
-var _ = io.EOF
-var _ = time.Now
+var (
+	_ = io.EOF
+	_ = time.Now
+)

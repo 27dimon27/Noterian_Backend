@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
@@ -39,12 +40,14 @@ type NoteRepository interface {
 type noteUsecase struct {
 	noteRepository    NoteRepository
 	attachmentsClient grpcclient.AttachmentsServiceClient
+	logger            *slog.Logger
 }
 
-func NewNoteUsecase(noteRepository NoteRepository, attachmentsClient grpcclient.AttachmentsServiceClient) *noteUsecase {
+func NewNoteUsecase(noteRepository NoteRepository, attachmentsClient grpcclient.AttachmentsServiceClient, logger *slog.Logger) *noteUsecase {
 	return &noteUsecase{
 		noteRepository:    noteRepository,
 		attachmentsClient: attachmentsClient,
+		logger:            logger,
 	}
 }
 

@@ -23,9 +23,10 @@ type authUsecase struct {
 	jwtConfig      config.JWTConfig
 	validate       *validator.Validate
 	onboarding     OnboardingSeeder
+	logger         *slog.Logger
 }
 
-func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig config.JWTConfig, onboarding OnboardingSeeder) (*authUsecase, error) {
+func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig config.JWTConfig, onboarding OnboardingSeeder, logger *slog.Logger) (*authUsecase, error) {
 	validate := validator.New()
 	if err := initValidator(validate); err != nil {
 		return nil, err
@@ -36,6 +37,7 @@ func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig c
 		jwtConfig:      jwtConfig,
 		validate:       validate,
 		onboarding:     onboarding,
+		logger:         logger,
 	}, nil
 }
 

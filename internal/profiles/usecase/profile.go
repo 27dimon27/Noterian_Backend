@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -33,9 +34,10 @@ type ProfileRepository interface {
 type profileUsecase struct {
 	profileRepository ProfileRepository
 	validate          *validator.Validate
+	logger            *slog.Logger
 }
 
-func NewProfileUsecase(profileRepository ProfileRepository) (*profileUsecase, error) {
+func NewProfileUsecase(profileRepository ProfileRepository, logger *slog.Logger) (*profileUsecase, error) {
 	validate := validator.New()
 	err := initValidator(validate)
 	if err != nil {
@@ -45,6 +47,7 @@ func NewProfileUsecase(profileRepository ProfileRepository) (*profileUsecase, er
 	return &profileUsecase{
 		profileRepository: profileRepository,
 		validate:          validate,
+		logger:            logger,
 	}, nil
 }
 

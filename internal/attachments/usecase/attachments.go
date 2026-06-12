@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
@@ -27,12 +28,14 @@ type AttachmentRepository interface {
 type attachmentUsecase struct {
 	attachmentRepo AttachmentRepository
 	notesClient    grpcclient.NotesServiceClient
+	logger         *slog.Logger
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcclient.NotesServiceClient) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcclient.NotesServiceClient, logger *slog.Logger) *attachmentUsecase {
 	return &attachmentUsecase{
 		attachmentRepo: attachmentRepo,
 		notesClient:    notesClient,
+		logger:         logger,
 	}
 }
 

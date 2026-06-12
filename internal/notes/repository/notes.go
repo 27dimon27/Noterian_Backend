@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
+	"log/slog"
 	"sort"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -14,23 +14,26 @@ import (
 )
 
 type noteRepository struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *slog.Logger
 }
 
-func NewNoteRepository(db *sql.DB) *noteRepository {
+func NewNoteRepository(db *sql.DB, logger *slog.Logger) *noteRepository {
 	return &noteRepository{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
 func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_NOTES_BY_USER, userID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in GetNotes: %v", err)
+			r.logger.Error("Failed to close sql rows in GetNotes", "error", err)
 		}
 	}()
 
@@ -41,12 +44,14 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 
 		err := rows.Scan(&note.ID, &note.UserID, &note.Title, &parentID, &note.IsPublic, &note.IsFavorite, &note.Icon, &note.CreatedAt, &note.UpdatedAt)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
 		if parentID.Valid {
 			pid, err := uuid.Parse(parentID.String)
 			if err != nil {
+				r.logger.Error("Internal server error", "error", err)
 				return nil, err
 			}
 			note.ParentID = &pid
@@ -56,6 +61,7 @@ func (r *noteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]mode
 	}
 
 	if err = rows.Err(); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -71,14 +77,17 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Note not found")
 			return nil, notes.ErrNoteNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
 	if parentID.Valid {
 		pid, err := uuid.Parse(parentID.String)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 		note.ParentID = &pid
@@ -90,11 +99,12 @@ func (r *noteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models
 func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
 	rows, err := r.db.QueryContext(ctx, GET_BLOCKS_BY_NOTE, noteID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in GetBlocks: %v", err)
+			r.logger.Error("Failed to close sql rows in GetBlocks", "error", err)
 		}
 	}()
 
@@ -105,6 +115,7 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 
 		err := rows.Scan(&block.ID, &block.NoteID, &block.BlockTypeID, &block.Position, &block.Content, &block.CreatedAt, &block.UpdatedAt)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -112,6 +123,7 @@ func (r *noteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]mod
 	}
 
 	if err = rows.Err(); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -123,8 +135,10 @@ func (r *noteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*mo
 	err := r.db.QueryRowContext(ctx, "SELECT id, name FROM block_types WHERE id = $1", blockTypeID).Scan(&blockType.ID, &blockType.Name)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Block type not found")
 			return nil, notes.ErrBlockTypeNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	return &blockType, nil
@@ -143,6 +157,7 @@ func (r *noteRepository) CreateNote(ctx context.Context, note models.Note) (*mod
 		&note.ID, &note.UserID, &note.Title, &note.ParentID, &note.IsPublic, &note.IsFavorite, &note.Icon, &note.CreatedAt, &note.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -173,8 +188,10 @@ func (r *noteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note 
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Note not found")
 			return nil, notes.ErrNoteNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -187,8 +204,10 @@ func (r *noteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error
 	err := r.db.QueryRowContext(ctx, DELETE_NOTE, noteID).Scan(&id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Note not found")
 			return notes.ErrNoteNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -201,6 +220,7 @@ func (r *noteRepository) CreateBlock(ctx context.Context, block models.Block) (*
 		&block.CreatedAt, &block.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -216,8 +236,10 @@ func (r *noteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*mode
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Block not found")
 			return nil, notes.ErrBlockNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -233,8 +255,10 @@ func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UU
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Block not found")
 			return nil, notes.ErrBlockNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -244,43 +268,47 @@ func (r *noteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UU
 func (r *noteRepository) MoveBlock(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, oldPosition int, newPosition int) (*models.Block, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			if err == nil {
-				err = rollbackErr
-			}
+			r.logger.Error("Internal server error", "error", rollbackErr)
+			err = errors.Join(err, rollbackErr)
 		}
 	}()
 
 	if oldPosition < newPosition {
-		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_DOWN, noteID, oldPosition, newPosition)
+		_, err = tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_DOWN, noteID, oldPosition, newPosition)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 	} else if oldPosition > newPosition {
-		_, err := tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_UP, noteID, oldPosition, newPosition)
+		_, err = tx.ExecContext(ctx, UPDATE_BLOCKS_POSITION_UP, noteID, oldPosition, newPosition)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 	}
 
-	var updatedBlock models.Block
+	updatedBlock := &models.Block{}
 
 	err = tx.QueryRowContext(ctx, UPDATE_BLOCK_POSITION, blockID, newPosition).Scan(
 		&updatedBlock.ID, &updatedBlock.NoteID, &updatedBlock.BlockTypeID, &updatedBlock.Position, &updatedBlock.Content,
 		&updatedBlock.CreatedAt, &updatedBlock.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
-	return &updatedBlock, nil
+	return updatedBlock, nil
 }
 
 func (r *noteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error) {
@@ -290,8 +318,10 @@ func (r *noteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*u
 	err := r.db.QueryRowContext(ctx, DELETE_BLOCK, blockID).Scan(&deletedBlockID, &noteID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Block not found")
 			return nil, notes.ErrBlockNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -301,10 +331,16 @@ func (r *noteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*u
 func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error {
 	if direction > 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_UP, noteID, fromPosition)
+		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
+		}
 		return err
 	}
 	if direction < 0 {
 		_, err := r.db.ExecContext(ctx, UPDATE_ALL_BLOCKS_POSITION_DOWN, noteID, fromPosition)
+		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
+		}
 		return err
 	}
 	return nil
@@ -313,11 +349,12 @@ func (r *noteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UU
 func (r *noteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
 	rows, err := r.db.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in GetBlockFormatting: %v", err)
+			r.logger.Error("Failed to close sql rows in GetBlockFormatting", "error", err)
 		}
 	}()
 
@@ -333,6 +370,7 @@ func (r *noteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UU
 
 		err := rows.Scan(&rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -362,11 +400,12 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 
 	rows, err := r.db.QueryContext(ctx, GET_BLOCKS_FORMATTING, pq.Array(blockIDs))
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in GetBlocksFormatting: %v", err)
+			r.logger.Error("Failed to close sql rows in GetBlocksFormatting", "error", err)
 		}
 	}()
 
@@ -380,6 +419,7 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 
 		err := rows.Scan(&blockIDStr, &rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -423,18 +463,19 @@ func (r *noteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uui
 func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			if err == nil {
-				err = rollbackErr
-			}
+			r.logger.Error("Internal server error", "error", rollbackErr)
+			err = errors.Join(err, rollbackErr)
 		}
 	}()
 
 	existingRanges, err := r.getFormattingRangesInTx(ctx, tx, blockID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -442,6 +483,7 @@ func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid
 
 	_, err = tx.ExecContext(ctx, DELETE_BLOCK_FORMATTING, blockID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -450,26 +492,35 @@ func (r *noteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid
 			_, err = tx.ExecContext(ctx, INSERT_BLOCK_FORMATTING,
 				blockID, rng.StartPos, rng.EndPos, rng.Bold, rng.Italic, rng.Underline, rng.TextAlign)
 			if err != nil {
+				r.logger.Error("Internal server error", "error", err)
 				return nil, err
 			}
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err = tx.Commit(); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
-	return r.GetBlockFormatting(ctx, blockID)
+	formatting, err := r.GetBlockFormatting(ctx, blockID)
+	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
+		return nil, err
+	}
+
+	return formatting, nil
 }
 
 func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
 	rows, err := r.db.QueryContext(ctx, GET_SUBNOTES_BY_NOTE, noteID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in GetSubnotes: %v", err)
+			r.logger.Error("Failed to close sql rows in GetSubnotes", "error", err)
 		}
 	}()
 
@@ -480,6 +531,7 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 
 		err := rows.Scan(&subnote.ID, &subnote.UserID, &subnote.Title, &subnote.ParentID, &subnote.IsPublic, &subnote.IsFavorite, &subnote.Icon, &subnote.CreatedAt, &subnote.UpdatedAt)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -487,6 +539,7 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 	}
 
 	if err = rows.Err(); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -496,11 +549,12 @@ func (r *noteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]m
 func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx, blockID uuid.UUID) ([]models.FormattingRange, error) {
 	rows, err := tx.QueryContext(ctx, GET_BLOCK_FORMATTING, blockID)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Printf("failed to close sql rows in getFormattingRangesInTx: %v", err)
+			r.logger.Error("Failed to close sql rows in getFormattingRangesInTx", "error", err)
 		}
 	}()
 
@@ -513,6 +567,7 @@ func (r *noteRepository) getFormattingRangesInTx(ctx context.Context, tx *sql.Tx
 
 		err := rows.Scan(&rng.StartPos, &rng.EndPos, &bold, &italic, &underline, &textAlign)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 

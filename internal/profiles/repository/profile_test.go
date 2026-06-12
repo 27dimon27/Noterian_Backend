@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/repository/mocks"
@@ -17,6 +18,8 @@ import (
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var log = logger.Init()
 
 const testBucket = "avatars"
 
@@ -36,7 +39,7 @@ func newRepoEnv(t *testing.T) *repoEnv {
 	}
 	ctrl := gomock.NewController(t)
 	minio := mocks.NewMockMinIOService(ctrl)
-	repo := NewProfileRepository(db, minio, testBucket)
+	repo := NewProfileRepository(db, minio, testBucket, log)
 
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {

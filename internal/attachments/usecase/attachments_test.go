@@ -7,11 +7,14 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/usecase/mocks"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 )
+
+var log = logger.Init()
 
 type fakeNotesClient struct {
 	GetBlocksFunc           func(ctx context.Context, noteID, userID uuid.UUID) ([]*notesgen.BlockResponse, error)
@@ -73,7 +76,7 @@ func TestGetAttachment_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	noteID := uuid.New()
 	blockID := uuid.New()
@@ -95,7 +98,7 @@ func TestGetAttachment_NotFound(t *testing.T) {
 	defer ctrl.Finish()
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	blockID := uuid.New()
 
@@ -115,7 +118,7 @@ func TestUploadAttachment_InvalidMimeType(t *testing.T) {
 	defer ctrl.Finish()
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "file.bin", 10, "application/pdf", nil, false, 0)
 	if !errors.Is(err, attachments.ErrInvalidMimeType) {
@@ -133,7 +136,7 @@ func TestUploadAttachment_GetBlocksError(t *testing.T) {
 			return nil, errors.New("grpc error")
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "file.png", 100, "image/png", nil, false, 0)
 	if err == nil {
@@ -151,7 +154,7 @@ func TestUploadAttachment_InvalidPosition(t *testing.T) {
 			return []*notesgen.BlockResponse{{Id: uuid.NewString()}}, nil
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "file.png", 100, "image/png", nil, true, 2)
 	if !errors.Is(err, attachments.ErrInvalidPosition) {
@@ -195,7 +198,7 @@ func TestUploadAttachment_CreateBlockRollback(t *testing.T) {
 			return noteIDParam, nil
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	repoMock.EXPECT().UploadAttachment(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("upload failed"))
 
@@ -218,7 +221,7 @@ func TestDeleteAttachment_BlockNotFound(t *testing.T) {
 			return nil, nil
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	err := usecase.DeleteAttachment(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	if !errors.Is(err, attachments.ErrBlockNotFound) {
@@ -232,7 +235,7 @@ func TestDeleteHeader_ForwardError(t *testing.T) {
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	repoMock.EXPECT().DeleteHeader(gomock.Any(), gomock.Any()).Return(errors.New("db failure"))
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	err := usecase.DeleteHeader(context.Background(), uuid.New(), uuid.New())
 	if err == nil {
@@ -247,7 +250,7 @@ func TestGetHeader_Success(t *testing.T) {
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	expected := &models.Header{ID: uuid.New()}
 	repoMock.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(expected, nil)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	header, err := usecase.GetHeader(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
@@ -265,7 +268,7 @@ func TestUploadHeader_Success(t *testing.T) {
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	expected := &models.Header{ID: uuid.New()}
 	repoMock.EXPECT().UploadHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expected, nil)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	header, err := usecase.UploadHeader(context.Background(), uuid.New(), uuid.New(), "header.png", 100, "image/png", nil)
 	if err != nil {
@@ -287,7 +290,7 @@ func TestDeleteAttachment_Success(t *testing.T) {
 		},
 	}
 	repoMock.EXPECT().DeleteAttachment(gomock.Any(), gomock.Any()).Return(nil)
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	err := usecase.DeleteAttachment(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	if err != nil {
@@ -321,7 +324,7 @@ func TestUploadAttachment_Success(t *testing.T) {
 		},
 	}
 	repoMock.EXPECT().UploadAttachment(gomock.Any(), createdBlockID, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedAttachment, nil)
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	attachment, err := usecase.UploadAttachment(context.Background(), noteID, userID, "file.png", 100, "image/png", nil, false, 0)
 	if err != nil {
@@ -358,7 +361,7 @@ func TestUploadAttachment_SuccessWithPosition(t *testing.T) {
 		},
 	}
 	repoMock.EXPECT().UploadAttachment(gomock.Any(), createdBlockID, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedAttachment, nil)
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	attachment, err := usecase.UploadAttachment(context.Background(), noteID, userID, "file.png", 100, "image/png", nil, true, 1)
 	if err != nil {
@@ -379,7 +382,7 @@ func TestDeleteAttachment_GetBlockError(t *testing.T) {
 			return nil, errors.New("grpc fail")
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	err := usecase.DeleteAttachment(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	if err == nil {
@@ -393,7 +396,7 @@ func TestGetHeader_NotFound(t *testing.T) {
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	repoMock.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(nil, nil)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	header, err := usecase.GetHeader(context.Background(), uuid.New(), uuid.New())
 	if !errors.Is(err, attachments.ErrHeaderNotFound) {
@@ -410,7 +413,7 @@ func TestUploadHeader_Error(t *testing.T) {
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	repoMock.EXPECT().UploadHeader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("upload error"))
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	header, err := usecase.UploadHeader(context.Background(), uuid.New(), uuid.New(), "header.png", 100, "image/png", nil)
 	if err == nil {
@@ -427,7 +430,7 @@ func TestDeleteHeader_Success(t *testing.T) {
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	repoMock.EXPECT().DeleteHeader(gomock.Any(), gomock.Any()).Return(nil)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	err := usecase.DeleteHeader(context.Background(), uuid.New(), uuid.New())
 	if err != nil {
@@ -440,7 +443,7 @@ func TestGetBlockTypeByMimeType(t *testing.T) {
 	defer ctrl.Finish()
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	if got, err := usecase.getBlockTypeByMimeType("video/mp4"); got != 7 || err != nil {
 		t.Fatalf("expected video block type 7, got %d, %v", got, err)
@@ -464,7 +467,7 @@ func TestGetAttachment_RepoError(t *testing.T) {
 	defer ctrl.Finish()
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	blockID := uuid.New()
 	repoMock.EXPECT().GetAttachment(gomock.Any(), blockID).Return(nil, errors.New("db error"))
@@ -484,7 +487,7 @@ func TestGetHeader_RepoError(t *testing.T) {
 
 	repoMock := mocks.NewMockAttachmentRepository(ctrl)
 	repoMock.EXPECT().GetHeader(gomock.Any(), gomock.Any()).Return(nil, errors.New("db error"))
-	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{})
+	usecase := NewAttachmentUsecase(repoMock, &fakeNotesClient{}, log)
 
 	header, err := usecase.GetHeader(context.Background(), uuid.New(), uuid.New())
 	if err == nil {
@@ -505,7 +508,7 @@ func TestUploadAttachment_NegativePosition(t *testing.T) {
 			return []*notesgen.BlockResponse{}, nil
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, true, -1)
 	if !errors.Is(err, attachments.ErrInvalidPosition) {
@@ -526,7 +529,7 @@ func TestUploadAttachment_ShiftError(t *testing.T) {
 			return errors.New("shift fail")
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
 	if err == nil {
@@ -552,7 +555,7 @@ func TestUploadAttachment_CreateBlockError(t *testing.T) {
 			return nil, errors.New("create fail")
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
 	if err == nil {
@@ -581,7 +584,7 @@ func TestUploadAttachment_CreateBlockReturnsInvalidUUID(t *testing.T) {
 			return &notesgen.BlockResponse{Id: "not-a-uuid"}, nil
 		},
 	}
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	_, err := usecase.UploadAttachment(context.Background(), uuid.New(), uuid.New(), "f.png", 1, "image/png", nil, false, 0)
 	if err == nil {
@@ -603,7 +606,7 @@ func TestDeleteAttachment_RepoError(t *testing.T) {
 		},
 	}
 	repoMock.EXPECT().DeleteAttachment(gomock.Any(), gomock.Any()).Return(errors.New("repo fail"))
-	usecase := NewAttachmentUsecase(repoMock, notesClient)
+	usecase := NewAttachmentUsecase(repoMock, notesClient, log)
 
 	err := usecase.DeleteAttachment(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	if err == nil {

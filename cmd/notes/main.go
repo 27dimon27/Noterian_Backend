@@ -43,8 +43,8 @@ func main() {
 		}
 	}()
 
-	repo := repository.NewNoteRepository(database)
-	noteUsecase := notesUsecase.NewNoteUsecase(repo, attachmentsClient)
+	repo := repository.NewNoteRepository(database, log)
+	noteUsecase := notesUsecase.NewNoteUsecase(repo, attachmentsClient, log)
 	server := notesgrpcserver.NewServer(noteUsecase)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Services.NotesPort)

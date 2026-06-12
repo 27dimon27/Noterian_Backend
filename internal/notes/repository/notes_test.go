@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/notes"
 	"github.com/google/uuid"
@@ -16,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var log = logger.Init()
 
 type anyArgument struct{}
 
@@ -33,7 +36,7 @@ func TestNoteRepository_GetNotes(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	userID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -91,7 +94,7 @@ func TestNoteRepository_GetNote(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -132,7 +135,7 @@ func TestNoteRepository_GetBlocks(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -174,7 +177,7 @@ func TestNoteRepository_GetBlockType(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 
 	t.Run("success", func(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"id", "name"}).
@@ -215,7 +218,7 @@ func TestNoteRepository_CreateNote(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	userID := uuid.New()
 
 	t.Run("success without parent", func(t *testing.T) {
@@ -253,7 +256,7 @@ func TestNoteRepository_UpdateNote(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -289,7 +292,7 @@ func TestNoteRepository_DeleteNote(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -315,7 +318,7 @@ func TestNoteRepository_CreateBlock(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -350,7 +353,7 @@ func TestNoteRepository_GetBlock(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	blockID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -379,7 +382,7 @@ func TestNoteRepository_UpdateBlockContent(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	blockID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
@@ -408,7 +411,7 @@ func TestNoteRepository_MoveBlock(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 	blockID := uuid.New()
 
@@ -469,7 +472,7 @@ func TestNoteRepository_DeleteBlock(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	blockID := uuid.New()
 	noteID := uuid.New()
 
@@ -499,7 +502,7 @@ func TestNoteRepository_ShiftBlockPositions(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	noteID := uuid.New()
 
 	t.Run("shift up (direction > 0)", func(t *testing.T) {
@@ -539,7 +542,7 @@ func TestNoteRepository_GetBlockFormatting(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	blockID := uuid.New()
 
 	t.Run("success with formatting", func(t *testing.T) {
@@ -584,7 +587,7 @@ func TestNoteRepository_GetBlocksFormatting(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 
 	t.Run("success", func(t *testing.T) {
 		blockID1 := uuid.New()
@@ -626,7 +629,7 @@ func TestNoteRepository_UpdateBlockFormatting(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	blockID := uuid.New()
 
 	t.Run("success create new formatting", func(t *testing.T) {
@@ -711,7 +714,7 @@ func TestNoteRepository_GetSubnotes(t *testing.T) {
 		}
 	})
 
-	repo := NewNoteRepository(db)
+	repo := NewNoteRepository(db, log)
 	parentID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {

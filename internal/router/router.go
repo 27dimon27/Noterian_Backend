@@ -38,37 +38,39 @@ import (
 )
 
 func New(cfg *config.Config, logger *slog.Logger, db *sql.DB, minioService *minio.MinIOService, attachmentsConn, notesConn, profilesConn *grpc.ClientConn) (http.Handler, error) {
-	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
-	noteRepository := notesRepository.NewNoteRepository(db)
-	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket)
+	attachmentRepository := attachmentsRepository.NewAttachmentRepository(db, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket, logger)
+	noteRepository := notesRepository.NewNoteRepository(db, logger)
+	profileRepository := profilesRepository.NewProfileRepository(db, minioService, cfg.MinIO.AvatarsBucket, logger)
 
 	attachmentRemoteRepository, err := notesGrpcClient.NewAttachmentsServiceClient(cfg.Services.AttachmentsAddr)
 	if err != nil {
-		logger.Error("Failed to init attachments grpc client", "error", err)
+		logger.Error("Failed to init attachments remote repository", "error", err)
 		return nil, err
 	}
 
 	noteRemoteRepository, err := attachmentsGrpcClient.NewNotesServiceClient(cfg.Services.NotesAddr)
 	if err != nil {
-		logger.Error("Failed to init notes grpc client", "error", err)
+		logger.Error("Failed to init notes remote repository", "error", err)
 		return nil, err
 	}
 
 	profileRemoteRepository, err := authGrpcClient.NewProfilesServiceClient(cfg.Services.ProfilesAddr)
 	if err != nil {
-		logger.Error("Failed to init profiles grpc client", "error", err)
+		logger.Error("Failed to init profiles remote repository", "error", err)
 		return nil, err
 	}
 
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository)
-	onboardingSeeder := onboarding.NewSeeder(noteRepository)
-	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT, onboardingSeeder)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(attachmentRepository, noteRemoteRepository, logger)
+
+	onboardingSeeder := onboarding.NewSeeder(noteRepository) // разобраться с этим пакетом
+
+	authUsecase, err := authUsecase.NewAuthUsecase(profileRemoteRepository, cfg.JWT, onboardingSeeder, logger)
 	if err != nil {
 		logger.Error("Failed to init auth usecase", "error", err)
 		return nil, err
 	}
-	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRemoteRepository)
-	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository)
+	noteUsecase := notesUsecase.NewNoteUsecase(noteRepository, attachmentRemoteRepository, logger)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(profileRepository, logger)
 	if err != nil {
 		logger.Error("Failed to init profiles usecase", "error", err)
 		return nil, err

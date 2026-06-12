@@ -40,8 +40,8 @@ func main() {
 
 	log.Info("Connected to MinIO successfully")
 
-	repo := profilesrepository.NewProfileRepository(database, minioService, cfg.MinIO.AvatarsBucket)
-	profileUsecase, err := profilesUsecase.NewProfileUsecase(repo)
+	repo := profilesrepository.NewProfileRepository(database, minioService, cfg.MinIO.AvatarsBucket, log)
+	profileUsecase, err := profilesUsecase.NewProfileUsecase(repo, log)
 	if err != nil {
 		log.Error("Failed to create profile usecase", "error", err)
 		return

@@ -52,8 +52,8 @@ func main() {
 		}
 	}()
 
-	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket)
-	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, notesClient)
+	repo := repository.NewAttachmentRepository(database, minioService, cfg.MinIO.AttachmentsBucket, cfg.MinIO.HeadersBucket, log)
+	attachmentUsecase := attachmentsUsecase.NewAttachmentUsecase(repo, notesClient, log)
 	server := attachmentsgrpcserver.NewServer(attachmentUsecase)
 
 	lis, err := net.Listen("tcp", ":"+cfg.Services.AttachmentsPort)

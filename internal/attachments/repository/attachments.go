@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
@@ -26,14 +27,16 @@ type AttachmentRepository struct {
 	minio            MinIOService
 	attachmentBucket string
 	headerBucket     string
+	logger           *slog.Logger
 }
 
-func NewAttachmentRepository(db *sql.DB, minio MinIOService, attachmentBucket, headerBucket string) *AttachmentRepository {
+func NewAttachmentRepository(db *sql.DB, minio MinIOService, attachmentBucket, headerBucket string, logger *slog.Logger) *AttachmentRepository {
 	return &AttachmentRepository{
 		db:               db,
 		minio:            minio,
 		attachmentBucket: attachmentBucket,
 		headerBucket:     headerBucket,
+		logger:           logger,
 	}
 }
 
@@ -51,14 +54,17 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Attachment not found")
 			return nil, attachments.ErrAttachmentNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
 	if time.Now().After(attachment.URLExpiresAt) {
 		newURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, attachment.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -66,6 +72,7 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 
 		err = r.updateAttachmentURL(ctx, attachment.ID, newURL, newExpiry)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -87,10 +94,12 @@ func (r *AttachmentRepository) UploadAttachment(
 ) (*models.Attachment, error) {
 	existingAttach, err := r.GetAttachment(ctx, blockID)
 	if err != nil && !errors.Is(err, attachments.ErrAttachmentNotFound) {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
 	if existingAttach != nil {
+		r.logger.Warn("Block already has aatch")
 		return nil, attachments.ErrBlockAlreadyHasAttach
 	}
 
@@ -98,12 +107,15 @@ func (r *AttachmentRepository) UploadAttachment(
 	minioKey := attachmentID.String()
 
 	if err := r.minio.UploadFile(ctx, r.attachmentBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, attachments.ErrFailedToUpload
 	}
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.attachmentBucket, minioKey, attachments.PRESIGNED_URL_EXPIRY)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, attachments.ErrFailedToGenerateURL
@@ -138,7 +150,9 @@ func (r *AttachmentRepository) UploadAttachment(
 		&attachment.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, err
@@ -153,12 +167,15 @@ func (r *AttachmentRepository) DeleteAttachment(ctx context.Context, blockID uui
 	err := r.db.QueryRowContext(ctx, DELETE_ATTACHMENT_BY_ID, blockID).Scan(&minioKey)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Attachment not found")
 			return attachments.ErrAttachmentNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
 	if err := r.minio.DeleteFile(ctx, r.attachmentBucket, minioKey); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -179,14 +196,17 @@ func (r *AttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) 
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Attachment not found")
 			return nil, attachments.ErrHeaderNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
 	if time.Now().After(header.URLExpiresAt) {
 		newURL, err := r.minio.GeneratePresignedURL(ctx, r.headerBucket, header.MinioKey, attachments.PRESIGNED_URL_EXPIRY)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -194,6 +214,7 @@ func (r *AttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) 
 
 		err = r.updateHeaderURL(ctx, header.ID, newURL, newExpiry)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -215,6 +236,7 @@ func (r *AttachmentRepository) UploadHeader(
 ) (*models.Header, error) {
 	err := r.DeleteHeader(ctx, noteID)
 	if err != nil && !errors.Is(err, attachments.ErrHeaderNotFound) {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -222,12 +244,15 @@ func (r *AttachmentRepository) UploadHeader(
 	minioKey := headerID.String()
 
 	if err := r.minio.UploadFile(ctx, r.headerBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, attachments.ErrFailedToUpload
 	}
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.headerBucket, minioKey, attachments.PRESIGNED_URL_EXPIRY)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.headerBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, attachments.ErrFailedToGenerateURL
@@ -262,7 +287,9 @@ func (r *AttachmentRepository) UploadHeader(
 		&header.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.headerBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, err
@@ -277,12 +304,15 @@ func (r *AttachmentRepository) DeleteHeader(ctx context.Context, noteID uuid.UUI
 	err := r.db.QueryRowContext(ctx, DELETE_HEADER_BY_NOTE_ID, noteID).Scan(&minioKey)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Header not found")
 			return attachments.ErrHeaderNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
 	if err := r.minio.DeleteFile(ctx, r.headerBucket, minioKey); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -300,6 +330,7 @@ func (r *AttachmentRepository) updateAttachmentURL(ctx context.Context, attachme
 		&returnedUpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -317,6 +348,7 @@ func (r *AttachmentRepository) updateHeaderURL(ctx context.Context, headerID uui
 		&returnedUpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 

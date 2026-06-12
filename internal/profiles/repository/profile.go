@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
@@ -26,13 +27,15 @@ type profileRepository struct {
 	db           *sql.DB
 	minio        MinIOService
 	avatarBucket string
+	logger       *slog.Logger
 }
 
-func NewProfileRepository(db *sql.DB, minio MinIOService, avatarBucket string) *profileRepository {
+func NewProfileRepository(db *sql.DB, minio MinIOService, avatarBucket string, logger *slog.Logger) *profileRepository {
 	return &profileRepository{
 		db:           db,
 		minio:        minio,
 		avatarBucket: avatarBucket,
+		logger:       logger,
 	}
 }
 
@@ -42,8 +45,10 @@ func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*
 	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -56,8 +61,10 @@ func (r *profileRepository) GetProfileByUsername(ctx context.Context, username s
 	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USERNAME, username).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -70,8 +77,10 @@ func (r *profileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID,
 	err := r.db.QueryRowContext(ctx, UPDATE_PROFILE_BY_USER_ID, userID, profile.Username).Scan(&updatedProfile.ID, &updatedProfile.Username, &updatedProfile.CreatedAt, &updatedProfile.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -84,8 +93,10 @@ func (r *profileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID)
 	err := r.db.QueryRowContext(ctx, DELETE_PROFILE_BY_USER_ID, userID).Scan(&id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -106,14 +117,17 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Avatar not found")
 			return nil, profiles.ErrAvatarNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
 	if time.Now().After(avatar.URLExpiresAt) {
 		newURL, err := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, avatar.MinioKey, profiles.PRESIGNED_URL_EXPIRY)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -121,6 +135,7 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 
 		err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
 		if err != nil {
+			r.logger.Error("Internal server error", "error", err)
 			return nil, err
 		}
 
@@ -142,6 +157,7 @@ func (r *profileRepository) UploadAvatar(
 ) (*models.Avatar, error) {
 	err := r.DeleteAvatar(ctx, profileID)
 	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -149,12 +165,15 @@ func (r *profileRepository) UploadAvatar(
 	minioKey := avatarID.String()
 
 	if err := r.minio.UploadFile(ctx, r.avatarBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, profiles.ErrFailedToUpload
 	}
 
 	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, minioKey, profiles.PRESIGNED_URL_EXPIRY)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, profiles.ErrFailedToGenerateURL
@@ -189,7 +208,9 @@ func (r *profileRepository) UploadAvatar(
 		&avatar.UpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
+			r.logger.Error("Internal server error", "error", delErr)
 			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
 		}
 		return nil, err
@@ -204,12 +225,15 @@ func (r *profileRepository) DeleteAvatar(ctx context.Context, profileID uuid.UUI
 	err := r.db.QueryRowContext(ctx, DELETE_AVATAR_BY_ID, profileID).Scan(&minioKey)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Avatar not found")
 			return profiles.ErrAvatarNotFound
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
 	if err := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 
@@ -221,6 +245,7 @@ func (r *profileRepository) ChangePassword(ctx context.Context, userID uuid.UUID
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -229,8 +254,10 @@ func (r *profileRepository) ChangePassword(ctx context.Context, userID uuid.UUID
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -243,8 +270,10 @@ func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) (
 	err := r.db.QueryRowContext(ctx, GET_PASSWORD_BY_USER_ID, userID).Scan(&password)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -255,14 +284,17 @@ func (r *profileRepository) SignupUser(ctx context.Context, username, password s
 	var exists bool
 	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 	if exists {
+		r.logger.Warn("Profile already exists")
 		return nil, profiles.ErrUsernameExists
 	}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -275,6 +307,7 @@ func (r *profileRepository) SignupUser(ctx context.Context, username, password s
 
 	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -289,8 +322,10 @@ func (r *profileRepository) SigninUser(ctx context.Context, username string) (*m
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Warn("Profile not found")
 			return nil, profiles.ErrUserNotExist
 		}
+		r.logger.Error("Internal server error", "error", err)
 		return nil, err
 	}
 
@@ -308,6 +343,7 @@ func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.U
 		&returnedUpdatedAt,
 	)
 	if err != nil {
+		r.logger.Error("Internal server error", "error", err)
 		return err
 	}
 

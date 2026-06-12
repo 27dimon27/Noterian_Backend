@@ -10,11 +10,14 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient/mocks"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	profilesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/profiles/grpc/gen"
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var log = logger.Init()
 
 var testJWT = config.JWTConfig{
 	Secret:     "test-secret",
@@ -25,7 +28,7 @@ var testJWT = config.JWTConfig{
 
 func newUsecase(t *testing.T, c *mocks.MockProfilesServiceClient) *authUsecase {
 	t.Helper()
-	u, err := NewAuthUsecase(c, testJWT, nil)
+	u, err := NewAuthUsecase(c, testJWT, nil, log)
 	if err != nil {
 		t.Fatalf("NewAuthUsecase: %v", err)
 	}
@@ -37,7 +40,7 @@ func TestNewAuthUsecase(t *testing.T) {
 	defer ctrl.Finish()
 	client := mocks.NewMockProfilesServiceClient(ctrl)
 
-	u, err := NewAuthUsecase(client, testJWT, nil)
+	u, err := NewAuthUsecase(client, testJWT, nil, log)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
