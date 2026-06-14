@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments/grpcclient"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	notesgen "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 )
@@ -17,36 +17,40 @@ import (
 //go:generate mockgen -source=attachments.go -destination=mocks/mock_usecase_attachments.go -package=mocks
 
 type AttachmentRepository interface {
-	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error)
-	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error)
-	DeleteAttachment(ctx context.Context, blockID uuid.UUID) error
-	GetHeader(ctx context.Context, noteID uuid.UUID) (*models.Header, error)
-	UploadHeader(ctx context.Context, noteID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
-	DeleteHeader(ctx context.Context, noteID uuid.UUID) error
+	GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, types.AppErrorInterface)
+	UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, types.AppErrorInterface)
+	DeleteAttachment(ctx context.Context, blockID uuid.UUID) types.AppErrorInterface
+	GetHeader(ctx context.Context, noteID uuid.UUID) (*models.Header, types.AppErrorInterface)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, types.AppErrorInterface)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID) types.AppErrorInterface
 }
 
 type attachmentUsecase struct {
 	attachmentRepo AttachmentRepository
 	notesClient    grpcclient.NotesServiceClient
-	logger         *slog.Logger
 }
 
-func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcclient.NotesServiceClient, logger *slog.Logger) *attachmentUsecase {
+func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcclient.NotesServiceClient) *attachmentUsecase {
 	return &attachmentUsecase{
 		attachmentRepo: attachmentRepo,
 		notesClient:    notesClient,
-		logger:         logger,
 	}
 }
 
-func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error) {
+func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, types.AppErrorInterface) {
 	attachment, err := u.attachmentRepo.GetAttachment(ctx, blockID)
 	if err != nil {
 		return nil, err
 	}
 
 	if attachment == nil {
-		return nil, attachments.ErrAttachmentNotFound
+		return nil, &types.AppError{
+			Err:        attachments.ErrAttachmentNotFound,
+			PublicMsg:  attachments.PublicMsgErrAttachmentNotFound,
+			StatusCode: 404,
+			Layer:      "usecase",
+			Op:         "GetAttachment",
+		}
 	}
 
 	return attachment, nil
@@ -62,7 +66,7 @@ func (u *attachmentUsecase) UploadAttachment(
 	fileReader io.Reader,
 	hasPosition bool,
 	position int,
-) (*models.Attachment, error) {
+) (*models.Attachment, types.AppErrorInterface) {
 	blockTypeID, err := u.getBlockTypeByMimeType(mimeType)
 	if err != nil {
 		return nil, err
@@ -76,7 +80,13 @@ func (u *attachmentUsecase) UploadAttachment(
 	var blockPosition int
 	if hasPosition {
 		if position < 0 || position > len(blocks) {
-			return nil, attachments.ErrInvalidPosition
+			return nil, &types.AppError{
+				Err:        attachments.ErrInvalidPosition,
+				PublicMsg:  attachments.PublicMsgErrInvalidPosition,
+				StatusCode: 400,
+				Layer:      "usecase",
+				Op:         "UploadAttachment",
+			}
 		}
 		blockPosition = position
 	} else {
@@ -103,7 +113,7 @@ func (u *attachmentUsecase) UploadAttachment(
 
 	blockID, err := uuid.Parse(createdBlock.Id)
 	if err != nil {
-		var errs []error
+		var errs []types.AppErrorInterface
 		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
 
 		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
@@ -119,7 +129,7 @@ func (u *attachmentUsecase) UploadAttachment(
 
 	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
-		var errs []error
+		var errs []types.AppErrorInterface
 		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
 
 		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
@@ -136,7 +146,7 @@ func (u *attachmentUsecase) UploadAttachment(
 	return attachment, nil
 }
 
-func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error {
+func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) types.AppErrorInterface {
 	block, err := u.notesClient.GetBlock(ctx, blockID, noteID, userID)
 	if err != nil {
 		return u.mapGrpcError(err)
@@ -152,7 +162,7 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 	return nil
 }
 
-func (u *attachmentUsecase) GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, error) {
+func (u *attachmentUsecase) GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, types.AppErrorInterface) {
 	header, err := u.attachmentRepo.GetHeader(ctx, noteID)
 	if err != nil {
 		return nil, err
@@ -173,7 +183,7 @@ func (u *attachmentUsecase) UploadHeader(
 	fileSize int64,
 	mimeType string,
 	fileReader io.Reader,
-) (*models.Header, error) {
+) (*models.Header, types.AppErrorInterface) {
 	header, err := u.attachmentRepo.UploadHeader(ctx, noteID, fileName, fileSize, mimeType, fileReader)
 	if err != nil {
 		return nil, err
@@ -182,7 +192,7 @@ func (u *attachmentUsecase) UploadHeader(
 	return header, nil
 }
 
-func (u *attachmentUsecase) DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error {
+func (u *attachmentUsecase) DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface {
 	err := u.attachmentRepo.DeleteHeader(ctx, noteID)
 	if err != nil {
 		return err
@@ -191,7 +201,7 @@ func (u *attachmentUsecase) DeleteHeader(ctx context.Context, noteID uuid.UUID, 
 	return nil
 }
 
-func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, error) {
+func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, types.AppErrorInterface) {
 	if attachments.AllowedMimeTypesForImage[mimeType] {
 		return 2, nil
 	}
@@ -204,10 +214,16 @@ func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, error)
 	if attachments.AllowedMimeTypesForVideo[mimeType] {
 		return 7, nil
 	}
-	return 0, attachments.ErrInvalidMimeType
+	return 0, &types.AppError{
+		Err:        attachments.ErrInvalidMimeType,
+		PublicMsg:  attachments.PublicMsgErrInvalidMimeType,
+		StatusCode: 404,
+		Layer:      "usecase",
+		Op:         "getBlockTypeByMimeType",
+	}
 }
 
-func (u *attachmentUsecase) mapGrpcError(err error) error {
+func (u *attachmentUsecase) mapGrpcError(err types.AppErrorInterface) types.AppErrorInterface {
 	// можно добавить маппинг gRPC ошибок в доменные ошибки, например если пришел codes.NotFound - вернуть attachments.ErrNoteNotFound
 	return err
 }

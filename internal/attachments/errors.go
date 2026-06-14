@@ -7,24 +7,40 @@ import (
 )
 
 var (
-	ErrAttachmentNotFound    = errors.New("Вложение не найдено")
-	ErrHeaderNotFound        = errors.New("Шапка не найдена")
-	ErrBlockAlreadyHasAttach = errors.New("Блок уже содержит вложение")
-	ErrInvalidMimeType       = errors.New("Неподдерживаемый MIME-тип файла")
-	ErrFileTooLarge          = errors.New("Слишком большой файл")
-	ErrFailedToUpload        = errors.New("Не удалось загрузить файл")
-	ErrFailedToDelete        = errors.New("Не удалось удалить файл")
-	ErrBlockNotFound         = errors.New("Блок не найден")
-	ErrNoteNotFound          = errors.New("Заметка не найдена")
-	ErrNoteIDRequired        = errors.New("NoteID обязателен")
-	ErrInvalidNoteID         = errors.New("Невалидный NoteID")
-	ErrBlockIDRequired       = errors.New("BlockID обязателен")
-	ErrInvalidBlockID        = errors.New("Невалидный BlockID")
-	ErrInvalidUserID         = errors.New("Невалидный UserID")
-	ErrForbidden             = errors.New("Доступ запрещен")
-	ErrFailedToGenerateURL   = errors.New("Не удалось сгенерировать ссылку")
-	ErrInvalidPosition       = errors.New("Невалидная позиция")
-	ErrSpecificFileTooLarge  = map[string]error{
+	ErrAttachmentNotFound          = errors.New("attachment not found")
+	PublicMsgErrAttachmentNotFound = "Вложение не найдено"
+
+	ErrHeaderNotFound          = errors.New("header not found")
+	PublicMsgErrHeaderNotFound = "Шапка не найдена"
+
+	ErrBlockAlreadyHasAttach          = errors.New("block already has attach")
+	PublicMsgErrBlockAlreadyHasAttach = "Блок уже содержит вложение"
+
+	ErrInvalidMimeType          = errors.New("unsupported MIME-type of file")
+	PublicMsgErrInvalidMimeType = "Неподдерживаемый MIME-тип файла"
+
+	ErrFileTooLarge    = errors.New("Слишком большой файл")
+	ErrFailedToUpload  = errors.New("Не удалось загрузить файл")
+	ErrFailedToDelete  = errors.New("Не удалось удалить файл")
+	ErrBlockNotFound   = errors.New("Блок не найден")
+	ErrNoteNotFound    = errors.New("Заметка не найдена")
+	ErrNoteIDRequired  = errors.New("NoteID обязателен")
+	ErrInvalidNoteID   = errors.New("Невалидный NoteID")
+	ErrBlockIDRequired = errors.New("BlockID обязателен")
+	ErrInvalidBlockID  = errors.New("Невалидный BlockID")
+	ErrInvalidUserID   = errors.New("Невалидный UserID")
+	ErrForbidden       = errors.New("Доступ запрещен")
+
+	ErrFailedToGenerateURL          = errors.New("failed to generate the link")
+	PublicMsgErrFailedToGenerateURL = "Не удалось сгенерировать ссылку"
+
+	ErrInvalidPosition          = errors.New("invalid position")
+	PublicMsgErrInvalidPosition = "Невалидная позиция"
+
+	ErrInternalServer          = errors.New("internal server error")
+	PublicMsgErrInternalServer = "Неизвестная ошибка сервера"
+
+	ErrSpecificFileTooLarge = map[string]error{
 		"IMAGE": fmt.Errorf("Слишком большой файл фотографии, максимальный размер - %d МБ", MAX_IMAGE_SIZE/MB_CONST),
 		"GIF":   fmt.Errorf("Слишком большой файл GIF, максимальный размер - %d МБ", MAX_GIF_SIZE/MB_CONST),
 		"AUDIO": fmt.Errorf("Слишком большой аудиофайл, максимальный размер - %d МБ", MAX_AUDIO_SIZE/MB_CONST),
