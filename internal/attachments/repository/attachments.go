@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
@@ -27,14 +28,16 @@ type AttachmentRepository struct {
 	minio            MinIOService
 	attachmentBucket string
 	headerBucket     string
+	logger           *slog.Logger
 }
 
-func NewAttachmentRepository(db *sql.DB, minio MinIOService, attachmentBucket, headerBucket string) *AttachmentRepository {
+func NewAttachmentRepository(db *sql.DB, minio MinIOService, attachmentBucket, headerBucket string, logger *slog.Logger) *AttachmentRepository {
 	return &AttachmentRepository{
 		db:               db,
 		minio:            minio,
 		attachmentBucket: attachmentBucket,
 		headerBucket:     headerBucket,
+		logger:           logger,
 	}
 }
 

@@ -18,7 +18,7 @@ var (
 	ErrInvalidBlockID   = errors.New("Невалидный BlockID")
 	ErrInvalidBlockData = errors.New("Невалидные данные блока")
 
-	ErrBlockNotFound          = errors.New("Block not found")
+	ErrBlockNotFound          = errors.New("block not found")
 	PublicMsgErrBlockNotFound = "Блок не найден"
 
 	ErrInvalidBlockType               = errors.New("Невалидный тип блока")
@@ -29,7 +29,7 @@ var (
 	ErrInvalidFormattingForImageBlock = errors.New("Для блока с изображением допустимо только выравнивание")
 	ErrFormattingNotSupported         = errors.New("Форматирование не поддерживается для данного типа блока")
 
-	ErrBlockTypeNotFound          = errors.New("Block type not found")
+	ErrBlockTypeNotFound          = errors.New("block type not found")
 	PublicMsgErrBlockTypeNotFound = "Тип блока не найден"
 
 	ErrInternalServer          = errors.New("internal server error")

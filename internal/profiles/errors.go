@@ -6,18 +6,28 @@ import (
 )
 
 var (
-	ErrUserNotExist        = errors.New("Пользователь не найден")
+	ErrUserNotExist          = errors.New("profile not found")
+	PublicMsgErrUserNotExist = "Пользователь не найден"
+
 	ErrInvalidUserID       = errors.New("Невалидный UserID")
 	ErrInvalidProfileData  = errors.New("Невалидные данные профиля")
 	ErrFileTooLarge        = errors.New("Слишком большой файл")
 	ErrInvalidMimeType     = errors.New("Неподдерживаемый MIME-тип файла")
 	ErrFailedToUpload      = errors.New("Не удалось загрузить файл")
 	ErrFailedToGenerateURL = errors.New("Не удалось сгенерировать ссылку")
-	ErrAvatarNotFound      = errors.New("Аватар не найден")
+
+	ErrAvatarNotFound          = errors.New("avatar not found")
+	PublicMsgErrAvatarNotFound = "Аватар не найден"
+
 	ErrWrongPassword       = errors.New("Неверный пароль")
 	ErrBodyRequired        = errors.New("Тело запроса обязательно")
 	ErrInvalidPasswordData = errors.New("Невалидные данные пароля")
-	ErrUsernameExists      = errors.New("Пользователь с таким именем уже существует")
+
+	ErrUsernameExists          = errors.New("username already exists")
+	PublicMsgErrUsernameExists = "Пользователь с таким именем уже существует"
+
+	ErrInternalServer          = errors.New("internal server error")
+	PublicMsgErrInternalServer = "Неизвестная ошибка сервера"
 )
 
 const (

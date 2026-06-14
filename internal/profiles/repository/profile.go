@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -39,74 +40,116 @@ func NewProfileRepository(db *sql.DB, minio MinIOService, avatarBucket string, l
 	}
 }
 
-func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+func (r *profileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USER_ID, userID).Scan(
+		&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "GetProfile",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "GetProfile",
+		}
 	}
 
 	return user, nil
 }
 
-func (r *profileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+func (r *profileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USERNAME, username).Scan(&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, GET_PROFILE_BY_USERNAME, username).Scan(
+		&user.ID, &user.Username, &user.CreatedAt, &user.UpdatedAt,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "GetProfileByUsername",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "GetProfileByUsername",
+		}
 	}
 
 	return user, nil
 }
 
-func (r *profileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+func (r *profileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, types.AppErrorInterface) {
 	updatedProfile := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, UPDATE_PROFILE_BY_USER_ID, userID, profile.Username).Scan(&updatedProfile.ID, &updatedProfile.Username, &updatedProfile.CreatedAt, &updatedProfile.UpdatedAt)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, UPDATE_PROFILE_BY_USER_ID, userID, profile.Username).Scan(
+		&updatedProfile.ID, &updatedProfile.Username, &updatedProfile.CreatedAt, &updatedProfile.UpdatedAt,
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "UpdateProfile",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "UpdateProfile",
+		}
 	}
 
 	return updatedProfile, nil
 }
 
-func (r *profileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+func (r *profileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID) types.AppErrorInterface {
 	var id uuid.UUID
 
-	err := r.db.QueryRowContext(ctx, DELETE_PROFILE_BY_USER_ID, userID).Scan(&id)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, DELETE_PROFILE_BY_USER_ID, userID).Scan(&id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return profiles.ErrUserNotExist
+			return &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "DeleteProfile",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return err
+		return &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "DeleteProfile",
+		}
 	}
 
 	return nil
 }
 
-func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
+func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, types.AppErrorInterface) {
 	avatar := &models.Avatar{}
 
-	err := r.db.QueryRowContext(ctx, GET_AVATAR_BY_PROFILE_ID, profileID).Scan(
+	if err := r.db.QueryRowContext(ctx, GET_AVATAR_BY_PROFILE_ID, profileID).Scan(
 		&avatar.ID,
 		&avatar.ProfileID,
 		&avatar.MinioKey,
@@ -114,29 +157,47 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 		&avatar.URLExpiresAt,
 		&avatar.CreatedAt,
 		&avatar.UpdatedAt,
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Avatar not found")
-			return nil, profiles.ErrAvatarNotFound
+			return nil, &types.AppError{
+				Err:        profiles.ErrAvatarNotFound,
+				PublicMsg:  profiles.PublicMsgErrAvatarNotFound,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "GetAvatar",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "GetAvatar",
+		}
 	}
 
 	if time.Now().After(avatar.URLExpiresAt) {
 		newURL, err := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, avatar.MinioKey, profiles.PRESIGNED_URL_EXPIRY)
 		if err != nil {
-			r.logger.Error("Internal server error", "error", err)
-			return nil, err
+			return nil, &types.AppError{
+				Err:        err,
+				PublicMsg:  profiles.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "repo",
+				Op:         "GetAvatar",
+			}
 		}
 
 		newExpiry := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
 
-		err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry)
-		if err != nil {
-			r.logger.Error("Internal server error", "error", err)
-			return nil, err
+		if err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry); err != nil {
+			return nil, &types.AppError{
+				Err:        err,
+				PublicMsg:  profiles.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "repo",
+				Op:         "GetAvatar",
+			}
 		}
 
 		avatar.AvatarURL = newURL
@@ -154,29 +215,48 @@ func (r *profileRepository) UploadAvatar(
 	fileSize int64,
 	mimeType string,
 	fileReader io.Reader,
-) (*models.Avatar, error) {
-	err := r.DeleteAvatar(ctx, profileID)
-	if err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+) (*models.Avatar, types.AppErrorInterface) {
+	if err := r.DeleteAvatar(ctx, profileID); err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "UploadAvatar",
+		}
 	}
 
 	avatarID := uuid.New()
 	minioKey := avatarID.String()
 
 	if err := r.minio.UploadFile(ctx, r.avatarBucket, minioKey, fileReader, fileSize, mimeType); err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, profiles.ErrFailedToUpload
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "UploadAvatar",
+		}
 	}
 
-	presignedURL, err := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, minioKey, profiles.PRESIGNED_URL_EXPIRY)
-	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
+	presignedURL, generateErr := r.minio.GeneratePresignedURL(ctx, r.avatarBucket, minioKey, profiles.PRESIGNED_URL_EXPIRY)
+	if generateErr != nil {
 		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
-			r.logger.Error("Internal server error", "error", delErr)
-			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+			return nil, &types.AppError{
+				Err:        fmt.Errorf("%w; %w", generateErr, delErr),
+				PublicMsg:  profiles.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "repo",
+				Op:         "UploadAvatar",
+			}
 		}
-		return nil, profiles.ErrFailedToGenerateURL
+		return nil, &types.AppError{
+			Err:        generateErr,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "UploadAvatar",
+		}
 	}
 
 	now := time.Now()
@@ -190,7 +270,7 @@ func (r *profileRepository) UploadAvatar(
 		UpdatedAt:    now,
 	}
 
-	err = r.db.QueryRowContext(
+	if queryErr := r.db.QueryRowContext(
 		ctx,
 		CREATE_AVATAR,
 		avatar.ID,
@@ -206,96 +286,158 @@ func (r *profileRepository) UploadAvatar(
 		&avatar.URLExpiresAt,
 		&avatar.CreatedAt,
 		&avatar.UpdatedAt,
-	)
-	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
+	); queryErr != nil {
 		if delErr := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); delErr != nil {
-			r.logger.Error("Internal server error", "error", delErr)
-			return nil, fmt.Errorf("generate presigned URL failed: %w, and cleanup failed: %w", err, delErr)
+			return nil, &types.AppError{
+				Err:        fmt.Errorf("%w; %w", queryErr, delErr),
+				PublicMsg:  profiles.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "repo",
+				Op:         "UploadAvatar",
+			}
 		}
-		return nil, err
+		return nil, &types.AppError{
+			Err:        queryErr,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "UploadAvatar",
+		}
 	}
 
 	return avatar, nil
 }
 
-func (r *profileRepository) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
+func (r *profileRepository) DeleteAvatar(ctx context.Context, profileID uuid.UUID) types.AppErrorInterface {
 	var minioKey string
 
-	err := r.db.QueryRowContext(ctx, DELETE_AVATAR_BY_ID, profileID).Scan(&minioKey)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, DELETE_AVATAR_BY_ID, profileID).Scan(&minioKey); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Avatar not found")
-			return profiles.ErrAvatarNotFound
+			return &types.AppError{
+				Err:        profiles.ErrAvatarNotFound,
+				PublicMsg:  profiles.PublicMsgErrAvatarNotFound,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "DeleteAvatar",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return err
+		return &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "DeleteAvatar",
+		}
 	}
 
 	if err := r.minio.DeleteFile(ctx, r.avatarBucket, minioKey); err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return err
+		return &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "DeleteAvatar",
+		}
 	}
 
 	return nil
 }
 
-func (r *profileRepository) ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error) {
+func (r *profileRepository) ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, types.AppErrorInterface) {
 	updatedProfile := &models.Profile{}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "ChangePassword",
+		}
 	}
 
-	err = r.db.QueryRowContext(ctx, CHANGE_PASSWORD_BY_USER_ID, userID, hashPassword).Scan(
+	if err = r.db.QueryRowContext(ctx, CHANGE_PASSWORD_BY_USER_ID, userID, hashPassword).Scan(
 		&updatedProfile.ID, &updatedProfile.Username, &updatedProfile.CreatedAt, &updatedProfile.UpdatedAt,
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "ChangePassword",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "ChangePassword",
+		}
 	}
 
 	return updatedProfile, nil
 }
 
-func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+func (r *profileRepository) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, types.AppErrorInterface) {
 	var password []byte
 
-	err := r.db.QueryRowContext(ctx, GET_PASSWORD_BY_USER_ID, userID).Scan(&password)
-	if err != nil {
+	if err := r.db.QueryRowContext(ctx, GET_PASSWORD_BY_USER_ID, userID).Scan(&password); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "GetPassword",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "GetPassword",
+		}
 	}
 
 	return password, nil
 }
 
-func (r *profileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (r *profileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, types.AppErrorInterface) {
 	var exists bool
-	err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists)
-	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+
+	if err := r.db.QueryRowContext(ctx, CHECK_USER_EXISTS, username).Scan(&exists); err != nil {
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "SignupUser",
+		}
 	}
+
 	if exists {
-		r.logger.Warn("Profile already exists")
-		return nil, profiles.ErrUsernameExists
+		return nil, &types.AppError{
+			Err:        profiles.ErrUsernameExists,
+			PublicMsg:  profiles.PublicMsgErrUsernameExists,
+			StatusCode: 409,
+			Layer:      "repo",
+			Op:         "SignupUser",
+		}
 	}
 
 	hashPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "SignupUser",
+		}
 	}
 
 	user := &models.Profile{
@@ -305,46 +447,63 @@ func (r *profileRepository) SignupUser(ctx context.Context, username, password s
 		TokenVersion: 1,
 	}
 
-	_, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion)
-	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+	if _, err = r.db.ExecContext(ctx, CREATE_USER, user.ID, user.Username, user.Password, user.TokenVersion); err != nil {
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "SignupUser",
+		}
 	}
 
 	return user, nil
 }
 
-func (r *profileRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
+func (r *profileRepository) SigninUser(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
 	user := &models.Profile{}
 
-	err := r.db.QueryRowContext(ctx, GET_USER_BY_USERNAME, username).Scan(
+	if err := r.db.QueryRowContext(ctx, GET_USER_BY_USERNAME, username).Scan(
 		&user.ID, &user.Username, &user.Password, &user.TokenVersion, &user.CreatedAt, &user.UpdatedAt,
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			r.logger.Warn("Profile not found")
-			return nil, profiles.ErrUserNotExist
+			return nil, &types.AppError{
+				Err:        profiles.ErrUserNotExist,
+				PublicMsg:  profiles.PublicMsgErrUserNotExist,
+				StatusCode: 404,
+				Layer:      "repo",
+				Op:         "SigninUser",
+			}
 		}
-		r.logger.Error("Internal server error", "error", err)
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "SigninUser",
+		}
 	}
 
 	return user, nil
 }
 
-func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) error {
+func (r *profileRepository) updateAvatarURL(ctx context.Context, avatarID uuid.UUID, url string, expiresAt time.Time) types.AppErrorInterface {
 	var returnedURL string
 	var returnedExpiresAt time.Time
 	var returnedUpdatedAt time.Time
 
-	err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
+	if err := r.db.QueryRowContext(ctx, UPDATE_AVATAR_URL, avatarID, url, expiresAt).Scan(
 		&returnedURL,
 		&returnedExpiresAt,
 		&returnedUpdatedAt,
-	)
-	if err != nil {
-		r.logger.Error("Internal server error", "error", err)
-		return err
+	); err != nil {
+		return &types.AppError{
+			Err:        err,
+			PublicMsg:  profiles.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "repo",
+			Op:         "updateAvatarURL",
+		}
 	}
 
 	return nil
