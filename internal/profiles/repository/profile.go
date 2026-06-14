@@ -190,14 +190,8 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 
 		newExpiry := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
 
-		if err = r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry); err != nil {
-			return nil, &types.AppError{
-				Err:        err,
-				PublicMsg:  profiles.PublicMsgErrInternalServer,
-				StatusCode: 500,
-				Layer:      "repo",
-				Op:         "GetAvatar",
-			}
+		if err := r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry); err != nil {
+			return nil, err
 		}
 
 		avatar.AvatarURL = newURL
@@ -217,13 +211,7 @@ func (r *profileRepository) UploadAvatar(
 	fileReader io.Reader,
 ) (*models.Avatar, types.AppErrorInterface) {
 	if err := r.DeleteAvatar(ctx, profileID); err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
-		return nil, &types.AppError{
-			Err:        err,
-			PublicMsg:  profiles.PublicMsgErrInternalServer,
-			StatusCode: 500,
-			Layer:      "repo",
-			Op:         "UploadAvatar",
-		}
+		return nil, err
 	}
 
 	avatarID := uuid.New()

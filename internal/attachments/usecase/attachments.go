@@ -220,7 +220,7 @@ func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, types.
 	return 0, &types.AppError{
 		Err:        attachments.ErrInvalidMimeType,
 		PublicMsg:  attachments.PublicMsgErrInvalidMimeType,
-		StatusCode: 404,
+		StatusCode: 400,
 		Layer:      "usecase",
 		Op:         "getBlockTypeByMimeType",
 	}

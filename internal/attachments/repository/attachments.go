@@ -281,14 +281,8 @@ func (r *AttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) 
 
 		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
 
-		if err = r.updateHeaderURL(ctx, header.ID, newURL, newExpiry); err != nil {
-			return nil, &types.AppError{
-				Err:        err,
-				PublicMsg:  attachments.PublicMsgErrInternalServer,
-				StatusCode: 500,
-				Layer:      "repo",
-				Op:         "GetHeader",
-			}
+		if err := r.updateHeaderURL(ctx, header.ID, newURL, newExpiry); err != nil {
+			return nil, err
 		}
 
 		header.HeaderURL = newURL
@@ -308,13 +302,7 @@ func (r *AttachmentRepository) UploadHeader(
 	fileReader io.Reader,
 ) (*models.Header, types.AppErrorInterface) {
 	if err := r.DeleteHeader(ctx, noteID); err != nil && !err.Is(attachments.ErrHeaderNotFound) {
-		return nil, &types.AppError{
-			Err:        err,
-			PublicMsg:  attachments.PublicMsgErrInternalServer,
-			StatusCode: 500,
-			Layer:      "repo",
-			Op:         "UploadHeader",
-		}
+		return nil, err
 	}
 
 	headerID := uuid.New()
