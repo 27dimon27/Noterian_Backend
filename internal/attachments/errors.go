@@ -19,10 +19,13 @@ var (
 	ErrInvalidMimeType          = errors.New("unsupported MIME-type of file")
 	PublicMsgErrInvalidMimeType = "Неподдерживаемый MIME-тип файла"
 
-	ErrFileTooLarge    = errors.New("Слишком большой файл")
-	ErrFailedToUpload  = errors.New("Не удалось загрузить файл")
-	ErrFailedToDelete  = errors.New("Не удалось удалить файл")
-	ErrBlockNotFound   = errors.New("Блок не найден")
+	ErrFileTooLarge   = errors.New("Слишком большой файл")
+	ErrFailedToUpload = errors.New("Не удалось загрузить файл")
+	ErrFailedToDelete = errors.New("Не удалось удалить файл")
+
+	ErrBlockNotFound          = errors.New("block not found")
+	PublicMsgErrBlockNotFound = "Блок не найден"
+
 	ErrNoteNotFound    = errors.New("Заметка не найдена")
 	ErrNoteIDRequired  = errors.New("NoteID обязателен")
 	ErrInvalidNoteID   = errors.New("Невалидный NoteID")

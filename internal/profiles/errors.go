@@ -9,8 +9,11 @@ var (
 	ErrUserNotExist          = errors.New("profile not found")
 	PublicMsgErrUserNotExist = "Пользователь не найден"
 
-	ErrInvalidUserID       = errors.New("Невалидный UserID")
-	ErrInvalidProfileData  = errors.New("Невалидные данные профиля")
+	ErrInvalidUserID = errors.New("Невалидный UserID")
+
+	ErrInvalidProfileData          = errors.New("invalid profile data")
+	PublicMsgErrInvalidProfileData = "Невалидные данные профиля"
+
 	ErrFileTooLarge        = errors.New("Слишком большой файл")
 	ErrInvalidMimeType     = errors.New("Неподдерживаемый MIME-тип файла")
 	ErrFailedToUpload      = errors.New("Не удалось загрузить файл")
@@ -19,9 +22,13 @@ var (
 	ErrAvatarNotFound          = errors.New("avatar not found")
 	PublicMsgErrAvatarNotFound = "Аватар не найден"
 
-	ErrWrongPassword       = errors.New("Неверный пароль")
-	ErrBodyRequired        = errors.New("Тело запроса обязательно")
-	ErrInvalidPasswordData = errors.New("Невалидные данные пароля")
+	ErrWrongPassword          = errors.New("wrong password")
+	PublicMsgErrWrongPassword = "Неверный пароль"
+
+	ErrBodyRequired = errors.New("Тело запроса обязательно")
+
+	ErrInvalidPasswordData          = errors.New("invalid password data")
+	PublicMsgErrInvalidPasswordData = "Невалидные данные пароля"
 
 	ErrUsernameExists          = errors.New("username already exists")
 	PublicMsgErrUsernameExists = "Пользователь с таким именем уже существует"

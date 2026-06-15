@@ -2,10 +2,9 @@ package grpc
 
 import (
 	"context"
-	"errors"
 
-	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/attachments"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	attachmentsgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/attachments/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -15,10 +14,10 @@ import (
 //go:generate mockgen -source=server.go -destination=mocks/mock_usecase.go -package=mocks
 
 type AttachmentUsecase interface {
-	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, error)
-	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) error
-	GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, error)
-	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
+	GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, types.AppErrorInterface)
+	DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
+	GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, types.AppErrorInterface)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
 }
 
 type Server struct {
@@ -46,9 +45,9 @@ func (s *Server) GetAttachment(ctx context.Context, req *attachmentsgrpc.GetAtta
 		return nil, err
 	}
 
-	attachment, err := s.attachmentUsecase.GetAttachment(ctx, noteID, blockID, userID)
-	if err != nil {
-		return nil, err
+	attachment, customErr := s.attachmentUsecase.GetAttachment(ctx, noteID, blockID, userID)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	if attachment == nil {
@@ -83,7 +82,7 @@ func (s *Server) DeleteAttachment(ctx context.Context, req *attachmentsgrpc.Dele
 	}
 
 	if err := s.attachmentUsecase.DeleteAttachment(ctx, noteID, blockID, userID); err != nil {
-		return nil, err
+		return nil, err.Unwrap()
 	}
 
 	return &attachmentsgrpc.DeleteAttachmentResponse{}, nil
@@ -100,14 +99,9 @@ func (s *Server) GetHeader(ctx context.Context, req *attachmentsgrpc.GetHeaderRe
 		return nil, err
 	}
 
-	header, err := s.attachmentUsecase.GetHeader(ctx, noteID, userID)
-	if err != nil {
-		switch {
-		case errors.Is(err, attachments.ErrHeaderNotFound):
-			return nil, status.Error(codes.NotFound, "header not found")
-		default:
-			return nil, status.Error(codes.Internal, "internal server error")
-		}
+	header, customErr := s.attachmentUsecase.GetHeader(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	if header == nil {
@@ -136,10 +130,7 @@ func (s *Server) DeleteHeader(ctx context.Context, req *attachmentsgrpc.DeleteHe
 	}
 
 	if err := s.attachmentUsecase.DeleteHeader(ctx, noteID, userID); err != nil {
-		if errors.Is(err, attachments.ErrHeaderNotFound) {
-			return nil, status.Error(codes.NotFound, "header not found")
-		}
-		return nil, err
+		return nil, err.Unwrap()
 	}
 
 	return &attachmentsgrpc.DeleteHeaderResponse{}, nil

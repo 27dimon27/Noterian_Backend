@@ -15,6 +15,8 @@ const (
 type AppErrorInterface interface {
 	Error() string
 	Unwrap() error
+	PublicMessage() string
+	Code() int
 	Is(target error) bool
 }
 
@@ -35,6 +37,14 @@ func (e *AppError) Error() string {
 
 func (e *AppError) Unwrap() error {
 	return e.Err
+}
+
+func (e *AppError) PublicMessage() string {
+	return e.PublicMsg
+}
+
+func (e *AppError) Code() int {
+	return e.StatusCode
 }
 
 func (e *AppError) Is(target error) bool {

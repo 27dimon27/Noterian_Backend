@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -44,10 +45,10 @@ func (m *MockAttachmentRepository) EXPECT() *MockAttachmentRepositoryMockRecorde
 }
 
 // DeleteAttachment mocks base method.
-func (m *MockAttachmentRepository) DeleteAttachment(ctx context.Context, blockID uuid.UUID) error {
+func (m *MockAttachmentRepository) DeleteAttachment(ctx context.Context, blockID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAttachment", ctx, blockID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -58,10 +59,10 @@ func (mr *MockAttachmentRepositoryMockRecorder) DeleteAttachment(ctx, blockID an
 }
 
 // DeleteHeader mocks base method.
-func (m *MockAttachmentRepository) DeleteHeader(ctx context.Context, noteID uuid.UUID) error {
+func (m *MockAttachmentRepository) DeleteHeader(ctx context.Context, noteID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHeader", ctx, noteID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -72,11 +73,11 @@ func (mr *MockAttachmentRepositoryMockRecorder) DeleteHeader(ctx, noteID any) *g
 }
 
 // GetAttachment mocks base method.
-func (m *MockAttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, error) {
+func (m *MockAttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.UUID) (*models.Attachment, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAttachment", ctx, blockID)
 	ret0, _ := ret[0].(*models.Attachment)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -87,11 +88,11 @@ func (mr *MockAttachmentRepositoryMockRecorder) GetAttachment(ctx, blockID any) 
 }
 
 // GetHeader mocks base method.
-func (m *MockAttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) (*models.Header, error) {
+func (m *MockAttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) (*models.Header, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHeader", ctx, noteID)
 	ret0, _ := ret[0].(*models.Header)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -102,11 +103,11 @@ func (mr *MockAttachmentRepositoryMockRecorder) GetHeader(ctx, noteID any) *gomo
 }
 
 // UploadAttachment mocks base method.
-func (m *MockAttachmentRepository) UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, error) {
+func (m *MockAttachmentRepository) UploadAttachment(ctx context.Context, blockID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Attachment, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadAttachment", ctx, blockID, fileName, fileSize, mimeType, fileReader)
 	ret0, _ := ret[0].(*models.Attachment)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -117,11 +118,11 @@ func (mr *MockAttachmentRepositoryMockRecorder) UploadAttachment(ctx, blockID, f
 }
 
 // UploadHeader mocks base method.
-func (m *MockAttachmentRepository) UploadHeader(ctx context.Context, noteID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error) {
+func (m *MockAttachmentRepository) UploadHeader(ctx context.Context, noteID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadHeader", ctx, noteID, fileName, fileSize, mimeType, fileReader)
 	ret0, _ := ret[0].(*models.Header)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

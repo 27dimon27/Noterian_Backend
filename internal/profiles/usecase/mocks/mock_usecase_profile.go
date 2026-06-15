@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -44,11 +45,11 @@ func (m *MockProfileRepository) EXPECT() *MockProfileRepositoryMockRecorder {
 }
 
 // ChangePassword mocks base method.
-func (m *MockProfileRepository) ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, error) {
+func (m *MockProfileRepository) ChangePassword(ctx context.Context, userID uuid.UUID, newPassword string) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChangePassword", ctx, userID, newPassword)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -59,10 +60,10 @@ func (mr *MockProfileRepositoryMockRecorder) ChangePassword(ctx, userID, newPass
 }
 
 // DeleteAvatar mocks base method.
-func (m *MockProfileRepository) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
+func (m *MockProfileRepository) DeleteAvatar(ctx context.Context, profileID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAvatar", ctx, profileID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -73,10 +74,10 @@ func (mr *MockProfileRepositoryMockRecorder) DeleteAvatar(ctx, profileID any) *g
 }
 
 // DeleteProfile mocks base method.
-func (m *MockProfileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+func (m *MockProfileRepository) DeleteProfile(ctx context.Context, userID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteProfile", ctx, userID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -87,11 +88,11 @@ func (mr *MockProfileRepositoryMockRecorder) DeleteProfile(ctx, userID any) *gom
 }
 
 // GetAvatar mocks base method.
-func (m *MockProfileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
+func (m *MockProfileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAvatar", ctx, profileID)
 	ret0, _ := ret[0].(*models.Avatar)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -102,11 +103,11 @@ func (mr *MockProfileRepositoryMockRecorder) GetAvatar(ctx, profileID any) *gomo
 }
 
 // GetPassword mocks base method.
-func (m *MockProfileRepository) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, error) {
+func (m *MockProfileRepository) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPassword", ctx, userID)
 	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -117,11 +118,11 @@ func (mr *MockProfileRepositoryMockRecorder) GetPassword(ctx, userID any) *gomoc
 }
 
 // GetProfile mocks base method.
-func (m *MockProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+func (m *MockProfileRepository) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProfile", ctx, userID)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -132,11 +133,11 @@ func (mr *MockProfileRepositoryMockRecorder) GetProfile(ctx, userID any) *gomock
 }
 
 // GetProfileByUsername mocks base method.
-func (m *MockProfileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, error) {
+func (m *MockProfileRepository) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProfileByUsername", ctx, username)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -147,11 +148,11 @@ func (mr *MockProfileRepositoryMockRecorder) GetProfileByUsername(ctx, username 
 }
 
 // SigninUser mocks base method.
-func (m *MockProfileRepository) SigninUser(ctx context.Context, username string) (*models.Profile, error) {
+func (m *MockProfileRepository) SigninUser(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SigninUser", ctx, username)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -162,11 +163,11 @@ func (mr *MockProfileRepositoryMockRecorder) SigninUser(ctx, username any) *gomo
 }
 
 // SignupUser mocks base method.
-func (m *MockProfileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, error) {
+func (m *MockProfileRepository) SignupUser(ctx context.Context, username, password string) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignupUser", ctx, username, password)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -177,11 +178,11 @@ func (mr *MockProfileRepositoryMockRecorder) SignupUser(ctx, username, password 
 }
 
 // UpdateProfile mocks base method.
-func (m *MockProfileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+func (m *MockProfileRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateProfile", ctx, userID, profile)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -192,11 +193,11 @@ func (mr *MockProfileRepositoryMockRecorder) UpdateProfile(ctx, userID, profile 
 }
 
 // UploadAvatar mocks base method.
-func (m *MockProfileRepository) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error) {
+func (m *MockProfileRepository) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadAvatar", ctx, profileID, fileName, fileSize, mimeType, fileReader)
 	ret0, _ := ret[0].(*models.Avatar)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

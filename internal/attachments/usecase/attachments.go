@@ -70,14 +70,20 @@ func (u *attachmentUsecase) UploadAttachment(
 	hasPosition bool,
 	position int,
 ) (*models.Attachment, types.AppErrorInterface) {
-	blockTypeID, err := u.getBlockTypeByMimeType(mimeType)
-	if err != nil {
-		return nil, err
+	blockTypeID, customErr := u.getBlockTypeByMimeType(mimeType)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	blocks, err := u.notesClient.GetBlocks(ctx, noteID, userID)
 	if err != nil {
-		return nil, u.mapGrpcError(err)
+		return nil, &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", err),
+			PublicMsg:  attachments.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "UploadAttachment",
+		}
 	}
 
 	var blockPosition int
@@ -96,54 +102,85 @@ func (u *attachmentUsecase) UploadAttachment(
 		blockPosition = len(blocks)
 	}
 
-	err = u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, 1)
-	if err != nil {
-		return nil, u.mapGrpcError(err)
+	if err := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, 1); err != nil {
+		return nil, &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", err),
+			PublicMsg:  attachments.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "UploadAttachment",
+		}
 	}
 
-	createdBlock, err := u.notesClient.CreateBlock(ctx, userID, &notesgen.BlockResponse{
+	createdBlock, grpcErr := u.notesClient.CreateBlock(ctx, userID, &notesgen.BlockResponse{
 		NoteId:      noteID.String(),
 		BlockTypeId: int32(blockTypeID),
 		Position:    int32(blockPosition),
 		Content:     "",
 	})
-	if err != nil {
+	if grpcErr != nil {
 		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
-			return nil, fmt.Errorf("create block failed: %w, and rollback failed: %w", err, shiftErr)
+			return nil, &types.AppError{
+				Err:        fmt.Errorf("grpc error: %w; %w", grpcErr, shiftErr),
+				PublicMsg:  attachments.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "usecase",
+				Op:         "UploadAttachment",
+			}
 		}
-		return nil, u.mapGrpcError(err)
+		return nil, &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", grpcErr),
+			PublicMsg:  attachments.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "UploadAttachment",
+		}
 	}
 
-	blockID, err := uuid.Parse(createdBlock.Id)
-	if err != nil {
-		var errs []types.AppErrorInterface
-		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
-
+	blockID, parseErr := uuid.Parse(createdBlock.Id)
+	if parseErr != nil {
 		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
-			errs = append(errs, fmt.Errorf("failed to delete block during rollback: %w", deleteErr))
+			parseErr = errors.Join(parseErr, fmt.Errorf("grpc error: %w", deleteErr))
 		}
 
 		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
-			errs = append(errs, fmt.Errorf("failed to shift block positions during rollback: %w", shiftErr))
+			parseErr = errors.Join(parseErr, fmt.Errorf("grpc error: %w", shiftErr))
 		}
 
-		return nil, errors.Join(errs...)
+		return nil, &types.AppError{
+			Err:        parseErr,
+			PublicMsg:  attachments.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "UploadAttachment",
+		}
 	}
 
-	attachment, err := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
-	if err != nil {
-		var errs []types.AppErrorInterface
-		errs = append(errs, fmt.Errorf("failed to parse block ID: %w", err))
+	attachment, customErr := u.attachmentRepo.UploadAttachment(ctx, blockID, fileName, fileSize, mimeType, fileReader)
+	if customErr != nil {
+		err := customErr.Unwrap()
+		errPublicMsg := customErr.PublicMessage()
+		errStatus := customErr.Code()
 
 		if _, deleteErr := u.notesClient.DeleteBlock(ctx, blockID, noteID, userID); deleteErr != nil {
-			errs = append(errs, fmt.Errorf("failed to delete block during rollback: %w", deleteErr))
+			err = errors.Join(err, fmt.Errorf("grpc error: %w", deleteErr))
+			errPublicMsg = attachments.PublicMsgErrInternalServer
+			errStatus = 500
 		}
 
 		if shiftErr := u.notesClient.ShiftBlockPositions(ctx, noteID, blockPosition, -1); shiftErr != nil {
-			errs = append(errs, fmt.Errorf("failed to shift block positions during rollback: %w", shiftErr))
+			err = errors.Join(err, fmt.Errorf("grpc error: %w", shiftErr))
+			errPublicMsg = attachments.PublicMsgErrInternalServer
+			errStatus = 500
 		}
 
-		return nil, errors.Join(errs...)
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  errPublicMsg,
+			StatusCode: errStatus,
+			Layer:      "usecase",
+			Op:         "UploadAttachment",
+		}
 	}
 
 	return attachment, nil
@@ -152,10 +189,23 @@ func (u *attachmentUsecase) UploadAttachment(
 func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) types.AppErrorInterface {
 	block, err := u.notesClient.GetBlock(ctx, blockID, noteID, userID)
 	if err != nil {
-		return u.mapGrpcError(err)
+		return &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", err),
+			PublicMsg:  attachments.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "DeleteAttachment",
+		}
 	}
+
 	if block == nil {
-		return attachments.ErrBlockNotFound
+		return &types.AppError{
+			Err:        attachments.ErrBlockNotFound,
+			PublicMsg:  attachments.PublicMsgErrBlockNotFound,
+			StatusCode: 404,
+			Layer:      "usecase",
+			Op:         "DeleteAttachment",
+		}
 	}
 
 	if err := u.attachmentRepo.DeleteAttachment(ctx, blockID); err != nil {
@@ -172,7 +222,13 @@ func (u *attachmentUsecase) GetHeader(ctx context.Context, noteID uuid.UUID, use
 	}
 
 	if header == nil {
-		return nil, attachments.ErrHeaderNotFound
+		return nil, &types.AppError{
+			Err:        attachments.ErrHeaderNotFound,
+			PublicMsg:  attachments.PublicMsgErrHeaderNotFound,
+			StatusCode: 404,
+			Layer:      "usecase",
+			Op:         "GetHeader",
+		}
 	}
 
 	return header, nil
@@ -224,9 +280,4 @@ func (u *attachmentUsecase) getBlockTypeByMimeType(mimeType string) (int, types.
 		Layer:      "usecase",
 		Op:         "getBlockTypeByMimeType",
 	}
-}
-
-func (u *attachmentUsecase) mapGrpcError(err types.AppErrorInterface) types.AppErrorInterface {
-	// можно добавить маппинг gRPC ошибок в доменные ошибки, например если пришел codes.NotFound - вернуть attachments.ErrNoteNotFound
-	return err
 }

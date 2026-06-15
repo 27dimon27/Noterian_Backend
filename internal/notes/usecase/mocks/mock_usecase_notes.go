@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -43,11 +44,11 @@ func (m *MockNoteRepository) EXPECT() *MockNoteRepositoryMockRecorder {
 }
 
 // CreateBlock mocks base method.
-func (m *MockNoteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
+func (m *MockNoteRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateBlock", ctx, block)
 	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -58,11 +59,11 @@ func (mr *MockNoteRepositoryMockRecorder) CreateBlock(ctx, block any) *gomock.Ca
 }
 
 // CreateNote mocks base method.
-func (m *MockNoteRepository) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
+func (m *MockNoteRepository) CreateNote(ctx context.Context, note models.Note) (*models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateNote", ctx, note)
 	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -73,11 +74,11 @@ func (mr *MockNoteRepositoryMockRecorder) CreateNote(ctx, note any) *gomock.Call
 }
 
 // DeleteBlock mocks base method.
-func (m *MockNoteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, error) {
+func (m *MockNoteRepository) DeleteBlock(ctx context.Context, blockID uuid.UUID) (*uuid.UUID, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBlock", ctx, blockID)
 	ret0, _ := ret[0].(*uuid.UUID)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -88,10 +89,10 @@ func (mr *MockNoteRepositoryMockRecorder) DeleteBlock(ctx, blockID any) *gomock.
 }
 
 // DeleteNote mocks base method.
-func (m *MockNoteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) error {
+func (m *MockNoteRepository) DeleteNote(ctx context.Context, noteID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteNote", ctx, noteID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -102,11 +103,11 @@ func (mr *MockNoteRepositoryMockRecorder) DeleteNote(ctx, noteID any) *gomock.Ca
 }
 
 // GetBlock mocks base method.
-func (m *MockNoteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, error) {
+func (m *MockNoteRepository) GetBlock(ctx context.Context, blockID uuid.UUID) (*models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlock", ctx, blockID)
 	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -117,11 +118,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlock(ctx, blockID any) *gomock.Cal
 }
 
 // GetBlockFormatting mocks base method.
-func (m *MockNoteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, error) {
+func (m *MockNoteRepository) GetBlockFormatting(ctx context.Context, blockID uuid.UUID) (*models.BlockFormatting, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlockFormatting", ctx, blockID)
 	ret0, _ := ret[0].(*models.BlockFormatting)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -132,11 +133,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlockFormatting(ctx, blockID any) *
 }
 
 // GetBlockType mocks base method.
-func (m *MockNoteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, error) {
+func (m *MockNoteRepository) GetBlockType(ctx context.Context, blockTypeID int) (*models.BlockType, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlockType", ctx, blockTypeID)
 	ret0, _ := ret[0].(*models.BlockType)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -147,11 +148,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlockType(ctx, blockTypeID any) *go
 }
 
 // GetBlocks mocks base method.
-func (m *MockNoteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, error) {
+func (m *MockNoteRepository) GetBlocks(ctx context.Context, noteID uuid.UUID) ([]models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlocks", ctx, noteID)
 	ret0, _ := ret[0].([]models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -162,11 +163,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlocks(ctx, noteID any) *gomock.Cal
 }
 
 // GetBlocksFormatting mocks base method.
-func (m *MockNoteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uuid.UUID) (map[string]models.BlockFormatting, error) {
+func (m *MockNoteRepository) GetBlocksFormatting(ctx context.Context, blockIDs []uuid.UUID) (map[string]models.BlockFormatting, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBlocksFormatting", ctx, blockIDs)
 	ret0, _ := ret[0].(map[string]models.BlockFormatting)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -177,11 +178,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetBlocksFormatting(ctx, blockIDs any)
 }
 
 // GetNote mocks base method.
-func (m *MockNoteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, error) {
+func (m *MockNoteRepository) GetNote(ctx context.Context, noteID uuid.UUID) (*models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNote", ctx, noteID)
 	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -192,11 +193,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetNote(ctx, noteID any) *gomock.Call 
 }
 
 // GetNotes mocks base method.
-func (m *MockNoteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, error) {
+func (m *MockNoteRepository) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNotes", ctx, userID)
 	ret0, _ := ret[0].([]models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -207,11 +208,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetNotes(ctx, userID any) *gomock.Call
 }
 
 // GetSubnotes mocks base method.
-func (m *MockNoteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, error) {
+func (m *MockNoteRepository) GetSubnotes(ctx context.Context, noteID uuid.UUID) ([]models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSubnotes", ctx, noteID)
 	ret0, _ := ret[0].([]models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -222,11 +223,11 @@ func (mr *MockNoteRepositoryMockRecorder) GetSubnotes(ctx, noteID any) *gomock.C
 }
 
 // MoveBlock mocks base method.
-func (m *MockNoteRepository) MoveBlock(ctx context.Context, noteID, blockID uuid.UUID, oldPosition, newPosition int) (*models.Block, error) {
+func (m *MockNoteRepository) MoveBlock(ctx context.Context, noteID, blockID uuid.UUID, oldPosition, newPosition int) (*models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MoveBlock", ctx, noteID, blockID, oldPosition, newPosition)
 	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -237,10 +238,10 @@ func (mr *MockNoteRepositoryMockRecorder) MoveBlock(ctx, noteID, blockID, oldPos
 }
 
 // ShiftBlockPositions mocks base method.
-func (m *MockNoteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) error {
+func (m *MockNoteRepository) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ShiftBlockPositions", ctx, noteID, fromPosition, direction)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -251,11 +252,11 @@ func (mr *MockNoteRepositoryMockRecorder) ShiftBlockPositions(ctx, noteID, fromP
 }
 
 // UpdateBlockContent mocks base method.
-func (m *MockNoteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string) (*models.Block, error) {
+func (m *MockNoteRepository) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, content string) (*models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateBlockContent", ctx, blockID, content)
 	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -266,11 +267,11 @@ func (mr *MockNoteRepositoryMockRecorder) UpdateBlockContent(ctx, blockID, conte
 }
 
 // UpdateBlockFormatting mocks base method.
-func (m *MockNoteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error) {
+func (m *MockNoteRepository) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateBlockFormatting", ctx, blockID, formattingRange)
 	ret0, _ := ret[0].(*models.BlockFormatting)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -281,11 +282,11 @@ func (mr *MockNoteRepositoryMockRecorder) UpdateBlockFormatting(ctx, blockID, fo
 }
 
 // UpdateNote mocks base method.
-func (m *MockNoteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note) (*models.Note, error) {
+func (m *MockNoteRepository) UpdateNote(ctx context.Context, noteID uuid.UUID, note models.Note) (*models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateNote", ctx, noteID, note)
 	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

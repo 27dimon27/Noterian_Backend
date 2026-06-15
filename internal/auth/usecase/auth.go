@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/grpcclient"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -41,31 +43,58 @@ func NewAuthUsecase(profilesClient grpcclient.ProfilesServiceClient, jwtConfig c
 	}, nil
 }
 
-func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (*dto.Profile, error) {
+func (u *authUsecase) SignupUser(ctx context.Context, username, password string) (*dto.Profile, types.AppErrorInterface) {
 	if err := u.validate.Var(username, "required,username"); err != nil {
-		return nil, auth.ErrInvalidUsername
+		return nil, &types.AppError{
+			Err:        auth.ErrInvalidUsername,
+			PublicMsg:  auth.PublicMsgErrInvalidUsername,
+			StatusCode: 400,
+			Layer:      "usecase",
+			Op:         "SignupUser",
+		}
 	}
 
 	if err := u.validate.Var(password, "required,password"); err != nil {
-		return nil, auth.ErrInvalidPassword
+		return nil, &types.AppError{
+			Err:        auth.ErrInvalidPassword,
+			PublicMsg:  auth.PublicMsgErrInvalidPassword,
+			StatusCode: 400,
+			Layer:      "usecase",
+			Op:         "SignupUser",
+		}
 	}
 
 	profile, err := u.profilesClient.SignupUser(ctx, username, password)
 	if err != nil {
-		if err == auth.ErrUserExist {
-			return nil, auth.ErrUserExist
+		return nil, &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", err),
+			PublicMsg:  auth.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "SignupUser",
 		}
-		return nil, err
 	}
 
 	userID, err := uuid.Parse(profile.GetId())
 	if err != nil {
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  auth.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "SignupUser",
+		}
 	}
 
 	if u.onboarding != nil {
 		if err := u.onboarding.SeedOnboardingNote(ctx, userID); err != nil {
-			slog.Default().WarnContext(ctx, "failed to seed onboarding note", "user_id", userID, "error", err)
+			return nil, &types.AppError{
+				Err:        err,
+				PublicMsg:  auth.PublicMsgErrInternalServer,
+				StatusCode: 500,
+				Layer:      "usecase",
+				Op:         "SignupUser",
+			}
 		}
 	}
 
@@ -76,23 +105,37 @@ func (u *authUsecase) SignupUser(ctx context.Context, username, password string)
 	}, nil
 }
 
-func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*dto.Profile, error) {
+func (u *authUsecase) SigninUser(ctx context.Context, username, password string) (*dto.Profile, types.AppErrorInterface) {
 	profile, err := u.profilesClient.SigninUser(ctx, username)
 	if err != nil {
-		if err == auth.ErrUserNotExist {
-			return nil, auth.ErrUserNotExist
+		return nil, &types.AppError{
+			Err:        fmt.Errorf("grpc error: %w", err),
+			PublicMsg:  auth.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "SigninUser",
 		}
-		return nil, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(profile.GetPassword()), []byte(password))
-	if err != nil {
-		return nil, auth.ErrBadCredentials
+	if err := bcrypt.CompareHashAndPassword([]byte(profile.GetPassword()), []byte(password)); err != nil {
+		return nil, &types.AppError{
+			Err:        auth.ErrBadCredentials,
+			PublicMsg:  auth.PublicMsgErrBadCredentials,
+			StatusCode: 401,
+			Layer:      "usecase",
+			Op:         "SigninUser",
+		}
 	}
 
 	userID, err := uuid.Parse(profile.GetId())
 	if err != nil {
-		return nil, err
+		return nil, &types.AppError{
+			Err:        err,
+			PublicMsg:  auth.PublicMsgErrInternalServer,
+			StatusCode: 500,
+			Layer:      "usecase",
+			Op:         "SigninUser",
+		}
 	}
 
 	return &dto.Profile{

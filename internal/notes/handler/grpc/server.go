@@ -2,8 +2,10 @@ package grpc
 
 import (
 	"context"
+	"errors"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	notesgrpc "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/proto/notes/grpc/gen"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -11,11 +13,11 @@ import (
 )
 
 type NoteUsecase interface {
-	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error)
-	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, error)
-	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
-	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) error
-	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, types.AppErrorInterface)
+	GetBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) (*models.Block, types.AppErrorInterface)
+	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, types.AppErrorInterface)
+	ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition int, direction int) types.AppErrorInterface
+	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
 }
 
 type Server struct {
@@ -38,9 +40,9 @@ func (s *Server) GetNote(ctx context.Context, req *notesgrpc.GetNoteRequest) (*n
 		return nil, err
 	}
 
-	note, _, _, err := s.noteUsecase.GetNote(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	note, _, _, customErr := s.noteUsecase.GetNote(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	var parentID *string
@@ -78,9 +80,9 @@ func (s *Server) GetBlock(ctx context.Context, req *notesgrpc.GetBlockRequest) (
 		return nil, err
 	}
 
-	block, err := s.noteUsecase.GetBlock(ctx, blockID, noteID, userID)
-	if err != nil {
-		return nil, err
+	block, customErr := s.noteUsecase.GetBlock(ctx, blockID, noteID, userID)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	return &notesgrpc.BlockResponse{
@@ -105,9 +107,9 @@ func (s *Server) GetBlocks(ctx context.Context, req *notesgrpc.GetBlocksRequest)
 		return nil, err
 	}
 
-	_, blocks, _, err := s.noteUsecase.GetNote(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, blocks, _, customErr := s.noteUsecase.GetNote(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	pbBlocks := make([]*notesgrpc.BlockResponse, 0, len(blocks))
@@ -128,7 +130,7 @@ func (s *Server) GetBlocks(ctx context.Context, req *notesgrpc.GetBlocksRequest)
 
 func (s *Server) CreateBlock(ctx context.Context, req *notesgrpc.CreateBlockRequest) (*notesgrpc.BlockResponse, error) {
 	if req.GetBlock() == nil {
-		return nil, errMissingBlock
+		return nil, errors.New("block payload is required")
 	}
 
 	userID, err := uuid.Parse(req.GetUserId())
@@ -148,9 +150,9 @@ func (s *Server) CreateBlock(ctx context.Context, req *notesgrpc.CreateBlockRequ
 		Content:     req.GetBlock().GetContent(),
 	}
 
-	created, err := s.noteUsecase.CreateBlock(ctx, noteID, userID, block)
-	if err != nil {
-		return nil, err
+	created, customErr := s.noteUsecase.CreateBlock(ctx, noteID, userID, block)
+	if customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	return &notesgrpc.BlockResponse{
@@ -170,8 +172,8 @@ func (s *Server) ShiftBlockPositions(ctx context.Context, req *notesgrpc.ShiftBl
 		return nil, err
 	}
 
-	if err = s.noteUsecase.ShiftBlockPositions(ctx, noteID, int(req.GetFromPosition()), int(req.GetDirection())); err != nil {
-		return nil, err
+	if customErr := s.noteUsecase.ShiftBlockPositions(ctx, noteID, int(req.GetFromPosition()), int(req.GetDirection())); customErr != nil {
+		return nil, customErr.Unwrap()
 	}
 
 	return &emptypb.Empty{}, nil
@@ -193,18 +195,9 @@ func (s *Server) DeleteBlock(ctx context.Context, req *notesgrpc.DeleteBlockRequ
 		return nil, err
 	}
 
-	if err := s.noteUsecase.DeleteBlock(ctx, blockID, noteID, userID); err != nil {
-		return nil, err
+	if customErr := s.noteUsecase.DeleteBlock(ctx, blockID, noteID, userID); customErr != nil {
+		return nil, customErr
 	}
 
 	return &notesgrpc.DeleteBlockResponse{NoteId: noteID.String()}, nil
 }
-
-type grpcError string
-
-func (e grpcError) Error() string { return string(e) }
-
-const (
-	errMissingBlock = grpcError("block payload is required")
-	// errMissingNoteID = grpcError("note id was not returned")
-)
