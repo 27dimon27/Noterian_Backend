@@ -23,8 +23,8 @@ func JSONResponse(w http.ResponseWriter, status int, data easyjson.Marshaler) {
 	}
 }
 
-func JSONErrorResponse(w http.ResponseWriter, status int, err error) {
+func JSONErrorResponse(w http.ResponseWriter, status int, errMsg string) {
 	JSONResponse(w, status, ErrorResponse{
-		Error: err.Error(),
+		Error: errMsg,
 	})
 }

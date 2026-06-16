@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -44,10 +45,10 @@ func (m *MockAttachmentUsecase) EXPECT() *MockAttachmentUsecaseMockRecorder {
 }
 
 // DeleteAttachment mocks base method.
-func (m *MockAttachmentUsecase) DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) error {
+func (m *MockAttachmentUsecase) DeleteAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAttachment", ctx, noteID, blockID, userID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -58,10 +59,10 @@ func (mr *MockAttachmentUsecaseMockRecorder) DeleteAttachment(ctx, noteID, block
 }
 
 // DeleteHeader mocks base method.
-func (m *MockAttachmentUsecase) DeleteHeader(ctx context.Context, noteID, userID uuid.UUID) error {
+func (m *MockAttachmentUsecase) DeleteHeader(ctx context.Context, noteID, userID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteHeader", ctx, noteID, userID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -72,11 +73,11 @@ func (mr *MockAttachmentUsecaseMockRecorder) DeleteHeader(ctx, noteID, userID an
 }
 
 // GetAttachment mocks base method.
-func (m *MockAttachmentUsecase) GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, error) {
+func (m *MockAttachmentUsecase) GetAttachment(ctx context.Context, noteID, blockID, userID uuid.UUID) (*models.Attachment, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAttachment", ctx, noteID, blockID, userID)
 	ret0, _ := ret[0].(*models.Attachment)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -87,11 +88,11 @@ func (mr *MockAttachmentUsecaseMockRecorder) GetAttachment(ctx, noteID, blockID,
 }
 
 // GetHeader mocks base method.
-func (m *MockAttachmentUsecase) GetHeader(ctx context.Context, noteID, userID uuid.UUID) (*models.Header, error) {
+func (m *MockAttachmentUsecase) GetHeader(ctx context.Context, noteID, userID uuid.UUID) (*models.Header, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHeader", ctx, noteID, userID)
 	ret0, _ := ret[0].(*models.Header)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -102,11 +103,11 @@ func (mr *MockAttachmentUsecaseMockRecorder) GetHeader(ctx, noteID, userID any) 
 }
 
 // UploadAttachment mocks base method.
-func (m *MockAttachmentUsecase) UploadAttachment(ctx context.Context, noteID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error) {
+func (m *MockAttachmentUsecase) UploadAttachment(ctx context.Context, noteID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadAttachment", ctx, noteID, userID, fileName, fileSize, mimeType, fileReader, hasPosition, position)
 	ret0, _ := ret[0].(*models.Attachment)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -117,11 +118,11 @@ func (mr *MockAttachmentUsecaseMockRecorder) UploadAttachment(ctx, noteID, userI
 }
 
 // UploadHeader mocks base method.
-func (m *MockAttachmentUsecase) UploadHeader(ctx context.Context, noteID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error) {
+func (m *MockAttachmentUsecase) UploadHeader(ctx context.Context, noteID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadHeader", ctx, noteID, userID, fileName, fileSize, mimeType, fileReader)
 	ret0, _ := ret[0].(*models.Header)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

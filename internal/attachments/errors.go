@@ -19,20 +19,35 @@ var (
 	ErrInvalidMimeType          = errors.New("unsupported MIME-type of file")
 	PublicMsgErrInvalidMimeType = "Неподдерживаемый MIME-тип файла"
 
-	ErrFileTooLarge   = errors.New("Слишком большой файл")
+	ErrFileTooLarge          = errors.New("too large file")
+	PublicMsgErrFileTooLarge = "Слишком большой файл"
+
 	ErrFailedToUpload = errors.New("Не удалось загрузить файл")
 	ErrFailedToDelete = errors.New("Не удалось удалить файл")
 
 	ErrBlockNotFound          = errors.New("block not found")
 	PublicMsgErrBlockNotFound = "Блок не найден"
 
-	ErrNoteNotFound    = errors.New("Заметка не найдена")
-	ErrNoteIDRequired  = errors.New("NoteID обязателен")
-	ErrInvalidNoteID   = errors.New("Невалидный NoteID")
-	ErrBlockIDRequired = errors.New("BlockID обязателен")
-	ErrInvalidBlockID  = errors.New("Невалидный BlockID")
-	ErrInvalidUserID   = errors.New("Невалидный UserID")
-	ErrForbidden       = errors.New("Доступ запрещен")
+	ErrNoteNotFound          = errors.New("note not found")
+	PublicMsgErrNoteNotFound = "Заметка не найдена"
+
+	ErrNoteIDRequired          = errors.New("noteID is required")
+	PublicMsgErrNoteIDRequired = "NoteID обязателен"
+
+	ErrInvalidNoteID          = errors.New("invalid noteID")
+	PublicMsgErrInvalidNoteID = "Невалидный NoteID"
+
+	ErrBlockIDRequired          = errors.New("blockID is required")
+	PublicMsgErrBlockIDRequired = "BlockID обязателен"
+
+	ErrInvalidBlockID          = errors.New("invalid blockID")
+	PublicMsgErrInvalidBlockID = "Невалидный BlockID"
+
+	ErrInvalidUserID          = errors.New("invalid userID")
+	PublicMsgErrInvalidUserID = "Невалидный UserID"
+
+	ErrForbidden          = errors.New("access denied")
+	PublicMsgErrForbidden = "Доступ запрещен"
 
 	ErrFailedToGenerateURL          = errors.New("failed to generate the link")
 	PublicMsgErrFailedToGenerateURL = "Не удалось сгенерировать ссылку"
@@ -43,11 +58,11 @@ var (
 	ErrInternalServer          = errors.New("internal server error")
 	PublicMsgErrInternalServer = "Неизвестная ошибка сервера"
 
-	ErrSpecificFileTooLarge = map[string]error{
-		"IMAGE": fmt.Errorf("Слишком большой файл фотографии, максимальный размер - %d МБ", MAX_IMAGE_SIZE/MB_CONST),
-		"GIF":   fmt.Errorf("Слишком большой файл GIF, максимальный размер - %d МБ", MAX_GIF_SIZE/MB_CONST),
-		"AUDIO": fmt.Errorf("Слишком большой аудиофайл, максимальный размер - %d МБ", MAX_AUDIO_SIZE/MB_CONST),
-		"VIDEO": fmt.Errorf("Слишком большой файл видео, максимальный размер - %d МБ", MAX_VIDEO_SIZE/MB_CONST),
+	PublicMsgErrSpecificFileTooLarge = map[string]string{
+		"IMAGE": fmt.Sprintf("Слишком большой файл фотографии, максимальный размер - %d МБ", MAX_IMAGE_SIZE/MB_CONST),
+		"GIF":   fmt.Sprintf("Слишком большой файл GIF, максимальный размер - %d МБ", MAX_GIF_SIZE/MB_CONST),
+		"AUDIO": fmt.Sprintf("Слишком большой аудиофайл, максимальный размер - %d МБ", MAX_AUDIO_SIZE/MB_CONST),
+		"VIDEO": fmt.Sprintf("Слишком большой файл видео, максимальный размер - %d МБ", MAX_VIDEO_SIZE/MB_CONST),
 	}
 )
 
