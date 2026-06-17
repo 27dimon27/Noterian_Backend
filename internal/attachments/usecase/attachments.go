@@ -41,9 +41,9 @@ func NewAttachmentUsecase(attachmentRepo AttachmentRepository, notesClient grpcc
 }
 
 func (u *attachmentUsecase) GetAttachment(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID, userID uuid.UUID) (*models.Attachment, types.AppErrorInterface) {
-	attachment, err := u.attachmentRepo.GetAttachment(ctx, blockID)
-	if err != nil {
-		return nil, err
+	attachment, customErr := u.attachmentRepo.GetAttachment(ctx, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if attachment == nil {
@@ -208,17 +208,17 @@ func (u *attachmentUsecase) DeleteAttachment(ctx context.Context, noteID uuid.UU
 		}
 	}
 
-	if err := u.attachmentRepo.DeleteAttachment(ctx, blockID); err != nil {
-		return err
+	if customErr := u.attachmentRepo.DeleteAttachment(ctx, blockID); customErr != nil {
+		return customErr
 	}
 
 	return nil
 }
 
 func (u *attachmentUsecase) GetHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Header, types.AppErrorInterface) {
-	header, err := u.attachmentRepo.GetHeader(ctx, noteID)
-	if err != nil {
-		return nil, err
+	header, customErr := u.attachmentRepo.GetHeader(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if header == nil {
@@ -243,18 +243,17 @@ func (u *attachmentUsecase) UploadHeader(
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Header, types.AppErrorInterface) {
-	header, err := u.attachmentRepo.UploadHeader(ctx, noteID, fileName, fileSize, mimeType, fileReader)
-	if err != nil {
-		return nil, err
+	header, customErr := u.attachmentRepo.UploadHeader(ctx, noteID, fileName, fileSize, mimeType, fileReader)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return header, nil
 }
 
 func (u *attachmentUsecase) DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface {
-	err := u.attachmentRepo.DeleteHeader(ctx, noteID)
-	if err != nil {
-		return err
+	if customErr := u.attachmentRepo.DeleteHeader(ctx, noteID); customErr != nil {
+		return customErr
 	}
 
 	return nil

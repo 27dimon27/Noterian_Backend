@@ -51,9 +51,9 @@ func NewNoteUsecase(noteRepository NoteRepository, attachmentsClient grpcclient.
 }
 
 func (u *noteUsecase) GetNotes(ctx context.Context, userID uuid.UUID) ([]models.Note, types.AppErrorInterface) {
-	notes, err := u.noteRepository.GetNotes(ctx, userID)
-	if err != nil {
-		return nil, err
+	notes, customErr := u.noteRepository.GetNotes(ctx, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return notes, nil
@@ -107,9 +107,9 @@ func (u *noteUsecase) GetNote(ctx context.Context, noteID uuid.UUID, userID uuid
 }
 
 func (u *noteUsecase) GetPublicNote(ctx context.Context, noteID uuid.UUID) (*models.Note, types.AppErrorInterface) {
-	note, err := u.noteRepository.GetNote(ctx, noteID)
-	if err != nil {
-		return nil, err
+	note, customErr := u.noteRepository.GetNote(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if note == nil || !note.IsPublic {
@@ -136,18 +136,18 @@ func (u *noteUsecase) CreateNote(ctx context.Context, note models.Note) (*models
 		}
 	}
 
-	createdNote, err := u.noteRepository.CreateNote(ctx, note)
-	if err != nil {
-		return nil, err
+	createdNote, customErr := u.noteRepository.CreateNote(ctx, note)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return createdNote, nil
 }
 
 func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if note.Title == "" {
@@ -160,9 +160,9 @@ func (u *noteUsecase) UpdateNote(ctx context.Context, noteID uuid.UUID, userID u
 		}
 	}
 
-	updatedNote, err := u.noteRepository.UpdateNote(ctx, noteID, note)
-	if err != nil {
-		return nil, err
+	updatedNote, customErr := u.noteRepository.UpdateNote(ctx, noteID, note)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return updatedNote, nil
@@ -205,9 +205,9 @@ func (u *noteUsecase) DeleteNote(ctx context.Context, noteID uuid.UUID, userID u
 }
 
 func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if block.BlockTypeID <= 0 {
@@ -223,9 +223,9 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 	block.NoteID = noteID
 	block.Content = ""
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
-	if err != nil {
-		return nil, err
+	blocks, customErr := u.noteRepository.GetBlocks(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if block.Position < 0 || block.Position > len(blocks) {
@@ -237,57 +237,56 @@ func (u *noteUsecase) CreateBlock(ctx context.Context, noteID uuid.UUID, userID 
 			Op:         "CreateBlock",
 		}
 	} else {
-		err := u.noteRepository.ShiftBlockPositions(ctx, noteID, block.Position, 1)
-		if err != nil {
-			return nil, err
+		if customErr := u.noteRepository.ShiftBlockPositions(ctx, noteID, block.Position, 1); customErr != nil {
+			return nil, customErr
 		}
 	}
 
-	createdBlock, err := u.noteRepository.CreateBlock(ctx, block)
-	if err != nil {
-		return nil, err
+	createdBlock, customErr := u.noteRepository.CreateBlock(ctx, block)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return createdBlock, nil
 }
 
 func (u *noteUsecase) UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	_, err = u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
+	_, customErr = u.checkBlockAccess(ctx, noteID, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	updatedBlock, err := u.noteRepository.UpdateBlockContent(ctx, blockID, content)
-	if err != nil {
-		return nil, err
+	updatedBlock, customErr := u.noteRepository.UpdateBlockContent(ctx, blockID, content)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return updatedBlock, nil
 }
 
 func (u *noteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	block, err := u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
+	block, customErr := u.checkBlockAccess(ctx, noteID, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if block.Position == newPosition {
 		return block, nil
 	}
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
-	if err != nil {
-		return nil, err
+	blocks, customErr := u.noteRepository.GetBlocks(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if newPosition < 0 || newPosition > len(blocks) {
@@ -300,9 +299,9 @@ func (u *noteUsecase) MoveBlock(ctx context.Context, blockID uuid.UUID, noteID u
 		}
 	}
 
-	updatedBlock, err := u.noteRepository.MoveBlock(ctx, noteID, blockID, block.Position, newPosition)
-	if err != nil {
-		return nil, err
+	updatedBlock, customErr := u.noteRepository.MoveBlock(ctx, noteID, blockID, block.Position, newPosition)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return updatedBlock, nil
@@ -320,8 +319,7 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 	}
 
 	if block.BlockTypeID != 1 && block.BlockTypeID != 5 {
-		err := u.attachmentsClient.DeleteAttachment(ctx, blockID, noteID, userID)
-		if err != nil {
+		if err := u.attachmentsClient.DeleteAttachment(ctx, blockID, noteID, userID); err != nil {
 			return &types.AppError{
 				Err:        fmt.Errorf("grpc error: %w", err),
 				PublicMsg:  notes.PublicMsgErrInternalServer,
@@ -347,8 +345,7 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 		}
 	}
 
-	customErr = u.noteRepository.ShiftBlockPositions(ctx, noteID, block.Position, -1)
-	if customErr != nil {
+	if customErr := u.noteRepository.ShiftBlockPositions(ctx, noteID, block.Position, -1); customErr != nil {
 		return customErr
 	}
 
@@ -356,19 +353,19 @@ func (u *noteUsecase) DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID
 }
 
 func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	block, err := u.checkBlockAccess(ctx, noteID, blockID)
-	if err != nil {
-		return nil, err
+	block, customErr := u.checkBlockAccess(ctx, noteID, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	blockType, err := u.noteRepository.GetBlockType(ctx, block.BlockTypeID)
-	if err != nil {
-		return nil, err
+	blockType, customErr := u.noteRepository.GetBlockType(ctx, block.BlockTypeID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if blockType == nil {
@@ -411,37 +408,37 @@ func (u *noteUsecase) UpdateBlockFormatting(ctx context.Context, blockID uuid.UU
 		}
 	}
 
-	blockFormatting, err := u.noteRepository.UpdateBlockFormatting(ctx, blockID, formattingRange)
-	if err != nil {
-		return nil, err
+	blockFormatting, customErr := u.noteRepository.UpdateBlockFormatting(ctx, blockID, formattingRange)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return blockFormatting, nil
 }
 
 func (u *noteUsecase) GetSubnotes(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) ([]models.Note, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return nil, err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	subnotes, err := u.noteRepository.GetSubnotes(ctx, noteID)
-	if err != nil {
-		return nil, err
+	subnotes, customErr := u.noteRepository.GetSubnotes(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return subnotes, nil
 }
 
 func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID, userID uuid.UUID, note models.Note, hasPosition bool, position int) (*models.Note, uuid.UUID, types.AppErrorInterface) {
-	_, err := u.checkNoteAccess(ctx, parentNoteID, userID)
-	if err != nil {
-		return nil, uuid.Nil, err
+	_, customErr := u.checkNoteAccess(ctx, parentNoteID, userID)
+	if customErr != nil {
+		return nil, uuid.Nil, customErr
 	}
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, parentNoteID)
-	if err != nil {
-		return nil, uuid.Nil, err
+	blocks, customErr := u.noteRepository.GetBlocks(ctx, parentNoteID)
+	if customErr != nil {
+		return nil, uuid.Nil, customErr
 	}
 
 	blockPosition := len(blocks)
@@ -467,50 +464,50 @@ func (u *noteUsecase) CreateSubnote(ctx context.Context, parentNoteID uuid.UUID,
 		Content:     "",
 	}
 
-	if err := u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, 1); err != nil {
-		return nil, uuid.Nil, err
+	if customErr := u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, 1); customErr != nil {
+		return nil, uuid.Nil, customErr
 	}
 
-	createdBlock, err := u.noteRepository.CreateBlock(ctx, block)
-	if err != nil {
+	createdBlock, customErr := u.noteRepository.CreateBlock(ctx, block)
+	if customErr != nil {
 		if shiftErr := u.noteRepository.ShiftBlockPositions(ctx, parentNoteID, blockPosition, -1); shiftErr != nil {
 			return nil, uuid.Nil, &types.AppError{
-				Err:        fmt.Errorf("%w; %w", err.Unwrap(), shiftErr.Unwrap()),
+				Err:        fmt.Errorf("%w; %w", customErr.Unwrap(), shiftErr.Unwrap()),
 				PublicMsg:  notes.PublicMsgErrInternalServer,
 				StatusCode: 500,
 				Layer:      "usecase",
 				Op:         "CreateSubnote",
 			}
 		}
-		return nil, uuid.Nil, err
+		return nil, uuid.Nil, customErr
 	}
 
-	createdNote, err := u.noteRepository.CreateNote(ctx, note)
-	if err != nil {
+	createdNote, customErr := u.noteRepository.CreateNote(ctx, note)
+	if customErr != nil {
 		if _, delErr := u.noteRepository.DeleteBlock(ctx, createdBlock.ID); delErr != nil {
 			return nil, uuid.Nil, &types.AppError{
-				Err:        fmt.Errorf("%w; %w", err.Unwrap(), delErr.Unwrap()),
+				Err:        fmt.Errorf("%w; %w", customErr.Unwrap(), delErr.Unwrap()),
 				PublicMsg:  notes.PublicMsgErrInternalServer,
 				StatusCode: 500,
 				Layer:      "usecase",
 				Op:         "CreateSubnote",
 			}
 		}
-		return nil, uuid.Nil, err
+		return nil, uuid.Nil, customErr
 	}
 
 	return createdNote, createdBlock.ID, nil
 }
 
 func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subnoteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface {
-	_, err := u.checkNoteAccess(ctx, noteID, userID)
-	if err != nil {
-		return err
+	_, customErr := u.checkNoteAccess(ctx, noteID, userID)
+	if customErr != nil {
+		return customErr
 	}
 
-	blocks, err := u.noteRepository.GetBlocks(ctx, noteID)
-	if err != nil {
-		return err
+	blocks, customErr := u.noteRepository.GetBlocks(ctx, noteID)
+	if customErr != nil {
+		return customErr
 	}
 
 	for _, block := range blocks {
@@ -521,25 +518,25 @@ func (u *noteUsecase) DeleteSubnote(ctx context.Context, noteID uuid.UUID, subno
 		}
 	}
 
-	if err := u.noteRepository.DeleteNote(ctx, subnoteID); err != nil {
-		return err
+	if customErr := u.noteRepository.DeleteNote(ctx, subnoteID); customErr != nil {
+		return customErr
 	}
 
 	return nil
 }
 
 func (u *noteUsecase) GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*models.Block, types.AppErrorInterface) {
-	block, err := u.noteRepository.GetBlock(ctx, blockID)
-	if err != nil {
-		return nil, err
+	block, customErr := u.noteRepository.GetBlock(ctx, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return block, nil
 }
 
 func (u *noteUsecase) ShiftBlockPositions(ctx context.Context, noteID uuid.UUID, fromPosition, direction int) types.AppErrorInterface {
-	if err := u.noteRepository.ShiftBlockPositions(ctx, noteID, fromPosition, 1); err != nil {
-		return err
+	if customErr := u.noteRepository.ShiftBlockPositions(ctx, noteID, fromPosition, 1); customErr != nil {
+		return customErr
 	}
 
 	return nil
@@ -632,9 +629,9 @@ func (u *noteUsecase) GenerateNotePDF(ctx context.Context, noteID uuid.UUID, use
 }
 
 func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, types.AppErrorInterface) {
-	note, err := u.noteRepository.GetNote(ctx, noteID)
-	if err != nil {
-		return nil, err
+	note, customErr := u.noteRepository.GetNote(ctx, noteID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if note == nil {
@@ -661,9 +658,9 @@ func (u *noteUsecase) checkNoteAccess(ctx context.Context, noteID uuid.UUID, use
 }
 
 func (u *noteUsecase) checkBlockAccess(ctx context.Context, noteID uuid.UUID, blockID uuid.UUID) (*models.Block, types.AppErrorInterface) {
-	block, err := u.noteRepository.GetBlock(ctx, blockID)
-	if err != nil {
-		return nil, err
+	block, customErr := u.noteRepository.GetBlock(ctx, blockID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if block == nil {

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth/dto"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
 	profilesdto "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/body"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/helpers/write"
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/pkg/jwt"
@@ -19,8 +21,8 @@ import (
 //go:generate mockgen -source=auth.go -destination=mocks/mock_handler_auth.go -package=mocks
 
 type AuthUsecase interface {
-	SignupUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
-	SigninUser(ctx context.Context, username, password string) (*profilesdto.Profile, error)
+	SignupUser(ctx context.Context, username, password string) (*profilesdto.Profile, types.AppErrorInterface)
+	SigninUser(ctx context.Context, username, password string) (*profilesdto.Profile, types.AppErrorInterface)
 	Logout(ctx context.Context, w http.ResponseWriter)
 }
 
@@ -40,39 +42,39 @@ func NewAuthHandler(authUsecase AuthUsecase, jwtConfig config.JWTConfig, logger 
 
 func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		h.logger.Warn("Body is required")
-		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "SignupUser", auth.ErrBodyRequired))
+		write.JSONErrorResponse(w, http.StatusBadRequest, auth.PublicMsgErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			h.logger.Error("Failed to close request body in SignupUser", "error", err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "SignupUser", err))
 		}
 	}()
 
 	var signUpUser dto.SignUpUser
 
 	if err := body.GetBody(r, &signUpUser); err != nil {
-		h.logger.Warn("Error during reading body")
-		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "SignupUser", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.PublicMsgErrInternalServer)
 		return
 	}
 
 	signUpUser.Username = strings.TrimSpace(signUpUser.Username)
 	signUpUser.Password = strings.TrimSpace(signUpUser.Password)
 
-	profile, err := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
-	if err != nil {
+	profile, customErr := h.authUsecase.SignupUser(r.Context(), signUpUser.Username, signUpUser.Password)
+	if customErr != nil {
 		switch {
-		case errors.Is(err, auth.ErrUserExist):
-			h.logger.Warn("User already exists")
-			write.JSONErrorResponse(w, http.StatusConflict, auth.ErrUserExist)
-		case errors.Is(err, auth.ErrInvalidUsername), errors.Is(err, auth.ErrInvalidPassword):
-			h.logger.Warn("Bad request from user")
-			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+		case errors.Is(customErr.Unwrap(), auth.ErrUserExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusConflict, customErr.PublicMessage())
+		case errors.Is(customErr.Unwrap(), auth.ErrInvalidUsername), errors.Is(customErr.Unwrap(), auth.ErrInvalidPassword):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusBadRequest, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -82,36 +84,36 @@ func (h *AuthHandler) SignupUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) SigninUser(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		h.logger.Warn("Body is required")
-		write.JSONErrorResponse(w, http.StatusMethodNotAllowed, auth.ErrMethodNotAllowed)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "SigninUser", auth.ErrBodyRequired))
+		write.JSONErrorResponse(w, http.StatusBadRequest, auth.PublicMsgErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			h.logger.Error("Failed to close request body in SigninUser", "error", err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "SigninUser", err))
 		}
 	}()
 
 	var signInUser dto.SignInUser
 
 	if err := body.GetBody(r, &signInUser); err != nil {
-		h.logger.Warn("Error during reading body")
-		write.JSONErrorResponse(w, http.StatusBadRequest, auth.ErrInvalidInput)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "SigninUser", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.PublicMsgErrInternalServer)
 		return
 	}
 
 	signInUser.Username = strings.TrimSpace(signInUser.Username)
 	signInUser.Password = strings.TrimSpace(signInUser.Password)
 
-	profile, err := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
-	if err != nil {
+	profile, customErr := h.authUsecase.SigninUser(r.Context(), signInUser.Username, signInUser.Password)
+	if customErr != nil {
 		switch {
-		case errors.Is(err, auth.ErrBadCredentials), errors.Is(err, auth.ErrUserNotExist):
-			h.logger.Warn("Wrong credentials")
-			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrBadCredentials)
+		case errors.Is(customErr.Unwrap(), auth.ErrBadCredentials), errors.Is(customErr.Unwrap(), auth.ErrUserNotExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusUnauthorized, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrInternal)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -127,8 +129,8 @@ func (h *AuthHandler) LogoutUser(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) saveUserCookie(w http.ResponseWriter, profile *profilesdto.Profile) {
 	token, err := jwt.GenerateToken(profile.ID.String(), h.jwtConfig.CookieTime, h.jwtConfig.Secret)
 	if err != nil {
-		h.logger.Error("Internal server error", "error", err)
-		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.ErrTokenCreation)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "saveUserCookie", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, auth.PublicMsgErrInternalServer)
 		return
 	}
 

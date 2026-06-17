@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -53,14 +52,14 @@ func NewProfileUsecase(profileRepository ProfileRepository, logger *slog.Logger)
 }
 
 func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface) {
-	profile, err := u.profileRepository.GetProfile(ctx, userID)
-	if err != nil {
-		return nil, err
+	profile, customErr := u.profileRepository.GetProfile(ctx, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
-	if err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, userID)
+	if customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	if avatar != nil {
@@ -71,14 +70,14 @@ func (u *profileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*mod
 }
 
 func (u *profileUsecase) GetProfileByUsername(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
-	profile, err := u.profileRepository.GetProfileByUsername(ctx, username)
-	if err != nil {
-		return nil, err
+	profile, customErr := u.profileRepository.GetProfileByUsername(ctx, username)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	avatar, err := u.profileRepository.GetAvatar(ctx, profile.ID)
-	if err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, profile.ID)
+	if customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	if avatar != nil {
@@ -99,8 +98,8 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 		}
 	}
 
-	existingProfile, err := u.profileRepository.GetProfileByUsername(ctx, profile.Username)
-	if err == nil && existingProfile.ID != userID {
+	existingProfile, customErr := u.profileRepository.GetProfileByUsername(ctx, profile.Username)
+	if customErr == nil && existingProfile.ID != userID {
 		return nil, &types.AppError{
 			Err:        profiles.ErrUsernameExists,
 			PublicMsg:  profiles.PublicMsgErrUsernameExists,
@@ -108,18 +107,18 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 			Layer:      "usecase",
 			Op:         "UpdateProfile",
 		}
-	} else if err != nil && !errors.Is(err.Unwrap(), profiles.ErrUserNotExist) {
-		return nil, err
+	} else if customErr != nil && !customErr.Is(profiles.ErrUserNotExist) {
+		return nil, customErr
 	}
 
-	updatedProfile, err := u.profileRepository.UpdateProfile(ctx, userID, profile)
-	if err != nil {
-		return nil, err
+	updatedProfile, customErr := u.profileRepository.UpdateProfile(ctx, userID, profile)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
-	if err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, userID)
+	if customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	if avatar != nil {
@@ -130,20 +129,20 @@ func (u *profileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, pr
 }
 
 func (u *profileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) types.AppErrorInterface {
-	if err := u.profileRepository.DeleteAvatar(ctx, userID); err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return err
+	if customErr := u.profileRepository.DeleteAvatar(ctx, userID); customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return customErr
 	}
 
-	if err := u.profileRepository.DeleteProfile(ctx, userID); err != nil {
-		return err
+	if customErr := u.profileRepository.DeleteProfile(ctx, userID); customErr != nil {
+		return customErr
 	}
 
 	return nil
 }
 
 func (u *profileUsecase) DeleteProfileWithCookie(ctx context.Context, userID uuid.UUID, w http.ResponseWriter, jwtCfg config.JWTConfig) types.AppErrorInterface {
-	if err := u.DeleteProfile(ctx, userID); err != nil {
-		return err
+	if customErr := u.DeleteProfile(ctx, userID); customErr != nil {
+		return customErr
 	}
 
 	profiles.DeleteCookie(w, jwtCfg.CookieName, jwtCfg.Secure)
@@ -152,9 +151,9 @@ func (u *profileUsecase) DeleteProfileWithCookie(ctx context.Context, userID uui
 }
 
 func (u *profileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, types.AppErrorInterface) {
-	avatar, err := u.profileRepository.GetAvatar(ctx, profileID)
-	if err != nil {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, profileID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if avatar == nil {
@@ -177,17 +176,17 @@ func (u *profileUsecase) UploadAvatar(ctx context.Context,
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Avatar, types.AppErrorInterface) {
-	avatar, err := u.profileRepository.UploadAvatar(ctx, profileID, fileName, fileSize, mimeType, fileReader)
-	if err != nil {
-		return nil, err
+	avatar, customErr := u.profileRepository.UploadAvatar(ctx, profileID, fileName, fileSize, mimeType, fileReader)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return avatar, nil
 }
 
 func (u *profileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) types.AppErrorInterface {
-	if err := u.profileRepository.DeleteAvatar(ctx, profileID); err != nil {
-		return err
+	if customErr := u.profileRepository.DeleteAvatar(ctx, profileID); customErr != nil {
+		return customErr
 	}
 
 	return nil
@@ -204,9 +203,9 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		}
 	}
 
-	passwordHash, err := u.profileRepository.GetPassword(ctx, userID)
-	if err != nil {
-		return nil, err
+	passwordHash, customErr := u.profileRepository.GetPassword(ctx, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	if err := bcrypt.CompareHashAndPassword(passwordHash, []byte(oldPassword)); err != nil {
@@ -219,14 +218,14 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		}
 	}
 
-	updatedProfile, err := u.profileRepository.ChangePassword(ctx, userID, newPassword)
-	if err != nil {
-		return nil, err
+	updatedProfile, customErr := u.profileRepository.ChangePassword(ctx, userID, newPassword)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	avatar, err := u.profileRepository.GetAvatar(ctx, userID)
-	if err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, userID)
+	if customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	if avatar != nil {
@@ -237,9 +236,9 @@ func (u *profileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, o
 }
 
 func (u *profileUsecase) GetPassword(ctx context.Context, userID uuid.UUID) ([]byte, types.AppErrorInterface) {
-	passwordHash, err := u.profileRepository.GetPassword(ctx, userID)
-	if err != nil {
-		return nil, err
+	passwordHash, customErr := u.profileRepository.GetPassword(ctx, userID)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return passwordHash, nil
@@ -266,23 +265,23 @@ func (u *profileUsecase) SignupUser(ctx context.Context, username, password stri
 		}
 	}
 
-	profile, err := u.profileRepository.SignupUser(ctx, username, password)
-	if err != nil {
-		return nil, err
+	profile, customErr := u.profileRepository.SignupUser(ctx, username, password)
+	if customErr != nil {
+		return nil, customErr
 	}
 
 	return profile, nil
 }
 
 func (u *profileUsecase) SigninUser(ctx context.Context, username string) (*models.Profile, types.AppErrorInterface) {
-	profile, err := u.profileRepository.SigninUser(ctx, username)
-	if err != nil {
-		return nil, err
+	profile, customErr := u.profileRepository.SigninUser(ctx, username)
+	if customErr != nil {
+		return nil, customErr
 	}
 
-	avatar, err := u.profileRepository.GetAvatar(ctx, profile.ID)
-	if err != nil && !errors.Is(err.Unwrap(), profiles.ErrAvatarNotFound) {
-		return nil, err
+	avatar, customErr := u.profileRepository.GetAvatar(ctx, profile.ID)
+	if customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	if avatar != nil {

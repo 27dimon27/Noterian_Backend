@@ -190,8 +190,8 @@ func (r *profileRepository) GetAvatar(ctx context.Context, profileID uuid.UUID) 
 
 		newExpiry := time.Now().Add(profiles.PRESIGNED_URL_EXPIRY)
 
-		if err := r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry); err != nil {
-			return nil, err
+		if customErr := r.updateAvatarURL(ctx, avatar.ID, newURL, newExpiry); customErr != nil {
+			return nil, customErr
 		}
 
 		avatar.AvatarURL = newURL
@@ -210,8 +210,8 @@ func (r *profileRepository) UploadAvatar(
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Avatar, types.AppErrorInterface) {
-	if err := r.DeleteAvatar(ctx, profileID); err != nil && !errors.Is(err, profiles.ErrAvatarNotFound) {
-		return nil, err
+	if customErr := r.DeleteAvatar(ctx, profileID); customErr != nil && !customErr.Is(profiles.ErrAvatarNotFound) {
+		return nil, customErr
 	}
 
 	avatarID := uuid.New()

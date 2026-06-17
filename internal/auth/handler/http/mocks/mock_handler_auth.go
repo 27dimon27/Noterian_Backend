@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	dto "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/profiles/dto"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -55,11 +56,11 @@ func (mr *MockAuthUsecaseMockRecorder) Logout(ctx, w any) *gomock.Call {
 }
 
 // SigninUser mocks base method.
-func (m *MockAuthUsecase) SigninUser(ctx context.Context, username, password string) (*dto.Profile, error) {
+func (m *MockAuthUsecase) SigninUser(ctx context.Context, username, password string) (*dto.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SigninUser", ctx, username, password)
 	ret0, _ := ret[0].(*dto.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -70,11 +71,11 @@ func (mr *MockAuthUsecaseMockRecorder) SigninUser(ctx, username, password any) *
 }
 
 // SignupUser mocks base method.
-func (m *MockAuthUsecase) SignupUser(ctx context.Context, username, password string) (*dto.Profile, error) {
+func (m *MockAuthUsecase) SignupUser(ctx context.Context, username, password string) (*dto.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignupUser", ctx, username, password)
 	ret0, _ := ret[0].(*dto.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

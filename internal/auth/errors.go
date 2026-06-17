@@ -5,6 +5,9 @@ import (
 )
 
 var (
+	ErrBodyRequired          = errors.New("body is required")
+	PublicMsgErrBodyRequired = "Тело запроса обязательно"
+
 	ErrInvalidInput     = errors.New("Невалидный ввод")
 	ErrInternal         = errors.New("Неизвестная ошибка сервера")
 	ErrUnauthorized     = errors.New("Неавторизован")

@@ -198,13 +198,13 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 	if customErr != nil {
 		switch {
 		case errors.Is(customErr.Unwrap(), attachments.ErrForbidden):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusForbidden, customErr.PublicMessage())
 		case errors.Is(customErr.Unwrap(), attachments.ErrNoteNotFound), errors.Is(customErr.Unwrap(), attachments.ErrBlockNotFound), errors.Is(customErr.Unwrap(), attachments.ErrAttachmentNotFound):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		case errors.Is(customErr.Unwrap(), attachments.ErrBlockAlreadyHasAttach):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusConflict, customErr.PublicMessage())
 		default:
 			h.logger.Error(customErr.Error())
@@ -263,10 +263,10 @@ func (h *AttachmentHandler) DeleteAttachment(w http.ResponseWriter, r *http.Requ
 	if customErr := h.attachmentUsecase.DeleteAttachment(r.Context(), noteID, blockID, userID); customErr != nil {
 		switch {
 		case errors.Is(customErr.Unwrap(), attachments.ErrForbidden):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusForbidden, customErr.PublicMessage())
 		case errors.Is(customErr.Unwrap(), attachments.ErrNoteNotFound), errors.Is(customErr.Unwrap(), attachments.ErrBlockNotFound), errors.Is(customErr.Unwrap(), attachments.ErrAttachmentNotFound):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
 			h.logger.Error(customErr.Error())
@@ -304,7 +304,7 @@ func (h *AttachmentHandler) GetHeader(w http.ResponseWriter, r *http.Request) {
 	if customErr != nil {
 		switch {
 		case errors.Is(customErr.Unwrap(), attachments.ErrHeaderNotFound):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
 			h.logger.Error(customErr.Error())
@@ -441,7 +441,7 @@ func (h *AttachmentHandler) DeleteHeader(w http.ResponseWriter, r *http.Request)
 	if customErr := h.attachmentUsecase.DeleteHeader(r.Context(), noteID, userID); customErr != nil {
 		switch {
 		case errors.Is(customErr.Unwrap(), attachments.ErrHeaderNotFound):
-			h.logger.Error(customErr.Error())
+			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
 			h.logger.Error(customErr.Error())

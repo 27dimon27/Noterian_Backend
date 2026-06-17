@@ -85,8 +85,8 @@ func (r *AttachmentRepository) GetAttachment(ctx context.Context, blockID uuid.U
 
 		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
 
-		if err := r.updateAttachmentURL(ctx, attachment.ID, newURL, newExpiry); err != nil {
-			return nil, err
+		if customErr := r.updateAttachmentURL(ctx, attachment.ID, newURL, newExpiry); customErr != nil {
+			return nil, customErr
 		}
 
 		attachment.AttachURL = newURL
@@ -105,9 +105,9 @@ func (r *AttachmentRepository) UploadAttachment(
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Attachment, types.AppErrorInterface) {
-	existingAttach, err := r.GetAttachment(ctx, blockID)
-	if err != nil && !err.Is(attachments.ErrAttachmentNotFound) {
-		return nil, err
+	existingAttach, customErr := r.GetAttachment(ctx, blockID)
+	if customErr != nil && !customErr.Is(attachments.ErrAttachmentNotFound) {
+		return nil, customErr
 	}
 
 	if existingAttach != nil {
@@ -281,8 +281,8 @@ func (r *AttachmentRepository) GetHeader(ctx context.Context, noteID uuid.UUID) 
 
 		newExpiry := time.Now().Add(attachments.PRESIGNED_URL_EXPIRY)
 
-		if err := r.updateHeaderURL(ctx, header.ID, newURL, newExpiry); err != nil {
-			return nil, err
+		if customErr := r.updateHeaderURL(ctx, header.ID, newURL, newExpiry); customErr != nil {
+			return nil, customErr
 		}
 
 		header.HeaderURL = newURL
@@ -301,8 +301,8 @@ func (r *AttachmentRepository) UploadHeader(
 	mimeType string,
 	fileReader io.Reader,
 ) (*models.Header, types.AppErrorInterface) {
-	if err := r.DeleteHeader(ctx, noteID); err != nil && !err.Is(attachments.ErrHeaderNotFound) {
-		return nil, err
+	if customErr := r.DeleteHeader(ctx, noteID); customErr != nil && !customErr.Is(attachments.ErrHeaderNotFound) {
+		return nil, customErr
 	}
 
 	headerID := uuid.New()
