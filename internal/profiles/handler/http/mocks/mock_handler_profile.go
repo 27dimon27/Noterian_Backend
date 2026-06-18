@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -44,11 +45,11 @@ func (m *MockProfileUsecase) EXPECT() *MockProfileUsecaseMockRecorder {
 }
 
 // ChangePassword mocks base method.
-func (m *MockProfileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error) {
+func (m *MockProfileUsecase) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChangePassword", ctx, userID, oldPassword, newPassword)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -59,10 +60,10 @@ func (mr *MockProfileUsecaseMockRecorder) ChangePassword(ctx, userID, oldPasswor
 }
 
 // DeleteAvatar mocks base method.
-func (m *MockProfileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) error {
+func (m *MockProfileUsecase) DeleteAvatar(ctx context.Context, profileID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteAvatar", ctx, profileID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -73,10 +74,10 @@ func (mr *MockProfileUsecaseMockRecorder) DeleteAvatar(ctx, profileID any) *gomo
 }
 
 // DeleteProfile mocks base method.
-func (m *MockProfileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) error {
+func (m *MockProfileUsecase) DeleteProfile(ctx context.Context, userID uuid.UUID) types.AppErrorInterface {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteProfile", ctx, userID)
-	ret0, _ := ret[0].(error)
+	ret0, _ := ret[0].(types.AppErrorInterface)
 	return ret0
 }
 
@@ -87,11 +88,11 @@ func (mr *MockProfileUsecaseMockRecorder) DeleteProfile(ctx, userID any) *gomock
 }
 
 // GetAvatar mocks base method.
-func (m *MockProfileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error) {
+func (m *MockProfileUsecase) GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAvatar", ctx, profileID)
 	ret0, _ := ret[0].(*models.Avatar)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -102,11 +103,11 @@ func (mr *MockProfileUsecaseMockRecorder) GetAvatar(ctx, profileID any) *gomock.
 }
 
 // GetProfile mocks base method.
-func (m *MockProfileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error) {
+func (m *MockProfileUsecase) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetProfile", ctx, userID)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -117,11 +118,11 @@ func (mr *MockProfileUsecaseMockRecorder) GetProfile(ctx, userID any) *gomock.Ca
 }
 
 // UpdateProfile mocks base method.
-func (m *MockProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error) {
+func (m *MockProfileUsecase) UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateProfile", ctx, userID, profile)
 	ret0, _ := ret[0].(*models.Profile)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -132,11 +133,11 @@ func (mr *MockProfileUsecaseMockRecorder) UpdateProfile(ctx, userID, profile any
 }
 
 // UploadAvatar mocks base method.
-func (m *MockProfileUsecase) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error) {
+func (m *MockProfileUsecase) UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UploadAvatar", ctx, profileID, fileName, fileSize, mimeType, fileReader)
 	ret0, _ := ret[0].(*models.Avatar)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

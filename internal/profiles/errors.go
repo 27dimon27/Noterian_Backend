@@ -9,13 +9,18 @@ var (
 	ErrUserNotExist          = errors.New("profile not found")
 	PublicMsgErrUserNotExist = "Пользователь не найден"
 
-	ErrInvalidUserID = errors.New("Невалидный UserID")
+	ErrInvalidUserID          = errors.New("invalid userID")
+	PublicMsgErrInvalidUserID = "Невалидный UserID"
 
 	ErrInvalidProfileData          = errors.New("invalid profile data")
 	PublicMsgErrInvalidProfileData = "Невалидные данные профиля"
 
-	ErrFileTooLarge        = errors.New("Слишком большой файл")
-	ErrInvalidMimeType     = errors.New("Неподдерживаемый MIME-тип файла")
+	ErrFileTooLarge          = errors.New("too large file")
+	PublicMsgErrFileTooLarge = "Слишком большой файл"
+
+	ErrInvalidMimeType          = errors.New("unsupported MIME-type of file")
+	PublicMsgErrInvalidMimeType = "Неподдерживаемый MIME-тип файла"
+
 	ErrFailedToUpload      = errors.New("Не удалось загрузить файл")
 	ErrFailedToGenerateURL = errors.New("Не удалось сгенерировать ссылку")
 
@@ -25,7 +30,8 @@ var (
 	ErrWrongPassword          = errors.New("wrong password")
 	PublicMsgErrWrongPassword = "Неверный пароль"
 
-	ErrBodyRequired = errors.New("Тело запроса обязательно")
+	ErrBodyRequired          = errors.New("body is required")
+	PublicMsgErrBodyRequired = "Тело запроса обязательно"
 
 	ErrInvalidPasswordData          = errors.New("invalid password data")
 	PublicMsgErrInvalidPasswordData = "Невалидные данные пароля"

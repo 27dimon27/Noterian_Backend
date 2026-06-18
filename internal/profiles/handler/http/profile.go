@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,13 +22,13 @@ import (
 //go:generate mockgen -source=profile.go -destination=mocks/mock_handler_profile.go -package=mocks
 
 type ProfileUsecase interface {
-	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
-	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, error)
-	DeleteProfile(ctx context.Context, userID uuid.UUID) error
-	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, error)
-	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, error)
-	DeleteAvatar(ctx context.Context, profileID uuid.UUID) error
-	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, error)
+	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface)
+	UpdateProfile(ctx context.Context, userID uuid.UUID, profile models.Profile) (*models.Profile, types.AppErrorInterface)
+	DeleteProfile(ctx context.Context, userID uuid.UUID) types.AppErrorInterface
+	GetAvatar(ctx context.Context, profileID uuid.UUID) (*models.Avatar, types.AppErrorInterface)
+	UploadAvatar(ctx context.Context, profileID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Avatar, types.AppErrorInterface)
+	DeleteAvatar(ctx context.Context, profileID uuid.UUID) types.AppErrorInterface
+	ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) (*models.Profile, types.AppErrorInterface)
 }
 
 type ProfileHandler struct {
@@ -47,20 +48,21 @@ func NewProfileHandler(profileUsecase ProfileUsecase, jwtConfig config.JWTConfig
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "GetProfile", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
-	profile, err := h.profileUsecase.GetProfile(r.Context(), userID)
-	if err != nil {
-		if errors.Is(err, profiles.ErrUserNotExist) {
-			h.logger.Warn("User not found")
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
-			return
+	profile, customErr := h.profileUsecase.GetProfile(r.Context(), userID)
+	if customErr != nil {
+		switch {
+		case errors.Is(customErr.Unwrap(), profiles.ErrUserNotExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
+		default:
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
-		h.logger.Error("Internal server error", "error", err)
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 		return
 	}
 
@@ -71,42 +73,42 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		h.logger.Warn("Body is required")
-		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UpdateProfile", profiles.ErrBodyRequired))
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.PublicMsgErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			h.logger.Error("Failed to close request body in UpdateProfile", "error", err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UpdateProfile", err))
 		}
 	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UpdateProfile", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
 	var dtoUpdateProfile dto.Profile
 
 	if err := body.GetBody(r, &dtoUpdateProfile); err != nil {
-		h.logger.Warn("Error during reading body")
-		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidProfileData)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UpdateProfile", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, profiles.PublicMsgErrInternalServer)
 		return
 	}
 
 	updateProfile := dto.FromProfileDTO(dtoUpdateProfile)
 
-	profile, err := h.profileUsecase.UpdateProfile(r.Context(), userID, updateProfile)
-	if err != nil {
+	profile, customErr := h.profileUsecase.UpdateProfile(r.Context(), userID, updateProfile)
+	if customErr != nil {
 		switch {
-		case errors.Is(err, profiles.ErrInvalidProfileData), errors.Is(err, profiles.ErrUsernameExists), errors.Is(err, profiles.ErrUserNotExist):
-			h.logger.Warn("Bad request from user")
-			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+		case errors.Is(customErr.Unwrap(), profiles.ErrInvalidProfileData), errors.Is(customErr.Unwrap(), profiles.ErrUsernameExists), errors.Is(customErr.Unwrap(), profiles.ErrUserNotExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusBadRequest, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -119,20 +121,19 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "DeleteProfile", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
-	err := h.profileUsecase.DeleteProfile(r.Context(), userID)
-	if err != nil {
+	if customErr := h.profileUsecase.DeleteProfile(r.Context(), userID); customErr != nil {
 		switch {
-		case errors.Is(err, profiles.ErrUserNotExist):
-			h.logger.Warn("Bad request from user")
-			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+		case errors.Is(customErr.Unwrap(), profiles.ErrUserNotExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -153,20 +154,20 @@ func (h *ProfileHandler) DeleteProfile(w http.ResponseWriter, r *http.Request) {
 func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "GetAvatar", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
-	avatar, err := h.profileUsecase.GetAvatar(r.Context(), userID)
-	if err != nil {
+	avatar, customErr := h.profileUsecase.GetAvatar(r.Context(), userID)
+	if customErr != nil {
 		switch {
-		case errors.Is(err, profiles.ErrAvatarNotFound):
-			h.logger.Warn("Avatar not found")
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		case errors.Is(customErr.Unwrap(), profiles.ErrAvatarNotFound):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -179,8 +180,8 @@ func (h *ProfileHandler) GetAvatar(w http.ResponseWriter, r *http.Request) {
 func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
@@ -189,49 +190,56 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(0); err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
-			h.logger.Warn("Too large file for avatar")
-			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, profiles.ErrFileTooLarge)
+			h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", profiles.ErrFileTooLarge))
+			write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, profiles.PublicMsgErrFileTooLarge)
 		} else {
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", err))
+			write.JSONErrorResponse(w, http.StatusInternalServerError, profiles.PublicMsgErrInternalServer)
 		}
 		return
 	}
 
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
-		h.logger.Error("Internal server error", "error", err)
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, profiles.PublicMsgErrInternalServer)
 		return
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			h.logger.Error("Failed to close file in UploadAvatar", "error", err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", err))
 		}
 	}()
 
 	buffer := make([]byte, 512)
 	_, err = file.Read(buffer)
 	if err != nil && err != io.EOF {
-		h.logger.Error("Internal server error", "error", err)
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, profiles.PublicMsgErrInternalServer)
+		return
+	}
+
+	mimeType := http.DetectContentType(buffer)
+
+	if !profiles.AllowedMimeTypes[mimeType] {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", profiles.ErrInvalidMimeType))
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.PublicMsgErrInvalidMimeType)
+		return
+	}
+
+	if fileHeader.Size > profiles.MAX_FILE_SIZE {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "UploadAvatar", profiles.ErrFileTooLarge))
+		write.JSONErrorResponse(w, http.StatusRequestEntityTooLarge, profiles.PublicMsgErrFileTooLarge)
 		return
 	}
 
 	fileToUpload := io.MultiReader(bytes.NewReader(buffer), file)
 
-	mimeType := http.DetectContentType(buffer)
-
-	if !profiles.AllowedMimeTypes[mimeType] {
-		h.logger.Warn("Invalid MIME-type of file")
-		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidMimeType)
+	avatar, customErr := h.profileUsecase.UploadAvatar(r.Context(), userID, fileHeader.Filename, fileHeader.Size, mimeType, fileToUpload)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		return
-	}
-
-	avatar, err := h.profileUsecase.UploadAvatar(r.Context(), userID, fileHeader.Filename, fileHeader.Size, mimeType, fileToUpload)
-	if err != nil {
-		h.logger.Error("Internal server error", "error", err)
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
 	}
 
 	response := dto.ToAvatarDTO(*avatar)
@@ -242,19 +250,19 @@ func (h *ProfileHandler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "DeleteAvatar", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
-	if err := h.profileUsecase.DeleteAvatar(r.Context(), userID); err != nil {
+	if customErr := h.profileUsecase.DeleteAvatar(r.Context(), userID); customErr != nil {
 		switch {
-		case errors.Is(err, profiles.ErrAvatarNotFound):
-			h.logger.Warn("Avatar not found")
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
+		case errors.Is(customErr.Unwrap(), profiles.ErrAvatarNotFound):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}
@@ -264,43 +272,43 @@ func (h *ProfileHandler) DeleteAvatar(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
-		h.logger.Warn("Body is required")
-		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrBodyRequired)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "ChangePassword", profiles.ErrBodyRequired))
+		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.PublicMsgErrBodyRequired)
 		return
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			h.logger.Error("Failed to close request body in ChangePassword", "error", err)
+			h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "ChangePassword", err))
 		}
 	}()
 
 	userID, ok := r.Context().Value(types.UserIDKey).(uuid.UUID)
 	if !ok {
-		h.logger.Warn("Invalid userID in context")
-		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.ErrInvalidUserID)
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "handler", "ChangePassword", profiles.ErrInvalidUserID))
+		write.JSONErrorResponse(w, http.StatusUnauthorized, profiles.PublicMsgErrInvalidUserID)
 		return
 	}
 
 	var dtoUpdatePassword dto.UpdatePassword
 
 	if err := body.GetBody(r, &dtoUpdatePassword); err != nil {
-		h.logger.Warn("Error during reading body")
-		write.JSONErrorResponse(w, http.StatusBadRequest, profiles.ErrInvalidPasswordData)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "ChangePassword", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, profiles.PublicMsgErrInternalServer)
 		return
 	}
 
-	updatedProfile, err := h.profileUsecase.ChangePassword(r.Context(), userID, dtoUpdatePassword.OldPassword, dtoUpdatePassword.NewPassword)
-	if err != nil {
+	updatedProfile, customErr := h.profileUsecase.ChangePassword(r.Context(), userID, dtoUpdatePassword.OldPassword, dtoUpdatePassword.NewPassword)
+	if customErr != nil {
 		switch {
-		case errors.Is(err, profiles.ErrUserNotExist):
-			h.logger.Warn("User not found")
-			write.JSONErrorResponse(w, http.StatusNotFound, err)
-		case errors.Is(err, profiles.ErrWrongPassword), errors.Is(err, profiles.ErrInvalidPasswordData):
-			h.logger.Warn("Wrong credentials")
-			write.JSONErrorResponse(w, http.StatusBadRequest, err)
+		case errors.Is(customErr.Unwrap(), profiles.ErrUserNotExist):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
+		case errors.Is(customErr.Unwrap(), profiles.ErrWrongPassword), errors.Is(customErr.Unwrap(), profiles.ErrInvalidPasswordData):
+			h.logger.Warn(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusBadRequest, customErr.PublicMessage())
 		default:
-			h.logger.Error("Internal server error", "error", err)
-			write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
 		return
 	}

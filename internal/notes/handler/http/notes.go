@@ -877,13 +877,14 @@ func (h *NoteHandler) GetPublicNote(w http.ResponseWriter, r *http.Request) {
 
 	note, customErr := h.noteUsecase.GetPublicNote(r.Context(), noteID)
 	if customErr != nil {
-		if errors.Is(customErr.Unwrap(), notes.ErrNoteNotFound) {
+		switch {
+		case errors.Is(customErr.Unwrap(), notes.ErrNoteNotFound):
 			h.logger.Warn(customErr.Error())
 			write.JSONErrorResponse(w, http.StatusNotFound, customErr.PublicMessage())
-			return
+		default:
+			h.logger.Error(customErr.Error())
+			write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		}
-		h.logger.Error(customErr.Error())
-		write.JSONErrorResponse(w, http.StatusInternalServerError, customErr.PublicMessage())
 		return
 	}
 
