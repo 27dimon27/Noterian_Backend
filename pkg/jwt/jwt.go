@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	ErrInvalidToken  = errors.New("invalid token")
+	ErrInvalidToken          = errors.New("invalid token")
+	PublicMsgErrInvalidToken = "Невалидный токен"
+
 	ErrTokenCreation = errors.New("failed to create token")
 	ErrNoUserID      = errors.New("user_id not found")
 	ErrBadAlgorithm  = errors.New("invalid algorithm")

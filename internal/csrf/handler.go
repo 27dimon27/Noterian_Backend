@@ -1,6 +1,8 @@
 package csrf
 
 import (
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
@@ -8,29 +10,26 @@ import (
 )
 
 type Handler struct {
-	cfg config.CSRFConfig
+	cfg    config.CSRFConfig
+	logger *slog.Logger
 }
 
 type TokenResponse struct {
 	CSRFToken string `json:"csrf_token"`
 }
 
-func NewHandler(cfg config.CSRFConfig) *Handler {
-	return &Handler{cfg: cfg}
+func NewHandler(cfg config.CSRFConfig, logger *slog.Logger) *Handler {
+	return &Handler{
+		cfg:    cfg,
+		logger: logger,
+	}
 }
 
-// GetToken godoc
-// @Summary      Получение CSRF-токена
-// @Description  Возвращает CSRF-токен в теле и Set-Cookie. Используется во всех методах, изменяющих состояние (POST/PUT/DELETE), через заголовок X-CSRF-Token.
-// @Tags         csrf
-// @Produce      json
-// @Success      200  {object}  map[string]string  "CSRF token successfully generated"
-// @Failure      500  {object}  map[string]string  "Internal server error"
-// @Router       /csrf-token [get]
-func (h *Handler) GetToken(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetCSRFToken(w http.ResponseWriter, r *http.Request) {
 	token, err := Generate()
 	if err != nil {
-		write.JSONErrorResponse(w, http.StatusInternalServerError, err)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "handler", "GetCSRFToken", err))
+		write.JSONErrorResponse(w, http.StatusInternalServerError, PublicMsgErrInternalServer)
 		return
 	}
 

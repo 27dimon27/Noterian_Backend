@@ -8,9 +8,12 @@ var (
 	ErrBodyRequired          = errors.New("body is required")
 	PublicMsgErrBodyRequired = "Тело запроса обязательно"
 
-	ErrInvalidInput     = errors.New("Невалидный ввод")
-	ErrInternal         = errors.New("Неизвестная ошибка сервера")
-	ErrUnauthorized     = errors.New("Неавторизован")
+	ErrInvalidInput = errors.New("Невалидный ввод")
+	ErrInternal     = errors.New("Неизвестная ошибка сервера")
+
+	ErrUnauthorized          = errors.New("unauthorized")
+	PublicMsgErrUnauthorized = "Неавторизован"
+
 	ErrMethodNotAllowed = errors.New("Неверный метод")
 
 	ErrBadCredentials          = errors.New("invalid credentials")
@@ -25,7 +28,9 @@ var (
 	ErrUserExist     = errors.New("Пользователь с таким именем уже существует")
 	ErrUserNotExist  = errors.New("Пользователь не найден")
 	ErrTokenCreation = errors.New("Ошибка при создании пользователя")
-	ErrInvalidUserID = errors.New("Невалидный ID пользователя")
+
+	ErrInvalidUserID          = errors.New("invalid userID")
+	PublicMsgErrInvalidUserID = "Невалидный ID пользователя"
 
 	ErrInternalServer          = errors.New("internal server error")
 	PublicMsgErrInternalServer = "Неизвестная ошибка сервера"

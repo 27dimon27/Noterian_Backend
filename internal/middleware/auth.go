@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/auth"
@@ -12,23 +14,26 @@ import (
 	"github.com/google/uuid"
 )
 
-func Auth(next http.Handler, jwtConfig config.JWTConfig) http.Handler {
+func Auth(next http.Handler, jwtConfig config.JWTConfig, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookieJWT, err := r.Cookie(jwtConfig.CookieName)
 		if err != nil {
-			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrUnauthorized)
+			logger.Error(fmt.Sprintf("[%s:%s] %v", "middleware", "Auth", err))
+			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.PublicMsgErrUnauthorized)
 			return
 		}
 
 		tokenPayload, err := jwt.ValidateToken(cookieJWT.Value, jwtConfig.Secret)
 		if err != nil {
-			write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.ErrInvalidToken)
+			logger.Error(fmt.Sprintf("[%s:%s] %v", "middleware", "Auth", err))
+			write.JSONErrorResponse(w, http.StatusUnauthorized, jwt.PublicMsgErrInvalidToken)
 			return
 		}
 
 		userUUID, err := uuid.Parse(tokenPayload.UserID)
 		if err != nil {
-			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.ErrInvalidUserID)
+			logger.Error(fmt.Sprintf("[%s:%s] %v", "middleware", "Auth", err))
+			write.JSONErrorResponse(w, http.StatusUnauthorized, auth.PublicMsgErrInvalidUserID)
 			return
 		}
 

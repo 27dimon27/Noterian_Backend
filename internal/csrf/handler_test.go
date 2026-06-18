@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/config"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var log = logger.Init()
 
 func setupTestHandler() (*Handler, config.CSRFConfig) {
 	cfg := config.CSRFConfig{
@@ -18,7 +21,7 @@ func setupTestHandler() (*Handler, config.CSRFConfig) {
 		CookieTime: 24 * time.Hour,
 		Secure:     true,
 	}
-	handler := NewHandler(cfg)
+	handler := NewHandler(cfg, log)
 	return handler, cfg
 }
 
@@ -29,7 +32,7 @@ func TestNewHandler(t *testing.T) {
 		Secure:     false,
 	}
 
-	handler := NewHandler(cfg)
+	handler := NewHandler(cfg, log)
 	assert.NotNil(t, handler)
 	assert.Equal(t, cfg, handler.cfg)
 }
@@ -41,7 +44,7 @@ func TestHandler_GetToken(t *testing.T) {
 		req := httptest.NewRequest("GET", "/csrf-token", nil)
 		w := httptest.NewRecorder()
 
-		handler.GetToken(w, req)
+		handler.GetCSRFToken(w, req)
 
 		resp := w.Result()
 
@@ -78,7 +81,7 @@ func TestHandler_GetToken(t *testing.T) {
 			req := httptest.NewRequest("GET", "/csrf-token", nil)
 			w := httptest.NewRecorder()
 
-			handler.GetToken(w, req)
+			handler.GetCSRFToken(w, req)
 
 			var response TokenResponse
 			err := json.NewDecoder(w.Result().Body).Decode(&response)
@@ -100,12 +103,12 @@ func TestHandler_GetToken(t *testing.T) {
 			CookieTime: 12 * time.Hour,
 			Secure:     false,
 		}
-		handler := NewHandler(cfg)
+		handler := NewHandler(cfg, log)
 
 		req := httptest.NewRequest("GET", "/csrf-token", nil)
 		w := httptest.NewRecorder()
 
-		handler.GetToken(w, req)
+		handler.GetCSRFToken(w, req)
 
 		cookie := w.Result().Cookies()[0]
 		assert.Equal(t, "custom_csrf", cookie.Name)
@@ -121,7 +124,7 @@ func TestHandler_GetToken(t *testing.T) {
 		req := httptest.NewRequest("GET", "/csrf-token", nil)
 		w := httptest.NewRecorder()
 
-		handler.GetToken(w, req)
+		handler.GetCSRFToken(w, req)
 
 		contentType := w.Result().Header.Get("Content-Type")
 		assert.Contains(t, contentType, "application/json")
@@ -133,7 +136,7 @@ func TestHandler_GetToken(t *testing.T) {
 		req := httptest.NewRequest("GET", "/csrf-token", nil)
 		w := httptest.NewRecorder()
 
-		handler.GetToken(w, req)
+		handler.GetCSRFToken(w, req)
 
 		var response map[string]interface{}
 		err := json.NewDecoder(w.Result().Body).Decode(&response)
@@ -156,7 +159,7 @@ func TestHandler_GetToken(t *testing.T) {
 				req := httptest.NewRequest("GET", "/csrf-token", nil)
 				w := httptest.NewRecorder()
 
-				handler.GetToken(w, req)
+				handler.GetCSRFToken(w, req)
 
 				assert.Equal(t, http.StatusOK, w.Result().StatusCode)
 				done <- true
@@ -174,7 +177,7 @@ func TestCSRFFlow(t *testing.T) {
 
 	req1 := httptest.NewRequest("GET", "/csrf-token", nil)
 	w1 := httptest.NewRecorder()
-	handler.GetToken(w1, req1)
+	handler.GetCSRFToken(w1, req1)
 
 	resp1 := w1.Result()
 

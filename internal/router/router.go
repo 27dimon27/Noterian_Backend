@@ -86,14 +86,14 @@ func New(cfg *config.Config, logger *slog.Logger, db *sql.DB, minioService *mini
 
 	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)
 
-	csrfHandler := csrf.NewHandler(cfg.CSRF)
+	csrfHandler := csrf.NewHandler(cfg.CSRF, logger)
 
 	authMiddleware := func(handler http.Handler) http.Handler {
-		return middleware.Auth(handler, cfg.JWT)
+		return middleware.Auth(handler, cfg.JWT, logger)
 	}
 
 	csrfMiddleware := func(handler http.Handler) http.Handler {
-		return middleware.CSRF(handler, cfg.CSRF)
+		return middleware.CSRF(handler, cfg.CSRF, logger)
 	}
 
 	xssMiddleware := func(handler http.Handler) http.Handler {
@@ -112,7 +112,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *sql.DB, minioService *mini
 
 	r.Handle("GET /metrics", metrics.MetricsHandler())
 
-	r.HandleFunc("GET /csrf-token", csrfHandler.GetToken)
+	r.HandleFunc("GET /csrf-token", csrfHandler.GetCSRFToken)
 
 	r.HandleFunc("POST /signup", authHandler.SignupUser)
 	r.HandleFunc("POST /signin", authHandler.SigninUser)
