@@ -3,9 +3,26 @@ package notes
 import "errors"
 
 var (
-	ErrNoteIDRequired = errors.New("NoteID обязателен")
-	ErrInvalidUserID  = errors.New("Невалидный UserID")
-	ErrInvalidNoteID  = errors.New("Невалидный NoteID")
+	ErrInvalidUserID          = errors.New("invalid userID")
+	PublicMsgErrInvalidUserID = "Невалидный UserID"
+
+	ErrNoteIDRequired          = errors.New("noteID is required")
+	PublicMsgErrNoteIDRequired = "NoteID обязателен"
+
+	ErrInvalidNoteID          = errors.New("invalid noteID")
+	PublicMsgErrInvalidNoteID = "Невалидный NoteID"
+
+	ErrSubnoteIDRequired          = errors.New("subnoteID is required")
+	PublicMsgErrSubnoteIDRequired = "SubnoteID обязателен"
+
+	ErrInvalidSubnoteID          = errors.New("invalid subnoteID")
+	PublicMsgErrInvalidSubnoteID = "Невалидный SubnoteID"
+
+	ErrBlockIDRequired          = errors.New("blockID is required")
+	PublicMsgErrBlockIDRequired = "BlockID обязателен"
+
+	ErrInvalidBlockID          = errors.New("invalid blockID")
+	PublicMsgErrInvalidBlockID = "Невалидный BlockID"
 
 	ErrInvalidNoteData          = errors.New("invalid note data")
 	PublicMsgErrInvalidNoteData = "Невалидные данные заметки"
@@ -16,10 +33,11 @@ var (
 	ErrForbidden          = errors.New("access denied")
 	PublicMsgErrForbidden = "Доступ запрещен"
 
-	ErrInvalidUUID      = errors.New("Невалидный UUID")
-	ErrBodyRequired     = errors.New("Тело запроса обязательно")
-	ErrBlockIDRequired  = errors.New("BlockID обязателен")
-	ErrInvalidBlockID   = errors.New("Невалидный BlockID")
+	ErrInvalidUUID = errors.New("Невалидный UUID")
+
+	ErrBodyRequired          = errors.New("body is required")
+	PublicMsgErrBodyRequired = "Тело запроса обязательно"
+
 	ErrInvalidBlockData = errors.New("Невалидные данные блока")
 
 	ErrBlockNotFound          = errors.New("block not found")
