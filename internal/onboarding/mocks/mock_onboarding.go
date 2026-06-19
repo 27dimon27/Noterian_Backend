@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	types "github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,11 +43,11 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // CreateBlock mocks base method.
-func (m *MockRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, error) {
+func (m *MockRepository) CreateBlock(ctx context.Context, block models.Block) (*models.Block, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateBlock", ctx, block)
 	ret0, _ := ret[0].(*models.Block)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 
@@ -57,11 +58,11 @@ func (mr *MockRepositoryMockRecorder) CreateBlock(ctx, block any) *gomock.Call {
 }
 
 // CreateNote mocks base method.
-func (m *MockRepository) CreateNote(ctx context.Context, note models.Note) (*models.Note, error) {
+func (m *MockRepository) CreateNote(ctx context.Context, note models.Note) (*models.Note, types.AppErrorInterface) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateNote", ctx, note)
 	ret0, _ := ret[0].(*models.Note)
-	ret1, _ := ret[1].(error)
+	ret1, _ := ret[1].(types.AppErrorInterface)
 	return ret0, ret1
 }
 

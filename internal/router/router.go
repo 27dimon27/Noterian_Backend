@@ -81,7 +81,7 @@ func New(cfg *config.Config, logger *slog.Logger, db *sql.DB, minioService *mini
 	noteHandler := notesHandler.NewNoteHandler(noteUsecase, logger)
 	profileHandler := profilesHandler.NewProfileHandler(profileUsecase, cfg.JWT, logger)
 
-	wsHub := websocket.NewHub(noteUsecase, profileUsecase, attachmentUsecase)
+	wsHub := websocket.NewHub(noteUsecase, attachmentUsecase, logger)
 	go wsHub.Run(context.Background())
 
 	wsHandler := websocket.NewWebSocketHandler(wsHub, noteUsecase, profileUsecase)

@@ -55,8 +55,8 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	note, _, _, err := h.noteUsecase.GetNote(r.Context(), noteID, userID)
-	if err != nil {
+	note, _, _, customErr := h.noteUsecase.GetNote(r.Context(), noteID, userID)
+	if customErr != nil {
 		http.Error(w, "Note not found", http.StatusNotFound)
 		return
 	}
@@ -66,8 +66,8 @@ func (h *WebSocketHandler) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := h.profileUsecase.GetProfile(r.Context(), userID)
-	if err != nil {
+	profile, customErr := h.profileUsecase.GetProfile(r.Context(), userID)
+	if customErr != nil {
 		http.Error(w, "Failed to get user profile", http.StatusInternalServerError)
 		return
 	}

@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -20,23 +21,23 @@ type Hub struct {
 	unregister        chan *ClientInfo
 	broadcast         chan *BroadcastMessage
 	noteUsecase       NoteUsecaseInterface
-	profileUsecase    ProfileUsecaseInterface
 	attachmentUsecase AttachmentUsecaseInterface
 	storage           *BatchStorage
+	logger            *slog.Logger
 }
 
-func NewHub(noteUsecase NoteUsecaseInterface, profileUsecase ProfileUsecaseInterface, attachmentUsecase AttachmentUsecaseInterface) *Hub {
+func NewHub(noteUsecase NoteUsecaseInterface, attachmentUsecase AttachmentUsecaseInterface, logger *slog.Logger) *Hub {
 	hub := &Hub{
 		rooms:             make(map[string]*NoteRoom),
 		register:          make(chan *ClientInfo, 256),
 		unregister:        make(chan *ClientInfo, 256),
 		broadcast:         make(chan *BroadcastMessage, 512),
 		noteUsecase:       noteUsecase,
-		profileUsecase:    profileUsecase,
 		attachmentUsecase: attachmentUsecase,
+		logger:            logger,
 	}
 
-	hub.storage = NewBatchStorage(hub)
+	hub.storage = NewBatchStorage(hub, logger)
 
 	return hub
 }
@@ -76,11 +77,13 @@ func (h *Hub) Run(ctx context.Context) {
 
 func (h *Hub) handleRegister(client *ClientInfo) {
 	h.mu.Lock()
+
 	room, exists := h.rooms[client.NoteID]
 	if !exists {
 		room = NewNoteRoom(client.NoteID)
 		h.rooms[client.NoteID] = room
 	}
+
 	h.mu.Unlock()
 
 	room.mu.RLock()
@@ -88,12 +91,8 @@ func (h *Hub) handleRegister(client *ClientInfo) {
 	room.mu.RUnlock()
 
 	if isDeleted {
-		client.Send <- WebSocketMessage{
-			Type:   MsgError,
-			UserID: client.UserID,
-			NoteID: client.NoteID,
-			Msg:    map[string]string{"error": "note has been deleted"},
-		}
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleRegister", ErrNoteDeleted))
+		client.Send <- h.errorMessage(ErrNoteDeleted.Error(), client)
 		return
 	}
 
@@ -105,7 +104,7 @@ func (h *Hub) handleRegister(client *ClientInfo) {
 		Type:     MsgUserJoined,
 		UserID:   client.UserID,
 		UserName: client.UserName,
-		Msg:      map[string]string{"message": "user joined"},
+		Msg:      map[string]string{"message": PublicMsgUserJoined},
 	}, client.UserID)
 }
 
@@ -115,6 +114,7 @@ func (h *Hub) handleUnregister(client *ClientInfo) {
 	h.mu.RUnlock()
 
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUnregister", ErrRoomDeleted))
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Hub) handleUnregister(client *ClientInfo) {
 		Type:     MsgUserLeft,
 		UserID:   client.UserID,
 		UserName: client.UserName,
-		Msg:      map[string]string{"message": "user left"},
+		Msg:      map[string]string{"message": PublicMsgUserLeft},
 	}, client.UserID)
 
 	close(client.Send)
@@ -146,6 +146,7 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 	h.mu.RUnlock()
 
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleBroadcast", ErrRoomDeleted))
 		return
 	}
 
@@ -161,7 +162,7 @@ func (h *Hub) handleBroadcast(msg *BroadcastMessage) {
 					select {
 					case c.Send <- m:
 					case <-time.After(5 * time.Second):
-						log.Printf("Client %s send channel blocked", c.UserID)
+						h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleBroadcast", ErrBlockedChannel))
 					}
 				}(client, msg.Message)
 			}
@@ -177,26 +178,29 @@ func (h *Hub) broadcastToRoom(noteID string, message WebSocketMessage, excludeUs
 		Exclude: excludeUserID,
 	}:
 	default:
-		log.Printf("Broadcast channel full for note %s", noteID)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "broadcastToRoom", ErrFullChannel))
 	}
 }
 
 func (h *Hub) sendSyncState(client *ClientInfo, room *NoteRoom) {
 	noteID, err := uuid.Parse(client.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "sendSyncState", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userID, err := uuid.Parse(client.UserID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "sendSyncState", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	note, blocks, blockFormattings, err := h.noteUsecase.GetNote(context.Background(), noteID, userID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	note, blocks, blockFormattings, customErr := h.noteUsecase.GetNote(context.Background(), noteID, userID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -241,6 +245,7 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 	h.mu.RUnlock()
 
 	if !exists || room.IsDeleted {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "HandleOperation", ErrRoomDeleted))
 		return
 	}
 
@@ -328,17 +333,23 @@ func (h *Hub) HandleOperation(noteID string, userID string, msg WebSocketMessage
 
 	case MsgHeartbeat:
 		h.handleHeartbeat(room, userID)
+
+	default:
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "HandleOperation", ErrUnknownOperation))
 	}
 }
 
 func (h *Hub) handleCursorMove(room *NoteRoom, userID string, cursor CursorPosition) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleCursorMove", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	cursor.UserID = client.UserID
 	cursor.UserName = client.UserName
+
 	client.UpdateCursor(cursor)
 
 	h.broadcastToRoom(room.NoteID, WebSocketMessage{
@@ -358,6 +369,8 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleInsertChars", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
@@ -372,6 +385,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 
 	if startCursorPos != endCursorPos {
 		deletedChars := []string{}
+
 		for pos := endCursorPos - 1; pos > startCursorPos; pos-- {
 			deletedChars = append(deletedChars, doc.DeleteChar(pos))
 		}
@@ -398,6 +412,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 
 		chars := []rune(op.Char)
 		newID := ""
+
 		for i, char := range chars {
 			tempID := doc.InsertChar(startCursorPos+i, char, userID)
 			if newID == "" {
@@ -437,6 +452,7 @@ func (h *Hub) handleInsertChars(room *NoteRoom, userID string, msg WebSocketMess
 	} else {
 		chars := []rune(op.Char)
 		newID := ""
+
 		for i, char := range chars {
 			tempID := doc.InsertChar(startCursorPos+i, char, userID)
 			if newID == "" {
@@ -487,11 +503,15 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteChars", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	doc, exists := room.GetCRDTDocument(op.BlockID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteChars", ErrDocumentNotFound))
+		client.Send <- h.errorMessage(ErrDocumentNotFound.Error(), client)
 		return
 	}
 
@@ -500,6 +520,7 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 
 	if startCursorPos != endCursorPos {
 		deletedChars := []string{}
+
 		for pos := endCursorPos - 1; pos >= startCursorPos; pos-- {
 			deletedChars = append(deletedChars, doc.DeleteChar(pos))
 		}
@@ -573,56 +594,60 @@ func (h *Hub) handleDeleteChars(room *NoteRoom, userID string, msg WebSocketMess
 func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *FormattingOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleApplyFormatting", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	room.mu.Lock()
+
 	op.SequenceID = room.SequenceID
 	room.SequenceID++
+
 	room.mu.Unlock()
 
 	blockID, err := uuid.Parse(op.BlockID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid block ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleApplyFormatting", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleApplyFormatting", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
-		return
-	}
-
-	author, ok := room.GetClient(userID)
-	if !ok {
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleApplyFormatting", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	formattingRange := models.FormattingRange{
-		StartPos:  author.LastCursor.StartPosition,
-		EndPos:    author.LastCursor.EndPosition,
+		StartPos:  client.LastCursor.StartPosition,
+		EndPos:    client.LastCursor.EndPosition,
 		Bold:      op.Bold,
 		Italic:    op.Italic,
 		Underline: op.Underline,
 		TextAlign: op.TextAlign,
 	}
 
-	_, err = h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	_, customErr := h.noteUsecase.UpdateBlockFormatting(context.Background(), blockID, noteID, userUUID, formattingRange)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
+		return
 	}
 
 	broadcastOp := FormattingOperation{
 		ID:        uuid.New().String(),
 		BlockID:   op.BlockID,
-		StartPos:  author.LastCursor.StartPosition,
-		EndPos:    author.LastCursor.EndPosition,
+		StartPos:  client.LastCursor.StartPosition,
+		EndPos:    client.LastCursor.EndPosition,
 		Bold:      op.Bold,
 		Italic:    op.Italic,
 		Underline: op.Underline,
@@ -640,17 +665,21 @@ func (h *Hub) handleApplyFormatting(room *NoteRoom, userID string, op *Formattin
 func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleCreateBlock", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleCreateBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleCreateBlock", err))
 		client.Send <- h.errorMessage("Invalid user ID", client)
 		return
 	}
@@ -660,9 +689,10 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 		Position:    op.Position,
 	}
 
-	createdBlock, err := h.noteUsecase.CreateBlock(context.Background(), noteID, userUUID, block)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	createdBlock, customErr := h.noteUsecase.CreateBlock(context.Background(), noteID, userUUID, block)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -699,46 +729,55 @@ func (h *Hub) handleCreateBlock(room *NoteRoom, userID string, op *CreateBlockOp
 func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteBlock", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	blockUUID, err := uuid.Parse(op.BlockID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid block ID", client)
-		return
-	}
-
-	_, blocks, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
-	if err != nil {
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteBlock", err))
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
+	_, blocks, _, customErr := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
+		return
+	}
+
 	prevBlock := &models.Block{}
+
 	for i, block := range blocks {
 		if block.ID == blockUUID {
 			if i == 0 {
 				break
 			}
+
 			prevBlock = &blocks[i]
 		}
 	}
 
-	err = h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	customErr = h.noteUsecase.DeleteBlock(context.Background(), blockUUID, noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -769,30 +808,36 @@ func (h *Hub) handleDeleteBlock(room *NoteRoom, userID string, op *DeleteBlockOp
 func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, op *MoveBlockOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleMoveBlock", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleMoveBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleMoveBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	blockUUID, err := uuid.Parse(op.BlockID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid block ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleMoveBlock", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	_, err = h.noteUsecase.MoveBlock(context.Background(), blockUUID, noteID, userUUID, op.NewPosition)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	_, customErr := h.noteUsecase.MoveBlock(context.Background(), blockUUID, noteID, userUUID, op.NewPosition)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -807,32 +852,38 @@ func (h *Hub) handleMoveBlock(room *NoteRoom, userID string, op *MoveBlockOperat
 func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle string) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteTitle", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteTitle", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteTitle", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	note, _, _, customErr := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
 	note.Title = newTitle
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	_, customErr = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -845,47 +896,57 @@ func (h *Hub) handleUpdateNoteTitle(room *NoteRoom, userID string, newTitle stri
 }
 
 func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic bool) {
-	if !h.isNoteOwner(room.NoteID, userID) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNotePublic", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
-	client, exists := room.GetClient(userID)
-	if !exists {
+	if !h.isNoteOwner(room.NoteID, userID) {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNotePublic", ErrForbidden))
+		client.Send <- h.errorMessage(ErrForbidden.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNotePublic", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNotePublic", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	note, _, _, customErr := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
 	note.IsPublic = isPublic
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	_, customErr = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
 	if !isPublic {
 		room.mu.Lock()
+
 		clients := make([]*ClientInfo, 0, len(room.Clients))
 		for _, c := range room.Clients {
 			clients = append(clients, c)
 		}
+
 		room.mu.Unlock()
 
 		for _, c := range clients {
@@ -893,6 +954,7 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 				Type: MsgNotePrivate,
 				Msg:  "Note is now private",
 			}
+
 			close(c.Send)
 			room.RemoveClient(c.UserID)
 		}
@@ -902,18 +964,22 @@ func (h *Hub) handleUpdateNotePublic(room *NoteRoom, userID string, isPublic boo
 func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAttachmentOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadAttachment", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadAttachment", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadAttachment", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
@@ -924,18 +990,20 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 
 	maxSize, err := getMaxSizeByMimeType(mimeType)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid MIME-type of file", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadAttachment", ErrInvalidMimeType))
+		client.Send <- h.errorMessage(ErrInvalidMimeType.Error(), client)
 		return
 	}
 
 	fileSize := int64(len(op.FileData))
 
 	if fileSize > maxSize {
-		client.Send <- h.errorMessage("File too large", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadAttachment", ErrFileTooLarge))
+		client.Send <- h.errorMessage(ErrFileTooLarge.Error(), client)
 		return
 	}
 
-	attachment, err := h.attachmentUsecase.UploadAttachment(
+	attachment, customErr := h.attachmentUsecase.UploadAttachment(
 		context.Background(),
 		noteID,
 		userUUID,
@@ -946,9 +1014,9 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 		op.HasPosition,
 		op.Position,
 	)
-	if err != nil {
-		log.Printf("Failed to upload attachment: %v", err)
-		client.Send <- h.errorMessage(err.Error(), client)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -974,18 +1042,22 @@ func (h *Hub) handleUploadAttachment(room *NoteRoom, userID string, op *UploadAt
 func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeaderOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadHeader", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadHeader", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadHeader", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
@@ -995,18 +1067,20 @@ func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeader
 	mimeType := http.DetectContentType(buffer)
 
 	if !AllowedMimeTypesForImage[mimeType] {
-		client.Send <- h.errorMessage("Invalid MIME-type of file", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadHeader", ErrInvalidMimeType))
+		client.Send <- h.errorMessage(ErrInvalidMimeType.Error(), client)
 		return
 	}
 
 	fileSize := int64(len(op.FileData))
 
 	if fileSize > MAX_IMAGE_SIZE {
-		client.Send <- h.errorMessage("File too large", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUploadHeader", ErrFileTooLarge))
+		client.Send <- h.errorMessage(ErrFileTooLarge.Error(), client)
 		return
 	}
 
-	header, err := h.attachmentUsecase.UploadHeader(
+	header, customErr := h.attachmentUsecase.UploadHeader(
 		context.Background(),
 		noteID,
 		userUUID,
@@ -1015,9 +1089,9 @@ func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeader
 		mimeType,
 		bytes.NewReader(op.FileData),
 	)
-	if err != nil {
-		log.Printf("Failed to upload header: %v", err)
-		client.Send <- h.errorMessage(err.Error(), client)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -1041,29 +1115,32 @@ func (h *Hub) handleUploadHeader(room *NoteRoom, userID string, op *UploadHeader
 func (h *Hub) handleDeleteHeader(room *NoteRoom, userID string, op *DeleteHeaderOperation) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteHeader", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteHeader", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteHeader", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	err = h.attachmentUsecase.DeleteHeader(
+	if customErr := h.attachmentUsecase.DeleteHeader(
 		context.Background(),
 		noteID,
 		userUUID,
-	)
-	if err != nil {
-		log.Printf("Failed to delete header: %v", err)
-		client.Send <- h.errorMessage(err.Error(), client)
+	); customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -1084,32 +1161,38 @@ func (h *Hub) handleDeleteHeader(room *NoteRoom, userID string, op *DeleteHeader
 func (h *Hub) handleUpdateNoteIcon(room *NoteRoom, userID string, newIcon string) {
 	client, exists := room.GetClient(userID)
 	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteIcon", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteIcon", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleUpdateNoteIcon", err))
+		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
-	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	note, _, _, customErr := h.noteUsecase.GetNote(context.Background(), noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
 	note.Icon = newIcon
 
-	_, err = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
-	if err != nil {
-		client.Send <- h.errorMessage(err.Error(), client)
+	_, customErr = h.noteUsecase.UpdateNote(context.Background(), noteID, userUUID, *note)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
 		return
 	}
 
@@ -1122,33 +1205,42 @@ func (h *Hub) handleUpdateNoteIcon(room *NoteRoom, userID string, newIcon string
 }
 
 func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
-	if !h.isNoteOwner(room.NoteID, userID) {
+	client, exists := room.GetClient(userID)
+	if !exists {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteNote", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
-	client, exists := room.GetClient(userID)
-	if !exists {
+	if !h.isNoteOwner(room.NoteID, userID) {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteNote", ErrForbidden))
+		client.Send <- h.errorMessage(ErrForbidden.Error(), client)
 		return
 	}
 
 	noteID, err := uuid.Parse(room.NoteID)
 	if err != nil {
-		client.Send <- h.errorMessage("Invalid note ID", client)
-		return
-	}
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		client.Send <- h.errorMessage("Invalid user ID", client)
-		return
-	}
-
-	err = h.noteUsecase.DeleteNote(context.Background(), noteID, userUUID)
-	if err != nil {
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteNote", err))
 		client.Send <- h.errorMessage(err.Error(), client)
 		return
 	}
 
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		h.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws", "handleDeleteNote", err))
+		client.Send <- h.errorMessage(err.Error(), client)
+		return
+	}
+
+	customErr := h.noteUsecase.DeleteNote(context.Background(), noteID, userUUID)
+	if customErr != nil {
+		h.logger.Error(customErr.Error())
+		client.Send <- h.errorMessage(customErr.PublicMessage(), client)
+		return
+	}
+
 	room.mu.Lock()
+
 	clients := make([]*ClientInfo, 0, len(room.Clients))
 	for _, c := range room.Clients {
 		clients = append(clients, c)
@@ -1159,10 +1251,13 @@ func (h *Hub) handleDeleteNote(room *NoteRoom, userID string) {
 			Type: MsgNoteDeleted,
 			Msg:  "Note has been deleted",
 		}
+
 		close(c.Send)
 	}
+
 	room.Clients = make(map[string]*ClientInfo)
 	room.IsDeleted = true
+
 	room.mu.Unlock()
 
 	h.mu.Lock()
@@ -1188,6 +1283,7 @@ func (h *Hub) updateCursorsAfterOperation(room *NoteRoom, opType MessageType, op
 		if newStartPos != cursor.StartPosition || newEndPos != cursor.EndPosition {
 			cursor.StartPosition = newStartPos
 			cursor.EndPosition = newEndPos
+
 			room.Clients[i].UpdateCursor(cursor)
 		}
 	}
@@ -1197,14 +1293,17 @@ func (h *Hub) updateCursorsAfterBlockOperation(room *NoteRoom, opType MessageTyp
 	room.mu.RLock()
 	defer room.mu.RUnlock()
 
-	author, ok := room.GetClient(userID)
+	client, ok := room.GetClient(userID)
 	if !ok {
+		h.logger.Warn(fmt.Sprintf("[%s:%s] %v", "ws", "updateCursorsAfterBlockOperation", ErrClientNotFound))
+		client.Send <- h.errorMessage(ErrClientNotFound.Error(), client)
 		return
 	}
 
 	for i, client := range room.Clients {
 		cursor := client.GetCursor()
-		newCursor := TransformCursorPositionAfterBlockOperation(cursor, opType, op, author.LastCursor, block)
+		newCursor := TransformCursorPositionAfterBlockOperation(cursor, opType, op, client.LastCursor, block)
+
 		room.Clients[i].UpdateCursor(newCursor)
 	}
 }
@@ -1220,8 +1319,8 @@ func (h *Hub) isNoteOwner(noteID string, userID string) bool {
 		return false
 	}
 
-	note, _, _, err := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
-	if err != nil || note == nil {
+	note, _, _, customErr := h.noteUsecase.GetNote(context.Background(), noteUUID, userUUID)
+	if customErr != nil || note == nil {
 		return false
 	}
 
@@ -1233,15 +1332,18 @@ func (h *Hub) cleanupInactiveRooms() {
 	defer h.mu.Unlock()
 
 	now := time.Now().Unix()
+
 	for noteID, room := range h.rooms {
 		room.mu.RLock()
+
 		isEmpty := len(room.Clients) == 0
 		isOld := (now - room.CreatedAt) > 600
+
 		room.mu.RUnlock()
 
 		if isEmpty && isOld {
+			h.logger.Info(fmt.Sprintf("[%s:%s] %v", "ws", "cleanupInactiveRooms", fmt.Errorf("cleaned up inactive room %s", noteID)))
 			delete(h.rooms, noteID)
-			log.Printf("Cleaned up inactive room %s", noteID)
 		}
 	}
 }
@@ -1252,6 +1354,7 @@ func (h *Hub) sendHeartbeats() {
 
 	for _, room := range h.rooms {
 		room.mu.RLock()
+
 		for _, client := range room.Clients {
 			select {
 			case client.Send <- WebSocketMessage{
@@ -1261,6 +1364,7 @@ func (h *Hub) sendHeartbeats() {
 			default:
 			}
 		}
+
 		room.mu.RUnlock()
 	}
 }
@@ -1271,11 +1375,15 @@ func (h *Hub) shutdown() {
 
 	for _, room := range h.rooms {
 		room.mu.Lock()
+
 		for _, client := range room.Clients {
 			close(client.Send)
 		}
+
 		room.mu.Unlock()
 	}
+
+	h.logger.Info(fmt.Sprintf("[%s:%s] %s", "ws", "shutdown", "shutting down..."))
 }
 
 func (h *Hub) errorMessage(errMsg string, client *ClientInfo) WebSocketMessage {
@@ -1292,6 +1400,7 @@ func mapToStruct(data any, target any) error {
 	if err != nil {
 		return err
 	}
+
 	return json.Unmarshal(jsonBytes, target)
 }
 

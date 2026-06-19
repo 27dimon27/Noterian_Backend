@@ -2,7 +2,8 @@ package websocket
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -23,14 +24,16 @@ type BatchStorage struct {
 	mu          sync.RWMutex
 	batchTicker *time.Ticker
 	saveQueue   chan *BlockContentUpdate
+	logger      *slog.Logger
 }
 
-func NewBatchStorage(hub *Hub) *BatchStorage {
+func NewBatchStorage(hub *Hub, logger *slog.Logger) *BatchStorage {
 	bs := &BatchStorage{
 		hub:         hub,
 		updates:     make(map[string]*BlockContentUpdate),
 		batchTicker: time.NewTicker(1 * time.Second),
 		saveQueue:   make(chan *BlockContentUpdate, 1000),
+		logger:      logger,
 	}
 
 	return bs
@@ -64,7 +67,7 @@ func (bs *BatchStorage) SaveBlockContent(noteID, blockID, userID, content string
 		Timestamp: time.Now().UnixNano(),
 	}:
 	default:
-		log.Printf("Save queue full for block %s", blockID)
+		bs.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws/BatchStorage", "SaveBlockContent", fmt.Errorf("save queue full for block %s", blockID)))
 		bs.saveSync(noteID, blockID, userID, content)
 	}
 }
@@ -78,11 +81,14 @@ func (bs *BatchStorage) addUpdate(update *BlockContentUpdate) {
 
 func (bs *BatchStorage) flush() {
 	bs.mu.Lock()
+
 	updates := make([]*BlockContentUpdate, 0, len(bs.updates))
 	for _, update := range bs.updates {
 		updates = append(updates, update)
 	}
+
 	bs.updates = make(map[string]*BlockContentUpdate)
+
 	bs.mu.Unlock()
 
 	if len(updates) == 0 {
@@ -93,33 +99,33 @@ func (bs *BatchStorage) flush() {
 		bs.saveSync(update.NoteID, update.BlockID, update.UserID, update.Content)
 	}
 
-	log.Printf("Flushed %d block updates", len(updates))
+	bs.logger.Info(fmt.Sprintf("[%s:%s] %s", "ws/BatchStorage", "flush", fmt.Sprintf("flushed %d block updates", len(updates))))
 }
 
 func (bs *BatchStorage) saveSync(noteID, blockID, userID, content string) {
 	blockUUID, err := uuid.Parse(blockID)
 	if err != nil {
-		log.Printf("Failed to parse block ID: %v", err)
+		bs.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws/BatchStorage", "saveSync", err))
 		return
 	}
 
 	noteUUID, err := uuid.Parse(noteID)
 	if err != nil {
-		log.Printf("Failed to parse note ID: %v", err)
+		bs.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws/BatchStorage", "saveSync", err))
 		return
 	}
 
 	userUUID, err := uuid.Parse(userID)
 	if err != nil {
-		log.Printf("Failed to parse user ID: %v", err)
+		bs.logger.Error(fmt.Sprintf("[%s:%s] %v", "ws/BatchStorage", "saveSync", err))
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = bs.hub.noteUsecase.UpdateBlockContent(ctx, blockUUID, noteUUID, userUUID, content)
-	if err != nil {
-		log.Printf("Failed to save block content: %v", err)
+	_, customErr := bs.hub.noteUsecase.UpdateBlockContent(ctx, blockUUID, noteUUID, userUUID, content)
+	if customErr != nil {
+		bs.logger.Error(customErr.Error())
 	}
 }

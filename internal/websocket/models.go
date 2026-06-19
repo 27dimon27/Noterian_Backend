@@ -2,10 +2,10 @@ package websocket
 
 import (
 	"context"
-	"errors"
 	"io"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -15,8 +15,6 @@ const (
 	MAX_AUDIO_SIZE = 30 * 1024 * 1024
 	MAX_VIDEO_SIZE = 50 * 1024 * 1024
 )
-
-var ErrInvalidMimeType = errors.New("Неподдерживаемый MIME-тип файла")
 
 var AllowedMimeTypesForImage = map[string]bool{
 	"image/jpeg": true,
@@ -199,22 +197,22 @@ type BroadcastMessage struct {
 }
 
 type NoteUsecaseInterface interface {
-	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, error)
-	UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, error)
-	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
-	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, error)
-	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) error
-	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, error)
-	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, error)
-	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, error)
+	GetNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) (*models.Note, []models.Block, map[string]models.BlockFormatting, types.AppErrorInterface)
+	UpdateNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, note models.Note) (*models.Note, types.AppErrorInterface)
+	DeleteNote(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
+	CreateBlock(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, block models.Block) (*models.Block, types.AppErrorInterface)
+	DeleteBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
+	MoveBlock(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, newPosition int) (*models.Block, types.AppErrorInterface)
+	UpdateBlockContent(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, content string) (*models.Block, types.AppErrorInterface)
+	UpdateBlockFormatting(ctx context.Context, blockID uuid.UUID, noteID uuid.UUID, userID uuid.UUID, formattingRange models.FormattingRange) (*models.BlockFormatting, types.AppErrorInterface)
 }
 
 type ProfileUsecaseInterface interface {
-	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, error)
+	GetProfile(ctx context.Context, userID uuid.UUID) (*models.Profile, types.AppErrorInterface)
 }
 
 type AttachmentUsecaseInterface interface {
-	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, error)
-	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, error)
-	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) error
+	UploadAttachment(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader, hasPosition bool, position int) (*models.Attachment, types.AppErrorInterface)
+	UploadHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, mimeType string, fileReader io.Reader) (*models.Header, types.AppErrorInterface)
+	DeleteHeader(ctx context.Context, noteID uuid.UUID, userID uuid.UUID) types.AppErrorInterface
 }

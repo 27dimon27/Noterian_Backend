@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/models"
+	"github.com/go-park-mail-ru/2026_1_WHITECROWSOFT/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -13,8 +14,8 @@ import (
 // onboarding note. It intentionally only exposes the create operations so the
 // seeder cannot mutate or read existing user data.
 type Repository interface {
-	CreateNote(ctx context.Context, note models.Note) (*models.Note, error)
-	CreateBlock(ctx context.Context, block models.Block) (*models.Block, error)
+	CreateNote(ctx context.Context, note models.Note) (*models.Note, types.AppErrorInterface)
+	CreateBlock(ctx context.Context, block models.Block) (*models.Block, types.AppErrorInterface)
 }
 
 type Seeder struct {
@@ -33,8 +34,10 @@ const (
 	blockTypeQuote = 4
 )
 
-const onboardingNoteTitle = "Добро пожаловать в Noterian! 👋"
-const onboardingNoteIcon = ""
+const (
+	onboardingNoteTitle = "Добро пожаловать в Noterian! 👋"
+	onboardingNoteIcon  = ""
+)
 
 type seedBlock struct {
 	typeID  int
@@ -68,23 +71,23 @@ var seedBlocks = []seedBlock{
 // the given user. Callers should treat failures as best-effort: the user has
 // already been created upstream and onboarding content is non-critical.
 func (s *Seeder) SeedOnboardingNote(ctx context.Context, userID uuid.UUID) error {
-	note, err := s.repo.CreateNote(ctx, models.Note{
+	note, customErr := s.repo.CreateNote(ctx, models.Note{
 		UserID: userID,
 		Title:  onboardingNoteTitle,
 		Icon:   onboardingNoteIcon,
 	})
-	if err != nil {
-		return err
+	if customErr != nil {
+		return customErr
 	}
 
 	for i, b := range seedBlocks {
-		if _, err := s.repo.CreateBlock(ctx, models.Block{
+		if _, customErr := s.repo.CreateBlock(ctx, models.Block{
 			NoteID:      note.ID,
 			BlockTypeID: b.typeID,
 			Position:    i,
 			Content:     b.content,
-		}); err != nil {
-			return err
+		}); customErr != nil {
+			return customErr
 		}
 	}
 
