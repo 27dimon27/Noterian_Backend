@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+//go:generate mockgen -source=notes.go -destination=mocks/mock_grpcclient_notes.go -package=mocks
+
 type NotesServiceClient interface {
 	GetNote(ctx context.Context, noteID, userID uuid.UUID) (*notesgen.NoteResponse, error)
 	GetBlock(ctx context.Context, blockID, noteID, userID uuid.UUID) (*notesgen.BlockResponse, error)
